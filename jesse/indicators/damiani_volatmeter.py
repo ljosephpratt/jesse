@@ -5,10 +5,12 @@ from numba import njit
 
 from jesse.helpers import get_candle_source, slice_candles
 
-DamianiVolatmeter = namedtuple('DamianiVolatmeter', ['vol', 'anti'])
+DamianiVolatmeter = namedtuple("DamianiVolatmeter", ["vol", "anti"])
 
 
-def atr(high: np.ndarray, low: np.ndarray, close: np.ndarray, timeperiod: int) -> np.ndarray:
+def atr(
+    high: np.ndarray, low: np.ndarray, close: np.ndarray, timeperiod: int
+) -> np.ndarray:
     tr = np.empty_like(high, dtype=float)
     tr[0] = high[0] - low[0]
     if high.shape[0] > 1:
@@ -30,17 +32,27 @@ def atr(high: np.ndarray, low: np.ndarray, close: np.ndarray, timeperiod: int) -
         k = np.arange(m)  # k = 0,..., m-1
         initial_contrib = initial * (1 - alpha) ** k
         # Build a lower-triangular matrix for weights for indices 1 to m-1
-        exp_matrix = np.tril((1 - alpha) ** (np.subtract.outer(np.arange(m - 1), np.arange(m - 1))))
+        exp_matrix = np.tril(
+            (1 - alpha) ** (np.subtract.outer(np.arange(m - 1), np.arange(m - 1)))
+        )
         # tr[timeperiod:] has length m-1
         sum_vals = alpha * (exp_matrix @ tr[timeperiod:])
         ema_vector[1:] = initial_contrib[1:] + sum_vals
-    atr_array[:timeperiod - 1] = np.nan
-    atr_array[timeperiod - 1:] = ema_vector
+    atr_array[: timeperiod - 1] = np.nan
+    atr_array[timeperiod - 1 :] = ema_vector
     return atr_array
 
-def damiani_volatmeter(candles: np.ndarray, vis_atr: int = 13, vis_std: int = 20, sed_atr: int = 40, sed_std: int = 100,
-                       threshold: float = 1.4, source_type: str = "close",
-                       sequential: bool = False) -> DamianiVolatmeter:
+
+def damiani_volatmeter(
+    candles: np.ndarray,
+    vis_atr: int = 13,
+    vis_std: int = 20,
+    sed_atr: int = 40,
+    sed_std: int = 100,
+    threshold: float = 1.4,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> DamianiVolatmeter:
     """
     Damiani Volatmeter
 
@@ -64,12 +76,15 @@ def damiani_volatmeter(candles: np.ndarray, vis_atr: int = 13, vis_std: int = 20
     atrvis = atr(candles[:, 3], candles[:, 4], candles[:, 2], vis_atr)
     atrsed = atr(candles[:, 3], candles[:, 4], candles[:, 2], sed_atr)
 
-    vol, t = damiani_volatmeter_fast(source, sed_std, atrvis, atrsed, vis_std, threshold)
+    vol, t = damiani_volatmeter_fast(
+        source, sed_std, atrvis, atrsed, vis_std, threshold
+    )
 
     if sequential:
         return DamianiVolatmeter(vol, t)
     else:
         return DamianiVolatmeter(vol[-1], t[-1])
+
 
 def damiani_volatmeter_fast(source, sed_std, atrvis, atrsed, vis_std, threshold):
     from scipy.signal import lfilter

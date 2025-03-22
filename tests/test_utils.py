@@ -7,46 +7,56 @@ from tests.data.test_candles_indicators import test_candles_19
 
 
 def test_anchor_timeframe():
-    assert utils.anchor_timeframe('1m') == '5m'
-    assert utils.anchor_timeframe('3m') == '15m'
-    assert utils.anchor_timeframe('5m') == '30m'
-    assert utils.anchor_timeframe('15m') == '2h'
-    assert utils.anchor_timeframe('30m') == '3h'
-    assert utils.anchor_timeframe('1h') == '4h'
-    assert utils.anchor_timeframe('2h') == '6h'
-    assert utils.anchor_timeframe('3h') == '1D'
-    assert utils.anchor_timeframe('4h') == '1D'
-    assert utils.anchor_timeframe('6h') == '1D'
+    assert utils.anchor_timeframe("1m") == "5m"
+    assert utils.anchor_timeframe("3m") == "15m"
+    assert utils.anchor_timeframe("5m") == "30m"
+    assert utils.anchor_timeframe("15m") == "2h"
+    assert utils.anchor_timeframe("30m") == "3h"
+    assert utils.anchor_timeframe("1h") == "4h"
+    assert utils.anchor_timeframe("2h") == "6h"
+    assert utils.anchor_timeframe("3h") == "1D"
+    assert utils.anchor_timeframe("4h") == "1D"
+    assert utils.anchor_timeframe("6h") == "1D"
 
 
 def test_crossed():
     candles = np.array(test_candles_19)
     cross_100 = utils.crossed(candles[:, 2], 100)
-    assert cross_100 == False
+    assert cross_100 is False
     cross_120 = utils.crossed(candles[:, 2], 120)
-    assert cross_120 == True
+    assert cross_120
     cross_120 = utils.crossed(candles[:, 2], 120, direction="below")
-    assert cross_120 == True
+    assert cross_120
     cross_120 = utils.crossed(candles[:, 2], 120, direction="above")
-    assert cross_120 == False
-    seq_cross_200 = utils.crossed(candles[:, 2], 200, direction="below", sequential=True)
-    assert seq_cross_200[-5] == True
-    seq_cross_200 = utils.crossed(candles[:, 2], 200, direction="above", sequential=True)
-    assert seq_cross_200[-5] == False
+    assert cross_120 is False
+    seq_cross_200 = utils.crossed(
+        candles[:, 2], 200, direction="below", sequential=True
+    )
+    assert seq_cross_200[-5]
+    seq_cross_200 = utils.crossed(
+        candles[:, 2], 200, direction="above", sequential=True
+    )
     seq_cross_120 = utils.crossed(candles[:, 2], 120, sequential=True)
-    assert seq_cross_120[-1] == True
-    array_array_cross_above = utils.crossed(np.array([1., 2, 3, 4, 5, 6]), np.array([3., 3, 3, 3, 3, 3]),
-                                            direction="above",
-                                            sequential=True)
-    assert array_array_cross_above[-3] == True
-    array_array_cross_below = utils.crossed(np.array([1., 2, 3, 2, 1, 6]), np.array([3., 3, 3, 3, 3, 3]),
-                                            direction="below",
-                                            sequential=True)
-    assert array_array_cross_below[-3] == True
-    array_array_cross = utils.crossed(np.array([1., 2, 3, 4, 1, 2]), np.array([3., 3, 3, 3, 3, 3]),
-                                      sequential=True)
-    assert array_array_cross[-3] == True
-    assert array_array_cross[-2] == True
+    assert seq_cross_120[-1]
+    array_array_cross_above = utils.crossed(
+        np.array([1.0, 2, 3, 4, 5, 6]),
+        np.array([3.0, 3, 3, 3, 3, 3]),
+        direction="above",
+        sequential=True,
+    )
+    assert array_array_cross_above[-3]
+    array_array_cross_below = utils.crossed(
+        np.array([1.0, 2, 3, 2, 1, 6]),
+        np.array([3.0, 3, 3, 3, 3, 3]),
+        direction="below",
+        sequential=True,
+    )
+    assert array_array_cross_below[-3]
+    array_array_cross = utils.crossed(
+        np.array([1.0, 2, 3, 4, 1, 2]), np.array([3.0, 3, 3, 3, 3, 3]), sequential=True
+    )
+    assert array_array_cross[-3]
+    assert array_array_cross[-2]
 
 
 def test_estimate_risk():
@@ -54,26 +64,35 @@ def test_estimate_risk():
 
 
 def test_limit_stop_loss():
-    assert utils.limit_stop_loss(100, 105, 'short', 10) == 105
-    assert utils.limit_stop_loss(100, 115, 'short', 10) == 110
-    assert utils.limit_stop_loss(100, 95, 'long', 10) == 95
-    assert utils.limit_stop_loss(100, 85, 'long', 10) == 90
+    assert utils.limit_stop_loss(100, 105, "short", 10) == 105
+    assert utils.limit_stop_loss(100, 115, "short", 10) == 110
+    assert utils.limit_stop_loss(100, 95, "long", 10) == 95
+    assert utils.limit_stop_loss(100, 85, "long", 10) == 90
 
     with pytest.raises(TypeError):
-        utils.limit_stop_loss(100, 85, 'long', 'invalid_input')
-        utils.limit_stop_loss('invalid_input', 105, 'short', 10)
-        utils.limit_stop_loss(100, 'invalid_input', 'short', 10)
+        utils.limit_stop_loss(100, 85, "long", "invalid_input")
+        utils.limit_stop_loss("invalid_input", 105, "short", 10)
+        utils.limit_stop_loss(100, "invalid_input", "short", 10)
         utils.limit_stop_loss(100, 105, 123, 10)
 
 
 def test_numpy_to_pandas():
     candles = np.array(test_candles_19)
     columns = ["Date", "Open", "Close", "High", "Low", "Volume"]
-    df = pd.DataFrame(data=candles, index=pd.to_datetime(candles[:, 0], unit="ms"), columns=columns)
+    df = pd.DataFrame(
+        data=candles, index=pd.to_datetime(candles[:, 0], unit="ms"), columns=columns
+    )
     df["Date"] = pd.to_datetime(df["Date"], unit="ms")
 
-    ohlcv = utils.numpy_candles_to_dataframe(candles, name_date="Date", name_open="Open", name_high="High",
-                                             name_low="Low", name_close="Close", name_volume="Volume")
+    ohlcv = utils.numpy_candles_to_dataframe(
+        candles,
+        name_date="Date",
+        name_open="Open",
+        name_high="High",
+        name_low="Low",
+        name_close="Close",
+        name_volume="Volume",
+    )
 
     pd.testing.assert_frame_equal(df, ohlcv)
 
@@ -83,8 +102,8 @@ def test_qty_to_size():
     assert utils.qty_to_size(2, 49) == 98
 
     with pytest.raises(TypeError):
-        utils.qty_to_size(-10, 'invalid_input')
-        utils.qty_to_size('invalid_input', -10)
+        utils.qty_to_size(-10, "invalid_input")
+        utils.qty_to_size("invalid_input", -10)
     with pytest.raises(TypeError):
         utils.qty_to_size(-10, None)
         utils.qty_to_size(None, -10)
@@ -121,8 +140,8 @@ def test_size_to_qty():
     assert utils.size_to_qty(100, 49, precision=3) == 2.04
 
     with pytest.raises(TypeError):
-        utils.size_to_qty(100, 'invalid_input')
-        utils.size_to_qty('invalid_input', 100)
+        utils.size_to_qty(100, "invalid_input")
+        utils.size_to_qty("invalid_input", 100)
     with pytest.raises(TypeError):
         utils.size_to_qty(100, None)
         utils.size_to_qty(None, 100)
@@ -148,32 +167,39 @@ def test_subtract_floats():
 def test_prices_to_returns():
     series = np.array([50, 10, 100, 25])
     pct = utils.prices_to_returns(series)
-    np.testing.assert_array_equal(pct, np.array([np.nan, -80., 900., -75.]))
+    np.testing.assert_array_equal(pct, np.array([np.nan, -80.0, 900.0, -75.0]))
 
 
 def test_combinations_without_repeat():
     a = np.array([4, 2, 9, 1, 3])
     b = utils.combinations_without_repeat(a)
-    np.testing.assert_array_equal(b, np.array([[4, 2],
-                                               [4, 9],
-                                               [4, 1],
-                                               [4, 3],
-                                               [2, 4],
-                                               [2, 9],
-                                               [2, 1],
-                                               [2, 3],
-                                               [9, 4],
-                                               [9, 2],
-                                               [9, 1],
-                                               [9, 3],
-                                               [1, 4],
-                                               [1, 2],
-                                               [1, 9],
-                                               [1, 3],
-                                               [3, 4],
-                                               [3, 2],
-                                               [3, 9],
-                                               [3, 1]]))
+    np.testing.assert_array_equal(
+        b,
+        np.array(
+            [
+                [4, 2],
+                [4, 9],
+                [4, 1],
+                [4, 3],
+                [2, 4],
+                [2, 9],
+                [2, 1],
+                [2, 3],
+                [9, 4],
+                [9, 2],
+                [9, 1],
+                [9, 3],
+                [1, 4],
+                [1, 2],
+                [1, 9],
+                [1, 3],
+                [3, 4],
+                [3, 2],
+                [3, 9],
+                [3, 1],
+            ]
+        ),
+    )
 
 
 def test_timeframe_to_one_minutes():

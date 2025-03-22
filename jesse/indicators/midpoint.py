@@ -5,8 +5,12 @@ import numpy as np
 from jesse.helpers import get_candle_source, slice_candles
 
 
-def midpoint(candles: np.ndarray, period: int = 14, source_type: str = "close", sequential: bool = False) -> Union[
-    float, np.ndarray]:
+def midpoint(
+    candles: np.ndarray,
+    period: int = 14,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     MIDPOINT - MidPoint over period
 
@@ -35,8 +39,8 @@ def midpoint(candles: np.ndarray, period: int = 14, source_type: str = "close", 
     # Pad the beginning with nans to match the input length if sequential is True
     if sequential:
         result = np.empty_like(source, dtype=float)
-        result[:period - 1] = np.nan
-        result[period - 1:] = midpoints
+        result[: period - 1] = np.nan
+        result[period - 1 :] = midpoints
         return result
     else:
         return midpoints[-1]

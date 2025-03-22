@@ -25,10 +25,10 @@ class RouterClass:
         """
         return [
             {
-                'exchange': r.exchange,
-                'symbol': r.symbol,
-                'timeframe': r.timeframe,
-                'strategy': r.strategy_name,
+                "exchange": r.exchange,
+                "symbol": r.symbol,
+                "timeframe": r.timeframe,
+                "strategy": r.strategy_name,
             }
             for r in self.routes
         ]
@@ -39,11 +39,14 @@ class RouterClass:
         Example:
         [{'exchange': 'Binance', 'symbol': 'BTC-USD', 'timeframe': '3m'}]
         """
-        return [{
-            'exchange': r['exchange'],
-            'symbol': r['symbol'],
-            'timeframe': r['timeframe']
-        } for r in self.data_candles]
+        return [
+            {
+                "exchange": r["exchange"],
+                "symbol": r["symbol"],
+                "timeframe": r["timeframe"],
+            }
+            for r in self.data_candles
+        ]
 
     @property
     def all_formatted_routes(self) -> list:
@@ -55,6 +58,7 @@ class RouterClass:
         self.set_routes(routes)
         self.set_data_candles(data_routes)
         from jesse.store import store
+
         store.reset(force_install_routes=jh.is_unit_testing())
 
     def set_routes(self, routes: List[Any]) -> None:
@@ -69,22 +73,27 @@ class RouterClass:
                 if jh.is_unit_testing():
                     path = sys.path[0]
                     # live plugin
-                    if path.endswith('jesse-live'):
-                        strategies_dir = f'{sys.path[0]}/tests/strategies'
+                    if path.endswith("jesse-live"):
+                        strategies_dir = f"{sys.path[0]}/tests/strategies"
                     # main framework
                     else:
-                        strategies_dir = f'{sys.path[0]}/jesse/strategies'
-                    exists = jh.file_exists(f"{strategies_dir}/{strategy_name}/__init__.py")
+                        strategies_dir = f"{sys.path[0]}/jesse/strategies"
+                    exists = jh.file_exists(
+                        f"{strategies_dir}/{strategy_name}/__init__.py"
+                    )
                 else:
-                    exists = jh.file_exists(f'strategies/{strategy_name}/__init__.py')
+                    exists = jh.file_exists(f"strategies/{strategy_name}/__init__.py")
             else:
                 exists = True
 
             if not exists and isinstance(r["strategy"], str):
                 raise exceptions.InvalidRoutes(
-                    f'A strategy with the name of "{r["strategy"]}" could not be found.')
+                    f'A strategy with the name of "{r["strategy"]}" could not be found.'
+                )
 
-            self.routes.append(Route(r["exchange"], r["symbol"], r["timeframe"], r["strategy"], None))
+            self.routes.append(
+                Route(r["exchange"], r["symbol"], r["timeframe"], r["strategy"], None)
+            )
 
     def set_market_data(self, routes: List[Any]) -> None:
         self.market_data = []

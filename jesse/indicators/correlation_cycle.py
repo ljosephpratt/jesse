@@ -5,11 +5,16 @@ from numba import njit
 
 from jesse.helpers import get_candle_source, np_shift, slice_candles
 
-CC = namedtuple('CC', ['real', 'imag', 'angle', 'state'])
+CC = namedtuple("CC", ["real", "imag", "angle", "state"])
 
 
-def correlation_cycle(candles: np.ndarray, period: int = 20, threshold: int = 9, source_type: str = "close",
-                      sequential: bool = False) -> CC:
+def correlation_cycle(
+    candles: np.ndarray,
+    period: int = 20,
+    threshold: int = 9,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> CC:
     """
     "Correlation Cycle, Correlation Angle, Market State - John Ehlers
 
@@ -28,10 +33,18 @@ def correlation_cycle(candles: np.ndarray, period: int = 20, threshold: int = 9,
     realPart, imagPart, angle = go_fast(source, period)
 
     priorAngle = np_shift(angle, 1, fill_value=np.nan)
-    angle = np.where(np.logical_and(priorAngle > angle, priorAngle - angle < 270.0), priorAngle, angle)
+    angle = np.where(
+        np.logical_and(priorAngle > angle, priorAngle - angle < 270.0),
+        priorAngle,
+        angle,
+    )
 
     # Market State Function
-    state = np.where(np.abs(angle - priorAngle) < threshold, np.where(angle >= 0.0, 1, np.where(angle < 0.0, -1, 0)), 0)
+    state = np.where(
+        np.abs(angle - priorAngle) < threshold,
+        np.where(angle >= 0.0, 1, np.where(angle < 0.0, -1, 0)),
+        0,
+    )
 
     if sequential:
         return CC(realPart, imagPart, angle, state)
@@ -40,7 +53,9 @@ def correlation_cycle(candles: np.ndarray, period: int = 20, threshold: int = 9,
 
 
 @njit(cache=True)
-def go_fast(source, period):  # Function is compiled to machine code when called the first time
+def go_fast(
+    source, period
+):  # Function is compiled to machine code when called the first time
     # Correlation Cycle Function
     PIx2 = 4.0 * np.arcsin(1.0)
     period = max(2, period)
@@ -89,7 +104,9 @@ def go_fast(source, period):  # Function is compiled to machine code when called
 
     # Correlation Angle Phasor
     HALF_OF_PI = np.arcsin(1.0)
-    angle = np.where(imagPart == 0, 0.0, np.degrees(np.arctan(realPart / imagPart) + HALF_OF_PI))
+    angle = np.where(
+        imagPart == 0, 0.0, np.degrees(np.arctan(realPart / imagPart) + HALF_OF_PI)
+    )
     angle = np.where(imagPart > 0.0, angle - 180.0, angle)
 
     return realPart, imagPart, angle

@@ -21,6 +21,8 @@ def bop(candles: np.ndarray, sequential: bool = False) -> Union[float, np.ndarra
     low_prices = candles[:, 4]
     close_prices = candles[:, 2]
     denominator = high_prices - low_prices
-    bop_values = np.where(denominator != 0, (close_prices - open_prices) / denominator, 0)
+    bop_values = np.where(
+        denominator != 0, (close_prices - open_prices) / denominator, 0
+    )
 
     return bop_values if sequential else bop_values[-1]

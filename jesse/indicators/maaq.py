@@ -3,11 +3,17 @@ from typing import Union
 import numpy as np
 from numba import njit
 
-from jesse.helpers import (get_candle_source, np_shift, same_length,
-                           slice_candles)
+from jesse.helpers import get_candle_source, np_shift, same_length, slice_candles
 
 
-def maaq(candles: np.ndarray, period: int = 11, fast_period: int = 2, slow_period: int = 30, source_type: str = "close", sequential: bool = False) -> Union[float, np.ndarray]:
+def maaq(
+    candles: np.ndarray,
+    period: int = 11,
+    fast_period: int = 2,
+    slow_period: int = 30,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     Moving Average Adaptive Q
 
@@ -32,7 +38,12 @@ def maaq(candles: np.ndarray, period: int = 11, fast_period: int = 2, slow_perio
 
     diff = np.abs(source - np_shift(source, 1, np.nan))
     signal = np.abs(source - np_shift(source, period, np.nan))
-    noise = np.concatenate((np.full(period - 1, np.nan, dtype=source.dtype), np.convolve(diff, np.ones(period, dtype=source.dtype), mode='valid')))
+    noise = np.concatenate(
+        (
+            np.full(period - 1, np.nan, dtype=source.dtype),
+            np.convolve(diff, np.ones(period, dtype=source.dtype), mode="valid"),
+        )
+    )
 
     # Safely divide signal by noise
     ratio = np.divide(signal, noise, out=np.zeros_like(signal), where=(noise != 0))

@@ -15,15 +15,17 @@ def _pvi_fast(source: np.ndarray, volume: np.ndarray) -> np.ndarray:
     pvi[0] = 1000  # Starting value
 
     for i in range(1, len(source)):
-        if volume[i] > volume[i-1]:
-            pvi[i] = pvi[i-1] * (1 + (source[i] - source[i-1]) / source[i-1])
+        if volume[i] > volume[i - 1]:
+            pvi[i] = pvi[i - 1] * (1 + (source[i] - source[i - 1]) / source[i - 1])
         else:
-            pvi[i] = pvi[i-1]
+            pvi[i] = pvi[i - 1]
 
     return pvi
 
 
-def pvi(candles: np.ndarray, source_type: str = "close", sequential: bool = False) -> Union[float, np.ndarray]:
+def pvi(
+    candles: np.ndarray, source_type: str = "close", sequential: bool = False
+) -> Union[float, np.ndarray]:
     """
     PVI - Positive Volume Index
 

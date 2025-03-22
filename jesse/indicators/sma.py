@@ -5,8 +5,12 @@ import numpy as np
 from jesse.helpers import get_candle_source, slice_candles
 
 
-def sma(candles: np.ndarray, period: int = 5, source_type: str = "close", sequential: bool = False) -> Union[
-    float, np.ndarray]:
+def sma(
+    candles: np.ndarray,
+    period: int = 5,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     SMA - Simple Moving Average
 
@@ -26,6 +30,8 @@ def sma(candles: np.ndarray, period: int = 5, source_type: str = "close", sequen
 
     res = np.full(source.shape, np.nan)
     if len(source) >= period:
-        res[period-1:] = np.convolve(source, np.ones(period, dtype=float)/period, mode='valid')
+        res[period - 1 :] = np.convolve(
+            source, np.ones(period, dtype=float) / period, mode="valid"
+        )
 
     return res if sequential else res[-1]

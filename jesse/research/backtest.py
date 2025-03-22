@@ -3,20 +3,20 @@ import copy
 
 
 def backtest(
-        config: dict,
-        routes: List[Dict[str, str]],
-        data_routes: List[Dict[str, str]],
-        candles: dict,
-        warmup_candles: dict = None,
-        generate_tradingview: bool = False,
-        generate_hyperparameters: bool = False,
-        generate_equity_curve: bool = False,
-        benchmark: bool = False,
-        generate_csv: bool = False,
-        generate_json: bool = False,
-        generate_logs: bool = False,
-        hyperparameters: dict = None,
-        fast_mode: bool = False
+    config: dict,
+    routes: List[Dict[str, str]],
+    data_routes: List[Dict[str, str]],
+    candles: dict,
+    warmup_candles: dict = None,
+    generate_tradingview: bool = False,
+    generate_hyperparameters: bool = False,
+    generate_equity_curve: bool = False,
+    benchmark: bool = False,
+    generate_csv: bool = False,
+    generate_json: bool = False,
+    generate_logs: bool = False,
+    hyperparameters: dict = None,
+    fast_mode: bool = False,
 ) -> dict:
     """
     An isolated backtest() function which is perfect for using in research, and AI training
@@ -69,21 +69,21 @@ def backtest(
 
 
 def _isolated_backtest(
-        config: dict,
-        routes: List[Dict[str, str]],
-        data_routes: List[Dict[str, str]],
-        candles: dict,
-        warmup_candles: dict = None,
-        run_silently: bool = True,
-        hyperparameters: dict = None,
-        generate_tradingview: bool = False,
-        generate_csv: bool = False,
-        generate_json: bool = False,
-        generate_equity_curve: bool = False,
-        benchmark: bool = False,
-        generate_hyperparameters: bool = False,
-        generate_logs: bool = False,
-        fast_mode: bool = False,
+    config: dict,
+    routes: List[Dict[str, str]],
+    data_routes: List[Dict[str, str]],
+    candles: dict,
+    warmup_candles: dict = None,
+    run_silently: bool = True,
+    hyperparameters: dict = None,
+    generate_tradingview: bool = False,
+    generate_csv: bool = False,
+    generate_json: bool = False,
+    generate_equity_curve: bool = False,
+    benchmark: bool = False,
+    generate_hyperparameters: bool = False,
+    generate_logs: bool = False,
+    fast_mode: bool = False,
 ) -> dict:
     from jesse.services.validators import validate_routes
     from jesse.modes.backtest_mode import simulator
@@ -94,7 +94,7 @@ def _isolated_backtest(
     from jesse.services.candle import inject_warmup_candles_to_store
     import jesse.helpers as jh
 
-    jesse_config['app']['trading_mode'] = 'backtest'
+    jesse_config["app"]["trading_mode"] = "backtest"
 
     # inject (formatted) configuration values
     set_config(_format_config(config))
@@ -111,14 +111,14 @@ def _isolated_backtest(
 
     # assert that the passed candles are 1m candles
     for key, value in candles.items():
-        candle_set = value['candles']
+        candle_set = value["candles"]
         if candle_set[1][0] - candle_set[0][0] != 60_000:
             raise ValueError(
-                f'Candles passed to the research.backtest() must be 1m candles. '
-                f'\nIf you wish to trade other timeframes, notice that you need to pass it through '
-                f'the timeframe option in your routes. '
-                f'\nThe difference between your candles are {candle_set[1][0] - candle_set[0][0]} milliseconds which more than '
-                f'the accepted 60000 milliseconds.'
+                f"Candles passed to the research.backtest() must be 1m candles. "
+                f"\nIf you wish to trade other timeframes, notice that you need to pass it through "
+                f"the timeframe option in your routes. "
+                f"\nThe difference between your candles are {candle_set[1][0] - candle_set[0][0]} milliseconds which more than "
+                f"the accepted 60000 milliseconds."
             )
 
     # make a copy to make sure we don't mutate the past data causing some issues for multiprocessing tasks
@@ -127,13 +127,11 @@ def _isolated_backtest(
 
     # if warmup_candles is passed, use it
     if warmup_candles:
-        for c in jesse_config['app']['considering_candles']:
+        for c in jesse_config["app"]["considering_candles"]:
             key = jh.key(c[0], c[1])
             # inject warm-up candles
             inject_warmup_candles_to_store(
-                warmup_candles_dict[key]['candles'],
-                c[0],
-                c[1]
+                warmup_candles_dict[key]["candles"], c[0], c[1]
             )
 
     # run backtest simulation
@@ -152,27 +150,27 @@ def _isolated_backtest(
     )
 
     result = {
-        'metrics': {'total': 0, 'win_rate': 0, 'net_profit_percentage': 0},
-        'logs': None,
+        "metrics": {"total": 0, "win_rate": 0, "net_profit_percentage": 0},
+        "logs": None,
     }
 
-    if backtest_result['metrics'] is None:
-        result['metrics'] = {'total': 0, 'win_rate': 0, 'net_profit_percentage': 0}
+    if backtest_result["metrics"] is None:
+        result["metrics"] = {"total": 0, "win_rate": 0, "net_profit_percentage": 0}
     else:
-        result['metrics'] = backtest_result['metrics']
+        result["metrics"] = backtest_result["metrics"]
 
     if generate_tradingview:
-        result['tradingview'] = backtest_result['tradingview']
+        result["tradingview"] = backtest_result["tradingview"]
     if generate_csv:
-        result['csv'] = backtest_result['csv']
+        result["csv"] = backtest_result["csv"]
     if generate_json:
-        result['json'] = backtest_result['json']
+        result["json"] = backtest_result["json"]
     if generate_equity_curve:
-        result['equity_curve'] = backtest_result['equity_curve']
+        result["equity_curve"] = backtest_result["equity_curve"]
     if generate_hyperparameters:
-        result['hyperparameters'] = backtest_result['hyperparameters']
+        result["hyperparameters"] = backtest_result["hyperparameters"]
     if generate_logs:
-        result['logs'] = backtest_result['logs']
+        result["logs"] = backtest_result["logs"]
 
     # reset store and config so rerunning would be flawlessly possible
     reset_config()
@@ -187,31 +185,29 @@ def _format_config(config):
     would be easier to write for the researcher). Hence, we need to reformat the config_dict:
     """
     exchange_config = {
-        'balance': config['starting_balance'],
-        'fee': config['fee'],
-        'type': config['type'],
-        'name': config['exchange'],
+        "balance": config["starting_balance"],
+        "fee": config["fee"],
+        "type": config["type"],
+        "name": config["exchange"],
     }
     # futures exchange has different config, so:
-    if exchange_config['type'] == 'futures':
-        exchange_config['futures_leverage'] = config['futures_leverage']
-        exchange_config['futures_leverage_mode'] = config['futures_leverage_mode']
+    if exchange_config["type"] == "futures":
+        exchange_config["futures_leverage"] = config["futures_leverage"]
+        exchange_config["futures_leverage_mode"] = config["futures_leverage_mode"]
 
     return {
-        'exchanges': {
-            config['exchange']: exchange_config
+        "exchanges": {config["exchange"]: exchange_config},
+        "logging": {
+            "balance_update": True,
+            "order_cancellation": True,
+            "order_execution": True,
+            "order_submission": True,
+            "position_closed": True,
+            "position_increased": True,
+            "position_opened": True,
+            "position_reduced": True,
+            "shorter_period_candles": False,
+            "trading_candles": True,
         },
-        'logging': {
-            'balance_update': True,
-            'order_cancellation': True,
-            'order_execution': True,
-            'order_submission': True,
-            'position_closed': True,
-            'position_increased': True,
-            'position_opened': True,
-            'position_reduced': True,
-            'shorter_period_candles': False,
-            'trading_candles': True
-        },
-        'warm_up_candles': config['warm_up_candles']
+        "warm_up_candles": config["warm_up_candles"],
     }

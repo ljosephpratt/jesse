@@ -6,7 +6,9 @@ from numba import njit
 from jesse.helpers import slice_candles
 
 
-def lrsi(candles: np.ndarray, alpha: float = 0.2, sequential: bool = False) -> Union[float, np.ndarray]:
+def lrsi(
+    candles: np.ndarray, alpha: float = 0.2, sequential: bool = False
+) -> Union[float, np.ndarray]:
     """
     RSI Laguerre Filter
 

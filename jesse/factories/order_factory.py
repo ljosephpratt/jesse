@@ -9,7 +9,6 @@ first_timestamp = 1552309186171
 
 def fake_order(attributes: dict = None) -> Order:
     """
-
     :param attributes:
     :return:
     """
@@ -19,7 +18,7 @@ def fake_order(attributes: dict = None) -> Order:
     global first_timestamp
     first_timestamp += 60000
     exchange = exchanges.SANDBOX
-    symbol = 'BTC-USD'
+    symbol = "BTC-USD"
     side = sides.BUY
     order_type = order_types.LIMIT
     price = randint(40, 100)
@@ -27,14 +26,16 @@ def fake_order(attributes: dict = None) -> Order:
     status = order_statuses.ACTIVE
     created_at = first_timestamp
 
-    return Order({
-        "id": jh.generate_unique_id(),
-        'symbol': attributes.get('symbol', symbol),
-        'exchange': attributes.get('exchange', exchange),
-        'side': attributes.get('side', side),
-        'type': attributes.get('type', order_type),
-        'qty': attributes.get('qty', qty),
-        'price': attributes.get('price', price),
-        'status': attributes.get('status', status),
-        'created_at': attributes.get('created_at', created_at),
-    })
+    return Order(
+        {
+            "id": jh.generate_unique_id(),
+            "symbol": attributes.get("symbol", symbol),
+            "exchange": attributes.get("exchange", exchange),
+            "side": attributes.get("side", side),
+            "type": attributes.get("type", order_type),
+            "qty": attributes.get("qty", qty),
+            "price": attributes.get("price", price),
+            "status": attributes.get("status", status),
+            "created_at": attributes.get("created_at", created_at),
+        }
+    )

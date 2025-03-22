@@ -8,8 +8,12 @@ from numpy.lib.stride_tricks import sliding_window_view
 from jesse.helpers import get_candle_source, same_length, slice_candles
 
 
-def pwma(candles: np.ndarray, period: int = 5, source_type: str = "close", sequential: bool = False) -> Union[
-    float, np.ndarray]:
+def pwma(
+    candles: np.ndarray,
+    period: int = 5,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     Pascals Weighted Moving Average (PWMA)
 
@@ -56,7 +60,7 @@ def combination(n, r) -> int:
 
     r = min(n, n - r)
     if r == 0:
-      return 1
+        return 1
 
     numerator = reduce(mul, range(n, n - r, -1), 1)
     denominator = reduce(mul, range(1, r + 1), 1)

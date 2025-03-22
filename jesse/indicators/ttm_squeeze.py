@@ -4,7 +4,12 @@ from .trange import trange
 import numpy as np
 
 
-def ttm_squeeze(candles: np.ndarray, length_ttms: int = 20, bb_mult_ttms: float = 2.0, kc_mult_low_ttms: float = 2.0) -> bool:
+def ttm_squeeze(
+    candles: np.ndarray,
+    length_ttms: int = 20,
+    bb_mult_ttms: float = 2.0,
+    kc_mult_low_ttms: float = 2.0,
+) -> bool:
     """
     @author daviddtech
     credits: https://www.tradingview.com/script/Mh3EmxF5-TTM-Squeeze-DaviddTech/
@@ -23,8 +28,10 @@ def ttm_squeeze(candles: np.ndarray, length_ttms: int = 20, bb_mult_ttms: float 
     kc_basis_ttms = sma(candles, length_ttms)
     devkc_ttms = sma(trange(candles, sequential=True), period=length_ttms)
 
-    no_sqz_ttms = bb_data.lowerband < kc_basis_ttms - devkc_ttms * \
-        kc_mult_low_ttms or bb_data.upperband > kc_basis_ttms + devkc_ttms * kc_mult_low_ttms
+    no_sqz_ttms = (
+        bb_data.lowerband < kc_basis_ttms - devkc_ttms * kc_mult_low_ttms
+        or bb_data.upperband > kc_basis_ttms + devkc_ttms * kc_mult_low_ttms
+    )
 
     sqz_signal = False
     if no_sqz_ttms:

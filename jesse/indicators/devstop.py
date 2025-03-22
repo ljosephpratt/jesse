@@ -8,9 +8,14 @@ from jesse.indicators.mean_ad import mean_ad
 from jesse.indicators.median_ad import median_ad
 
 
-def devstop(candles: np.ndarray, period: int = 20, mult: float = 0, devtype: int = 0, direction: str = "long",
-            sequential: bool = False) -> Union[
-    float, np.ndarray]:
+def devstop(
+    candles: np.ndarray,
+    period: int = 20,
+    mult: float = 0,
+    devtype: int = 0,
+    direction: str = "long",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     Kase Dev Stops
 
@@ -31,11 +36,15 @@ def devstop(candles: np.ndarray, period: int = 20, mult: float = 0, devtype: int
     AVTR = rolling_mean(rolling_max(high, 2) - rolling_min(low, 2), period)
 
     if devtype == 0:
-       SD = rolling_std(rolling_max(high, 2) - rolling_min(low, 2), period)
+        SD = rolling_std(rolling_max(high, 2) - rolling_min(low, 2), period)
     elif devtype == 1:
-       SD = mean_ad(rolling_max(high, 2) - rolling_min(low, 2), period, sequential=True)
+        SD = mean_ad(
+            rolling_max(high, 2) - rolling_min(low, 2), period, sequential=True
+        )
     elif devtype == 2:
-       SD = median_ad(rolling_max(high, 2) - rolling_min(low, 2), period, sequential=True)
+        SD = median_ad(
+            rolling_max(high, 2) - rolling_min(low, 2), period, sequential=True
+        )
 
     if direction == "long":
         res = rolling_max(high - AVTR - mult * SD, period)
@@ -44,38 +53,42 @@ def devstop(candles: np.ndarray, period: int = 20, mult: float = 0, devtype: int
 
     return res if sequential else res[-1]
 
+
 def rolling_max(arr, window):
     if len(arr) < window:
         return np.full(arr.shape, np.nan)
     windows = sliding_window_view(arr, window)
     res = np.empty(len(arr))
-    res[:window-1] = np.nan
-    res[window-1:] = np.max(windows, axis=1)
+    res[: window - 1] = np.nan
+    res[window - 1 :] = np.max(windows, axis=1)
     return res
+
 
 def rolling_min(arr, window):
     if len(arr) < window:
         return np.full(arr.shape, np.nan)
     windows = sliding_window_view(arr, window)
     res = np.empty(len(arr))
-    res[:window-1] = np.nan
-    res[window-1:] = np.min(windows, axis=1)
+    res[: window - 1] = np.nan
+    res[window - 1 :] = np.min(windows, axis=1)
     return res
+
 
 def rolling_mean(arr, window):
     if len(arr) < window:
         return np.full(arr.shape, np.nan)
     windows = sliding_window_view(arr, window)
     res = np.empty(len(arr))
-    res[:window-1] = np.nan
-    res[window-1:] = np.mean(windows, axis=1)
+    res[: window - 1] = np.nan
+    res[window - 1 :] = np.mean(windows, axis=1)
     return res
+
 
 def rolling_std(arr, window):
     if len(arr) < window:
         return np.full(arr.shape, np.nan)
     windows = sliding_window_view(arr, window)
     res = np.empty(len(arr))
-    res[:window-1] = np.nan
-    res[window-1:] = np.std(windows, axis=1, ddof=0)
+    res[: window - 1] = np.nan
+    res[window - 1 :] = np.std(windows, axis=1, ddof=0)
     return res

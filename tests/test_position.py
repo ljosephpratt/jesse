@@ -6,11 +6,15 @@ from jesse.testing_utils import set_up, single_route_backtest
 def test_increase_a_long_position():
     set_up()
 
-    p = Position(exchanges.SANDBOX, 'BTC-USDT', {
-        'entry_price': 50,
-        'current_price': 50,
-        'qty': 2,
-    })
+    p = Position(
+        exchanges.SANDBOX,
+        "BTC-USDT",
+        {
+            "entry_price": 50,
+            "current_price": 50,
+            "qty": 2,
+        },
+    )
 
     p._mutating_increase(2, 100)
 
@@ -21,11 +25,15 @@ def test_increase_a_long_position():
 def test_increase_a_short_position():
     set_up()
 
-    p = Position(exchanges.SANDBOX, 'BTC-USDT', {
-        'entry_price': 50,
-        'current_price': 50,
-        'qty': -2,
-    })
+    p = Position(
+        exchanges.SANDBOX,
+        "BTC-USDT",
+        {
+            "entry_price": 50,
+            "current_price": 50,
+            "qty": -2,
+        },
+    )
 
     p._mutating_increase(2, 40)
 
@@ -34,13 +42,10 @@ def test_increase_a_short_position():
 
 
 def test_initiating_position():
-    position = Position(exchanges.SANDBOX, 'BTC-USDT', {
-        'current_price': 100,
-        'qty': 0
-    })
+    position = Position(exchanges.SANDBOX, "BTC-USDT", {"current_price": 100, "qty": 0})
 
-    assert position.exchange_name == 'Sandbox'
-    assert position.symbol == 'BTC-USDT'
+    assert position.exchange_name == "Sandbox"
+    assert position.symbol == "BTC-USDT"
     assert position.current_price == 100
     assert position.qty == 0
     assert position.closed_at is None
@@ -52,11 +57,15 @@ def test_initiating_position():
 def test_is_able_to_close_via_reduce_position_too():
     set_up()
 
-    p = Position(exchanges.SANDBOX, 'BTC-USDT', {
-        'entry_price': 50,
-        'current_price': 50,
-        'qty': 2,
-    })
+    p = Position(
+        exchanges.SANDBOX,
+        "BTC-USDT",
+        {
+            "entry_price": 50,
+            "current_price": 50,
+            "qty": 2,
+        },
+    )
 
     p._mutating_reduce(2, 50)
 
@@ -66,7 +75,7 @@ def test_is_able_to_close_via_reduce_position_too():
 def test_open_position():
     set_up()
 
-    p = Position(exchanges.SANDBOX, 'BTC-USDT')
+    p = Position(exchanges.SANDBOX, "BTC-USDT")
 
     assert p.qty == 0
     assert p.entry_price is None
@@ -81,11 +90,15 @@ def test_open_position():
 
 
 def test_position_is_close():
-    p = Position(exchanges.SANDBOX, 'BTC-USDT', {
-        'entry_price': 50,
-        'current_price': 60,
-        'qty': 0,
-    })
+    p = Position(
+        exchanges.SANDBOX,
+        "BTC-USDT",
+        {
+            "entry_price": 50,
+            "current_price": 60,
+            "qty": 0,
+        },
+    )
     assert p.is_close is True
 
     p.qty = 2
@@ -93,11 +106,15 @@ def test_position_is_close():
 
 
 def test_position_is_open():
-    p = Position(exchanges.SANDBOX, 'BTC-USDT', {
-        'entry_price': 50,
-        'current_price': 60,
-        'qty': 2,
-    })
+    p = Position(
+        exchanges.SANDBOX,
+        "BTC-USDT",
+        {
+            "entry_price": 50,
+            "current_price": 60,
+            "qty": 2,
+        },
+    )
     assert p.is_open is True
 
     p.qty = 0
@@ -106,44 +123,64 @@ def test_position_is_open():
 
 def test_position_pnl():
     # long winning position
-    p1: Position = Position(exchanges.SANDBOX, 'BTC-USDT', {
-        'entry_price': 100,
-        'current_price': 110,
-        'qty': 2,
-    })
+    p1: Position = Position(
+        exchanges.SANDBOX,
+        "BTC-USDT",
+        {
+            "entry_price": 100,
+            "current_price": 110,
+            "qty": 2,
+        },
+    )
     assert p1.pnl == 20
 
     # long losing position
-    p2: Position = Position(exchanges.SANDBOX, 'BTC-USDT', {
-        'entry_price': 100,
-        'current_price': 90,
-        'qty': 2,
-    })
+    p2: Position = Position(
+        exchanges.SANDBOX,
+        "BTC-USDT",
+        {
+            "entry_price": 100,
+            "current_price": 90,
+            "qty": 2,
+        },
+    )
     assert p2.pnl == -20
 
     # short winning position
-    p3: Position = Position(exchanges.SANDBOX, 'BTC-USDT', {
-        'entry_price': 100,
-        'current_price': 90,
-        'qty': -2,
-    })
+    p3: Position = Position(
+        exchanges.SANDBOX,
+        "BTC-USDT",
+        {
+            "entry_price": 100,
+            "current_price": 90,
+            "qty": -2,
+        },
+    )
     assert p3.pnl == 20
 
     # short losing position
-    p3: Position = Position(exchanges.SANDBOX, 'BTC-USDT', {
-        'entry_price': 100,
-        'current_price': 110,
-        'qty': -2,
-    })
+    p3: Position = Position(
+        exchanges.SANDBOX,
+        "BTC-USDT",
+        {
+            "entry_price": 100,
+            "current_price": 110,
+            "qty": -2,
+        },
+    )
     assert p3.pnl == -20
 
 
 def test_position_pnl_percentage():
-    p = Position(exchanges.SANDBOX, 'BTC-USDT', {
-        'entry_price': 50,
-        'current_price': 60,
-        'qty': 2,
-    })
+    p = Position(
+        exchanges.SANDBOX,
+        "BTC-USDT",
+        {
+            "entry_price": 50,
+            "current_price": 60,
+            "qty": 2,
+        },
+    )
 
     # long position
     assert p.pnl_percentage == 20
@@ -160,7 +197,7 @@ def test_position_pnl_percentage():
 
 def test_position_roi():
     set_up()
-    p = Position(exchanges.SANDBOX, 'BTC-USDT')
+    p = Position(exchanges.SANDBOX, "BTC-USDT")
     p._mutating_open(3, 100)
     p.current_price = 110
 
@@ -171,46 +208,51 @@ def test_position_roi():
 
 
 def test_position_type():
-    p = Position(exchanges.SANDBOX, 'BTC-USDT', {'current_price': 100, 'qty': 0})
-    assert p.type == 'close'
+    p = Position(exchanges.SANDBOX, "BTC-USDT", {"current_price": 100, "qty": 0})
+    assert p.type == "close"
 
-    p = Position(exchanges.SANDBOX, 'BTC-USDT', {'current_price': 100, 'qty': 1})
-    assert p.type == 'long'
+    p = Position(exchanges.SANDBOX, "BTC-USDT", {"current_price": 100, "qty": 1})
+    assert p.type == "long"
 
-    p = Position(exchanges.SANDBOX, 'BTC-USDT', {
-        'current_price': 100,
-        'qty': -1
-    })
-    assert p.type == 'short'
+    p = Position(exchanges.SANDBOX, "BTC-USDT", {"current_price": 100, "qty": -1})
+    assert p.type == "short"
 
 
 def test_position_value():
-    long_position = Position(exchanges.SANDBOX, 'BTC-USDT', {'current_price': 100, 'qty': 1})
-    short_position = Position(exchanges.SANDBOX, 'BTC-USDT', {'current_price': 100, 'qty': -1})
+    long_position = Position(
+        exchanges.SANDBOX, "BTC-USDT", {"current_price": 100, "qty": 1}
+    )
+    short_position = Position(
+        exchanges.SANDBOX, "BTC-USDT", {"current_price": 100, "qty": -1}
+    )
 
     assert long_position.value == 100
     assert short_position.value == 100
 
-    closed_position_value = Position(exchanges.SANDBOX, 'BTC-USDT', {'qty': 0})
+    closed_position_value = Position(exchanges.SANDBOX, "BTC-USDT", {"qty": 0})
     assert closed_position_value.value == 0
 
 
 def test_position_with_leverage():
     # with 1x leverage
-    single_route_backtest('TestPositionWithLeverage1', leverage=1)
+    single_route_backtest("TestPositionWithLeverage1", leverage=1)
 
     # with 2x leverage
-    single_route_backtest('TestPositionWithLeverage2', leverage=2)
+    single_route_backtest("TestPositionWithLeverage2", leverage=2)
 
 
 def test_reduce_a_long_position():
     set_up()
 
-    p = Position(exchanges.SANDBOX, 'BTC-USDT', {
-        'entry_price': 50,
-        'current_price': 50,
-        'qty': 2,
-    })
+    p = Position(
+        exchanges.SANDBOX,
+        "BTC-USDT",
+        {
+            "entry_price": 50,
+            "current_price": 50,
+            "qty": 2,
+        },
+    )
 
     p._mutating_reduce(1, 50)
 
@@ -220,11 +262,15 @@ def test_reduce_a_long_position():
 def test_reduce_a_short_position():
     set_up()
 
-    p = Position(exchanges.SANDBOX, 'BTC-USDT', {
-        'entry_price': 50,
-        'current_price': 50,
-        'qty': -2,
-    })
+    p = Position(
+        exchanges.SANDBOX,
+        "BTC-USDT",
+        {
+            "entry_price": 50,
+            "current_price": 50,
+            "qty": -2,
+        },
+    )
 
     p._mutating_reduce(1, 50)
 
@@ -232,28 +278,16 @@ def test_reduce_a_short_position():
 
 
 def test_position_exchange_type_property():
-    single_route_backtest(
-        'TestPositionExchangeTypeProperty1',
-        is_futures_trading=True
-    )
+    single_route_backtest("TestPositionExchangeTypeProperty1", is_futures_trading=True)
 
-    single_route_backtest(
-        'TestPositionExchangeTypeProperty2',
-        is_futures_trading=False
-    )
+    single_route_backtest("TestPositionExchangeTypeProperty2", is_futures_trading=False)
 
 
 def test_position_total_cost_property():
     # futures
     single_route_backtest(
-        'TestPositionTotalCostProperty',
-        is_futures_trading=True,
-        leverage=2
+        "TestPositionTotalCostProperty", is_futures_trading=True, leverage=2
     )
 
     # spot
-    single_route_backtest(
-        'TestPositionTotalCostProperty',
-        is_futures_trading=False
-    )
-
+    single_route_backtest("TestPositionTotalCostProperty", is_futures_trading=False)

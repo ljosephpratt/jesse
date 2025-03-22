@@ -4,10 +4,12 @@ import numpy as np
 
 from jesse.helpers import get_candle_source, np_shift, slice_candles
 
-GATOR = namedtuple('GATOR', ['upper', 'lower', 'upper_change', 'lower_change'])
+GATOR = namedtuple("GATOR", ["upper", "lower", "upper_change", "lower_change"])
 
 
-def gatorosc(candles: np.ndarray, source_type: str = "close", sequential: bool = False) -> GATOR:
+def gatorosc(
+    candles: np.ndarray, source_type: str = "close", sequential: bool = False
+) -> GATOR:
     """
     Gator Oscillator by Bill M. Williams
 

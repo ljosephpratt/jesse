@@ -6,8 +6,12 @@ from numpy.lib.stride_tricks import sliding_window_view
 from jesse.helpers import get_candle_source, same_length, slice_candles
 
 
-def sinwma(candles: np.ndarray, period: int = 14, source_type: str = "close", sequential: bool = False) -> Union[
-    float, np.ndarray]:
+def sinwma(
+    candles: np.ndarray,
+    period: int = 14,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     Sine Weighted Moving Average (SINWMA)
 
@@ -25,9 +29,7 @@ def sinwma(candles: np.ndarray, period: int = 14, source_type: str = "close", se
         candles = slice_candles(candles, sequential)
         source = get_candle_source(candles, source_type=source_type)
 
-    sines = np.array(
-        [np.sin((i + 1) * np.pi / (period + 1)) for i in range(period)]
-    )
+    sines = np.array([np.sin((i + 1) * np.pi / (period + 1)) for i in range(period)])
 
     w = sines / sines.sum()
     swv = sliding_window_view(source, window_shape=period)

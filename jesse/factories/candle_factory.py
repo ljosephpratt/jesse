@@ -6,8 +6,7 @@ import numpy as np
 # 2021-01-01T00:00:00+00:00
 first_timestamp = 1609459080000
 open_price = randint(40, 100)
-close_price = randint(open_price, 110) if randint(0, 1) else randint(
-    30, open_price)
+close_price = randint(open_price, 110) if randint(0, 1) else randint(30, open_price)
 max_price = max(open_price, close_price)
 high_price = max_price if randint(0, 1) else randint(max_price, max_price + 10)
 min_price = min(open_price, close_price)
@@ -81,11 +80,14 @@ def fake_candle(attributes: dict = None, reset: bool = False) -> np.ndarray:
     volume = randint(1, 100)
     timestamp = first_timestamp
 
-    return np.array([
-        attributes.get('timestamp', timestamp),
-        attributes.get('open', open_price),
-        attributes.get('close', close_price),
-        attributes.get('high', high_price),
-        attributes.get('low', low_price),
-        attributes.get('volume', volume)
-    ], dtype=np.float64)
+    return np.array(
+        [
+            attributes.get("timestamp", timestamp),
+            attributes.get("open", open_price),
+            attributes.get("close", close_price),
+            attributes.get("high", high_price),
+            attributes.get("low", low_price),
+            attributes.get("volume", volume),
+        ],
+        dtype=np.float64,
+    )

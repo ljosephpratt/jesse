@@ -5,6 +5,7 @@ from numba import njit
 
 from jesse.helpers import slice_candles
 
+
 @njit(cache=True)
 def _compute_aroonosc_nb(high: np.ndarray, low: np.ndarray, period: int) -> np.ndarray:
     n = high.shape[0]
@@ -13,10 +14,10 @@ def _compute_aroonosc_nb(high: np.ndarray, low: np.ndarray, period: int) -> np.n
         for i in range(n):
             result[i] = np.nan
         return result
-    
+
     for i in range(period - 1):
         result[i] = np.nan
-    
+
     for i in range(period - 1, n):
         start = i - period + 1
         best_val = high[start]
@@ -36,7 +37,9 @@ def _compute_aroonosc_nb(high: np.ndarray, low: np.ndarray, period: int) -> np.n
     return result
 
 
-def aroonosc(candles: np.ndarray, period: int = 14, sequential: bool = False) -> Union[float, np.ndarray]:
+def aroonosc(
+    candles: np.ndarray, period: int = 14, sequential: bool = False
+) -> Union[float, np.ndarray]:
     """
     AROONOSC - Aroon Oscillator
 

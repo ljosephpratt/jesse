@@ -32,8 +32,12 @@ def _zlema_fast(source: np.ndarray, period: int) -> np.ndarray:
     return res
 
 
-def zlema(candles: np.ndarray, period: int = 20, source_type: str = "close", sequential: bool = False) -> Union[
-        float, np.ndarray]:
+def zlema(
+    candles: np.ndarray,
+    period: int = 20,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     Zero-Lag Exponential Moving Average
 

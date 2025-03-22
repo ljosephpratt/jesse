@@ -7,8 +7,12 @@ from numpy.lib.stride_tricks import sliding_window_view
 from jesse.helpers import get_candle_source, same_length, slice_candles
 
 
-def swma(candles: np.ndarray, period: int = 5, source_type: str = "close", sequential: bool = False) -> Union[
-    float, np.ndarray]:
+def swma(
+    candles: np.ndarray,
+    period: int = 5,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     Symmetric Weighted Moving Average (SWMA)
 
@@ -34,7 +38,6 @@ def swma(candles: np.ndarray, period: int = 5, source_type: str = "close", seque
     return same_length(candles, res) if sequential else res[-1]
 
 
-
 def symmetric_triangle(n: int = None) -> np.ndarray:
     """Symmetric Triangle with n >= 2
     Returns a numpy array of the nth row of Symmetric Triangle.
@@ -57,8 +60,5 @@ def symmetric_triangle(n: int = None) -> np.ndarray:
             front.pop()
             triangle += front[::-1]
 
-
     triangle_sum = np.sum(triangle)
     return triangle / triangle_sum
-
-

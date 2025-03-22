@@ -5,7 +5,9 @@ import numpy as np
 from jesse.helpers import slice_candles
 
 
-def mfi(candles: np.ndarray, period: int = 14, sequential: bool = False) -> Union[float, np.ndarray]:
+def mfi(
+    candles: np.ndarray, period: int = 14, sequential: bool = False
+) -> Union[float, np.ndarray]:
     """
     MFI - Money Flow Index
 
@@ -37,12 +39,17 @@ def mfi(candles: np.ndarray, period: int = 14, sequential: bool = False) -> Unio
     neg_flow[1:] = np.where(typical_prices[1:] < typical_prices[:-1], raw_mf[1:], 0)
 
     # Compute rolling sums over the specified period using convolution
-    roll_pos = np.convolve(pos_flow, np.ones(period), mode='valid')
-    roll_neg = np.convolve(neg_flow, np.ones(period), mode='valid')
+    roll_pos = np.convolve(pos_flow, np.ones(period), mode="valid")
+    roll_neg = np.convolve(neg_flow, np.ones(period), mode="valid")
 
     # Compute Money Flow Ratio; handle division by zero by treating as infinity
-    with np.errstate(divide='ignore', invalid='ignore'):
-        ratio = np.divide(roll_pos, roll_neg, out=np.full_like(roll_pos, np.inf, dtype=float), where=roll_neg != 0)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        ratio = np.divide(
+            roll_pos,
+            roll_neg,
+            out=np.full_like(roll_pos, np.inf, dtype=float),
+            where=roll_neg != 0,
+        )
 
     # Compute MFI
     mfi_values = 100 - (100 / (1 + ratio))

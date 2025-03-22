@@ -16,9 +16,9 @@ class OrdersState:
         self.storage = {}
         self.active_storage = {}
 
-        for exchange in config['app']['trading_exchanges']:
-            for symbol in config['app']['trading_symbols']:
-                key = f'{exchange}-{symbol}'
+        for exchange in config["app"]["trading_exchanges"]:
+            for symbol in config["app"]["trading_symbols"]:
+                key = f"{exchange}-{symbol}"
                 self.storage[key] = []
                 self.active_storage[key] = []
 
@@ -34,20 +34,18 @@ class OrdersState:
         """
         used after each completed trade
         """
-        key = f'{exchange}-{symbol}'
+        key = f"{exchange}-{symbol}"
         self.storage[key] = []
         self.active_storage[key] = []
 
     def add_order(self, order: Order) -> None:
-        key = f'{order.exchange}-{order.symbol}'
+        key = f"{order.exchange}-{order.symbol}"
         self.storage[key].append(order)
         self.active_storage[key].append(order)
 
     def remove_order(self, order: Order) -> None:
-        key = f'{order.exchange}-{order.symbol}'
-        self.storage[key] = [
-            o for o in self.storage[key] if o.id != order.id
-        ]
+        key = f"{order.exchange}-{order.symbol}"
+        self.storage[key] = [o for o in self.storage[key] if o.id != order.id]
         self.active_storage[key] = [
             o for o in self.active_storage[key] if o.id != order.id
         ]
@@ -65,11 +63,11 @@ class OrdersState:
     # getters
     # # # # # # # # # # # # # # # # #
     def get_orders(self, exchange, symbol) -> List[Order]:
-        key = f'{exchange}-{symbol}'
+        key = f"{exchange}-{symbol}"
         return self.storage.get(key, [])
 
     def get_active_orders(self, exchange, symbol) -> List[Order]:
-        key = f'{exchange}-{symbol}'
+        key = f"{exchange}-{symbol}"
         return self.active_storage.get(key, [])
 
     def get_all_orders(self, exchange: str) -> List[Order]:
@@ -99,14 +97,16 @@ class OrdersState:
     def count(self, exchange: str, symbol: str) -> int:
         return len(self.get_orders(exchange, symbol))
 
-    def get_order_by_id(self, exchange: str, symbol: str, id: str, use_exchange_id: bool = False) -> Order:
-        key = f'{exchange}-{symbol}'
+    def get_order_by_id(
+        self, exchange: str, symbol: str, id: str, use_exchange_id: bool = False
+    ) -> Order:
+        key = f"{exchange}-{symbol}"
 
         if use_exchange_id:
             return fnc.find(lambda o: o.exchange_id == id, self.storage[key])
 
         # make sure id (client_id) is not and empty string
-        if id == '':
+        if id == "":
             return None
 
         return fnc.find(lambda o: id in o.id, reversed(self.storage[key]))
@@ -119,7 +119,9 @@ class OrdersState:
 
         all_orders = self.get_active_orders(exchange, symbol)
         p_side = jh.type_to_side(p.type)
-        entry_orders = [o for o in all_orders if (o.side == p_side and not o.is_canceled)]
+        entry_orders = [
+            o for o in all_orders if (o.side == p_side and not o.is_canceled)
+        ]
 
         return entry_orders
 
@@ -164,7 +166,7 @@ class OrdersState:
         return exit_orders
 
     def update_active_orders(self, exchange: str, symbol: str):
-        key = f'{exchange}-{symbol}'
+        key = f"{exchange}-{symbol}"
         active_orders = [
             order
             for order in self.get_active_orders(exchange, symbol)

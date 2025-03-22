@@ -5,8 +5,12 @@ import numpy as np
 from jesse.helpers import get_candle_source, slice_candles
 
 
-def mom(candles: np.ndarray, period: int = 10, source_type: str = "close", sequential: bool = False) -> Union[
-    float, np.ndarray]:
+def mom(
+    candles: np.ndarray,
+    period: int = 10,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     MOM - Momentum
 

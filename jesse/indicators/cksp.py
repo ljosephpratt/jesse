@@ -4,24 +4,30 @@ import numpy as np
 
 from jesse.helpers import slice_candles
 
-CKSP = namedtuple('CKSP', ['long', 'short'])
+CKSP = namedtuple("CKSP", ["long", "short"])
 
-def atr(high: np.ndarray, low: np.ndarray, close: np.ndarray, timeperiod: int = 10) -> np.ndarray:
+
+def atr(
+    high: np.ndarray, low: np.ndarray, close: np.ndarray, timeperiod: int = 10
+) -> np.ndarray:
     tr = np.empty_like(close)
     tr[0] = high[0] - low[0]
-    tr[1:] = np.maximum.reduce([
-        high[1:] - low[1:],
-        np.abs(high[1:] - close[:-1]),
-        np.abs(low[1:] - close[:-1])
-    ])
+    tr[1:] = np.maximum.reduce(
+        [
+            high[1:] - low[1:],
+            np.abs(high[1:] - close[:-1]),
+            np.abs(low[1:] - close[:-1]),
+        ]
+    )
     atr_vals = np.empty_like(close)
     if len(close) < timeperiod:
         return np.full_like(close, np.nan)
-    atr_vals[:timeperiod-1] = np.nan
-    atr_vals[timeperiod-1] = np.mean(tr[:timeperiod])
+    atr_vals[: timeperiod - 1] = np.nan
+    atr_vals[timeperiod - 1] = np.mean(tr[:timeperiod])
     for t in range(timeperiod, len(close)):
-        atr_vals[t] = (atr_vals[t-1]*(timeperiod-1) + tr[t]) / timeperiod
+        atr_vals[t] = (atr_vals[t - 1] * (timeperiod - 1) + tr[t]) / timeperiod
     return atr_vals
+
 
 def rolling_max(arr: np.ndarray, window: int) -> np.ndarray:
     n = len(arr)
@@ -29,15 +35,16 @@ def rolling_max(arr: np.ndarray, window: int) -> np.ndarray:
         return arr
     result = np.empty(n)
     if window > 1:
-        result[:window-1] = np.maximum.accumulate(arr[:window-1])
+        result[: window - 1] = np.maximum.accumulate(arr[: window - 1])
         if n >= window:
             shape = (n - window + 1, window)
             strides = (arr.strides[0], arr.strides[0])
             windows = np.lib.stride_tricks.as_strided(arr, shape=shape, strides=strides)
-            result[window-1:] = np.max(windows, axis=1)
+            result[window - 1 :] = np.max(windows, axis=1)
     else:
         result = arr.copy()
     return result
+
 
 def rolling_min(arr: np.ndarray, window: int) -> np.ndarray:
     n = len(arr)
@@ -45,17 +52,24 @@ def rolling_min(arr: np.ndarray, window: int) -> np.ndarray:
         return arr
     result = np.empty(n)
     if window > 1:
-        result[:window-1] = np.minimum.accumulate(arr[:window-1])
+        result[: window - 1] = np.minimum.accumulate(arr[: window - 1])
         if n >= window:
             shape = (n - window + 1, window)
             strides = (arr.strides[0], arr.strides[0])
             windows = np.lib.stride_tricks.as_strided(arr, shape=shape, strides=strides)
-            result[window-1:] = np.min(windows, axis=1)
+            result[window - 1 :] = np.min(windows, axis=1)
     else:
         result = arr.copy()
     return result
 
-def cksp(candles: np.ndarray, p: int = 10, x: float = 1.0,  q: int = 9, sequential: bool = False) -> CKSP:
+
+def cksp(
+    candles: np.ndarray,
+    p: int = 10,
+    x: float = 1.0,
+    q: int = 9,
+    sequential: bool = False,
+) -> CKSP:
     """
     Chande Kroll Stop (CKSP)
 
@@ -85,4 +99,3 @@ def cksp(candles: np.ndarray, p: int = 10, x: float = 1.0,  q: int = 9, sequenti
         return CKSP(LS, SS)
     else:
         return CKSP(LS[-1], SS[-1])
-

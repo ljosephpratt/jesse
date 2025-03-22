@@ -40,11 +40,16 @@ class ClosedTrades:
             t.orders.append(executed_order)
 
         self.add_order_record_only(
-            executed_order.exchange, executed_order.symbol, executed_order.side,
-            qty, executed_order.price
+            executed_order.exchange,
+            executed_order.symbol,
+            executed_order.side,
+            qty,
+            executed_order.price,
         )
 
-    def add_order_record_only(self, exchange: str, symbol: str, side: str, qty: float, price: float) -> None:
+    def add_order_record_only(
+        self, exchange: str, symbol: str, side: str, qty: float, price: float
+    ) -> None:
         """
         used in add_executed_order() and for when initially adding open positions in live mode.
         used for correct trade-metrics calculations in persistency support for live mode.

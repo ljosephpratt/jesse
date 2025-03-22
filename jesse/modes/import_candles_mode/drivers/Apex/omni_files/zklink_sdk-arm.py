@@ -40,16 +40,16 @@ class _UniffiRustBuffer(ctypes.Structure):
 
     @staticmethod
     def reserve(rbuf, additional):
-        return _rust_call(_UniffiLib.ffi_zklink_sdk_rustbuffer_reserve, rbuf, additional)
+        return _rust_call(
+            _UniffiLib.ffi_zklink_sdk_rustbuffer_reserve, rbuf, additional
+        )
 
     def free(self):
         return _rust_call(_UniffiLib.ffi_zklink_sdk_rustbuffer_free, self)
 
     def __str__(self):
         return "_UniffiRustBuffer(capacity={}, len={}, data={})".format(
-            self.capacity,
-            self.len,
-            self.data[0:self.len]
+            self.capacity, self.len, self.data[0 : self.len]
         )
 
     @contextlib.contextmanager
@@ -62,7 +62,7 @@ class _UniffiRustBuffer(ctypes.Structure):
         builder = _UniffiRustBufferBuilder()
         try:
             yield builder
-        except:
+        except Exception:
             builder.discard()
             raise
 
@@ -77,7 +77,9 @@ class _UniffiRustBuffer(ctypes.Structure):
             s = _UniffiRustBufferStream.from_rust_buffer(self)
             yield s
             if s.remaining() != 0:
-                raise RuntimeError("junk data left in buffer at end of consume_with_stream")
+                raise RuntimeError(
+                    "junk data left in buffer at end of consume_with_stream"
+                )
         finally:
             self.free()
 
@@ -93,6 +95,7 @@ class _UniffiRustBuffer(ctypes.Structure):
         if s.remaining() != 0:
             raise RuntimeError("junk data left in buffer at end of read_with_stream")
 
+
 class _UniffiForeignBytes(ctypes.Structure):
     _fields_ = [
         ("len", ctypes.c_int32),
@@ -100,7 +103,9 @@ class _UniffiForeignBytes(ctypes.Structure):
     ]
 
     def __str__(self):
-        return "_UniffiForeignBytes(len={}, data={})".format(self.len, self.data[0:self.len])
+        return "_UniffiForeignBytes(len={}, data={})".format(
+            self.len, self.data[0 : self.len]
+        )
 
 
 class _UniffiRustBufferStream:
@@ -123,14 +128,14 @@ class _UniffiRustBufferStream:
     def _unpack_from(self, size, format):
         if self.offset + size > self.len:
             raise InternalError("read past end of rust buffer")
-        value = struct.unpack(format, self.data[self.offset:self.offset+size])[0]
+        value = struct.unpack(format, self.data[self.offset : self.offset + size])[0]
         self.offset += size
         return value
 
     def read(self, size):
         if self.offset + size > self.len:
             raise InternalError("read past end of rust buffer")
-        data = self.data[self.offset:self.offset+size]
+        data = self.data[self.offset : self.offset + size]
         self.offset += size
         return data
 
@@ -166,7 +171,8 @@ class _UniffiRustBufferStream:
         return self._unpack_from(8, ">d")
 
     def read_c_size_t(self):
-        return self._unpack_from(ctypes.sizeof(ctypes.c_size_t) , "@N")
+        return self._unpack_from(ctypes.sizeof(ctypes.c_size_t), "@N")
+
 
 class _UniffiRustBufferBuilder:
     """
@@ -236,17 +242,22 @@ class _UniffiRustBufferBuilder:
         self._pack_into(8, ">d", v)
 
     def write_c_size_t(self, v):
-        self._pack_into(ctypes.sizeof(ctypes.c_size_t) , "@N", v)
+        self._pack_into(ctypes.sizeof(ctypes.c_size_t), "@N", v)
+
+
 # A handful of classes and functions to support the generated data structures.
 # This would be a good candidate for isolating in its own ffi-support lib.
 
+
 class InternalError(Exception):
     pass
+
 
 class _UniffiRustCallStatus(ctypes.Structure):
     """
     Error runtime.
     """
+
     _fields_ = [
         ("code", ctypes.c_int8),
         ("error_buf", _UniffiRustBuffer),
@@ -267,21 +278,26 @@ class _UniffiRustCallStatus(ctypes.Structure):
         else:
             return "_UniffiRustCallStatus(<invalid code>)"
 
+
 def _rust_call(fn, *args):
     # Call a rust function
     return _rust_call_with_error(None, fn, *args)
+
 
 def _rust_call_with_error(error_ffi_converter, fn, *args):
     # Call a rust function and handle any errors
     #
     # This function is used for rust calls that return Result<> and therefore can set the CALL_ERROR status code.
     # error_ffi_converter must be set to the _UniffiConverter for the error class that corresponds to the result.
-    call_status = _UniffiRustCallStatus(code=_UniffiRustCallStatus.CALL_SUCCESS, error_buf=_UniffiRustBuffer(0, 0, None))
+    call_status = _UniffiRustCallStatus(
+        code=_UniffiRustCallStatus.CALL_SUCCESS, error_buf=_UniffiRustBuffer(0, 0, None)
+    )
 
     args_with_error = args + (ctypes.byref(call_status),)
     result = fn(*args_with_error)
     _uniffi_check_call_status(error_ffi_converter, call_status)
     return result
+
 
 def _uniffi_check_call_status(error_ffi_converter, call_status):
     if call_status.code == _UniffiRustCallStatus.CALL_SUCCESS:
@@ -289,7 +305,9 @@ def _uniffi_check_call_status(error_ffi_converter, call_status):
     elif call_status.code == _UniffiRustCallStatus.CALL_ERROR:
         if error_ffi_converter is None:
             call_status.error_buf.free()
-            raise InternalError("_rust_call_with_error: CALL_ERROR, but error_ffi_converter is None")
+            raise InternalError(
+                "_rust_call_with_error: CALL_ERROR, but error_ffi_converter is None"
+            )
         else:
             raise error_ffi_converter.lift(call_status.error_buf)
     elif call_status.code == _UniffiRustCallStatus.CALL_PANIC:
@@ -302,15 +320,25 @@ def _uniffi_check_call_status(error_ffi_converter, call_status):
             msg = "Unknown rust panic"
         raise InternalError(msg)
     else:
-        raise InternalError("Invalid _UniffiRustCallStatus code: {}".format(
-            call_status.code))
+        raise InternalError(
+            "Invalid _UniffiRustCallStatus code: {}".format(call_status.code)
+        )
+
 
 # A function pointer for a callback as defined by UniFFI.
 # Rust definition `fn(handle: u64, method: u32, args: _UniffiRustBuffer, buf_ptr: *mut _UniffiRustBuffer) -> int`
-_UNIFFI_FOREIGN_CALLBACK_T = ctypes.CFUNCTYPE(ctypes.c_int, ctypes.c_ulonglong, ctypes.c_ulong, ctypes.POINTER(ctypes.c_char), ctypes.c_int, ctypes.POINTER(_UniffiRustBuffer))
+_UNIFFI_FOREIGN_CALLBACK_T = ctypes.CFUNCTYPE(
+    ctypes.c_int,
+    ctypes.c_ulonglong,
+    ctypes.c_ulong,
+    ctypes.POINTER(ctypes.c_char),
+    ctypes.c_int,
+    ctypes.POINTER(_UniffiRustBuffer),
+)
 
 # UniFFI future continuation
 _UNIFFI_FUTURE_CONTINUATION_T = ctypes.CFUNCTYPE(None, ctypes.c_size_t, ctypes.c_int8)
+
 
 class _UniffiPointerManagerCPython:
     """
@@ -344,6 +372,7 @@ class _UniffiPointerManagerCPython:
     def lookup(self, address):
         return ctypes.cast(address, ctypes.py_object).value
 
+
 class _UniffiPointerManagerGeneral:
     """
     Manage giving out pointers to Python objects on non-CPython platforms
@@ -375,11 +404,14 @@ class _UniffiPointerManagerGeneral:
         with self._lock:
             return self._map[handle]
 
+
 # Pick an pointer manager implementation based on the platform
-if platform.python_implementation() == 'CPython':
-    _UniffiPointerManager = _UniffiPointerManagerCPython # type: ignore
+if platform.python_implementation() == "CPython":
+    _UniffiPointerManager = _UniffiPointerManagerCPython  # type: ignore
 else:
-    _UniffiPointerManager = _UniffiPointerManagerGeneral # type: ignore
+    _UniffiPointerManager = _UniffiPointerManagerGeneral  # type: ignore
+
+
 # Types conforming to `_UniffiConverterPrimitive` pass themselves directly over the FFI.
 class _UniffiConverterPrimitive:
     @classmethod
@@ -402,18 +434,30 @@ class _UniffiConverterPrimitive:
     def write(cls, value, buf):
         cls.write_unchecked(cls.check(value), buf)
 
+
 class _UniffiConverterPrimitiveInt(_UniffiConverterPrimitive):
     @classmethod
     def check(cls, value):
         try:
             value = value.__index__()
         except Exception:
-            raise TypeError("'{}' object cannot be interpreted as an integer".format(type(value).__name__))
+            raise TypeError(
+                "'{}' object cannot be interpreted as an integer".format(
+                    type(value).__name__
+                )
+            )
         if not isinstance(value, int):
-            raise TypeError("__index__ returned non-int (type {})".format(type(value).__name__))
+            raise TypeError(
+                "__index__ returned non-int (type {})".format(type(value).__name__)
+            )
         if not cls.VALUE_MIN <= value < cls.VALUE_MAX:
-            raise ValueError("{} requires {} <= value < {}".format(cls.CLASS_NAME, cls.VALUE_MIN, cls.VALUE_MAX))
+            raise ValueError(
+                "{} requires {} <= value < {}".format(
+                    cls.CLASS_NAME, cls.VALUE_MIN, cls.VALUE_MAX
+                )
+            )
         return super().check(value)
+
 
 class _UniffiConverterPrimitiveFloat(_UniffiConverterPrimitive):
     @classmethod
@@ -423,8 +467,11 @@ class _UniffiConverterPrimitiveFloat(_UniffiConverterPrimitive):
         except Exception:
             raise TypeError("must be real number, not {}".format(type(value).__name__))
         if not isinstance(value, float):
-            raise TypeError("__float__ returned non-float (type {})".format(type(value).__name__))
+            raise TypeError(
+                "__float__ returned non-float (type {})".format(type(value).__name__)
+            )
         return super().check(value)
+
 
 # Helper class for wrapper types that will always go through a _UniffiRustBuffer.
 # Classes should inherit from this and implement the `read` and `write` static methods.
@@ -439,6 +486,7 @@ class _UniffiConverterRustBuffer:
         with _UniffiRustBuffer.alloc_with_builder() as builder:
             cls.write(value, builder)
             return builder.finalize()
+
 
 # Contains loading, initialization code, and the FFI Function declarations.
 # Define some ctypes FFI types that we use in the library
@@ -457,18 +505,22 @@ Normally we should call task(task_data) after the detail.
 However, when task is NULL this indicates that Rust has dropped the ForeignExecutor and we should
 decrease the EventLoop refcount.
 """
-_UNIFFI_FOREIGN_EXECUTOR_CALLBACK_T = ctypes.CFUNCTYPE(ctypes.c_int8, ctypes.c_size_t, ctypes.c_uint32, ctypes.c_void_p, ctypes.c_void_p)
+_UNIFFI_FOREIGN_EXECUTOR_CALLBACK_T = ctypes.CFUNCTYPE(
+    ctypes.c_int8, ctypes.c_size_t, ctypes.c_uint32, ctypes.c_void_p, ctypes.c_void_p
+)
 
 """
 Function pointer for a Rust task, which a callback function that takes a opaque pointer
 """
 _UNIFFI_RUST_TASK = ctypes.CFUNCTYPE(None, ctypes.c_void_p, ctypes.c_int8)
 
+
 def _uniffi_future_callback_t(return_type):
     """
     Factory function to create callback function types for async functions
     """
     return ctypes.CFUNCTYPE(None, ctypes.c_size_t, return_type, _UniffiRustCallStatus)
+
 
 def _uniffi_load_indirect():
     """
@@ -495,311 +547,648 @@ def _uniffi_load_indirect():
     lib = ctypes.cdll.LoadLibrary(path)
     return lib
 
+
 def _uniffi_check_contract_api_version(lib):
     # Get the bindings contract version from our ComponentInterface
     bindings_contract_version = 24
     # Get the scaffolding contract version by calling the into the dylib
     scaffolding_contract_version = lib.ffi_zklink_sdk_uniffi_contract_version()
     if bindings_contract_version != scaffolding_contract_version:
-        raise InternalError("UniFFI contract version mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI contract version mismatch: try cleaning and rebuilding your project"
+        )
+
 
 def _uniffi_check_api_checksums(lib):
     if lib.uniffi_zklink_sdk_checksum_func_create_signed_change_pubkey() != 63374:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_func_eth_signature_of_change_pubkey() != 32759:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_func_get_public_key_hash() != 58294:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_func_verify_musig() != 61749:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_func_zklink_main_net_url() != 63488:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_func_zklink_test_net_url() != 4933:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
-    if lib.uniffi_zklink_sdk_checksum_method_autodeleveraging_create_signed_tx() != 63490:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
+    if (
+        lib.uniffi_zklink_sdk_checksum_method_autodeleveraging_create_signed_tx()
+        != 63490
+    ):
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_autodeleveraging_get_bytes() != 44684:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_autodeleveraging_get_signature() != 16515:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
-    if lib.uniffi_zklink_sdk_checksum_method_autodeleveraging_is_signature_valid() != 2829:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
+    if (
+        lib.uniffi_zklink_sdk_checksum_method_autodeleveraging_is_signature_valid()
+        != 2829
+    ):
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_autodeleveraging_is_valid() != 32196:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_autodeleveraging_json_str() != 3439:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_autodeleveraging_to_zklink_tx() != 64239:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_autodeleveraging_tx_hash() != 35167:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_changepubkey_get_bytes() != 1938:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_changepubkey_get_signature() != 51549:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_changepubkey_is_onchain() != 10977:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_changepubkey_is_signature_valid() != 25271:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_changepubkey_is_valid() != 31315:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_changepubkey_json_str() != 43695:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_changepubkey_to_zklink_tx() != 42088:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_changepubkey_tx_hash() != 26881:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_contract_create_signed_contract() != 3720:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_contract_get_bytes() != 6953:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_contract_get_signature() != 60348:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_contract_is_long() != 52375:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_contract_is_short() != 24664:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_contract_is_signature_valid() != 33071:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
-    if lib.uniffi_zklink_sdk_checksum_method_contractmatching_create_signed_tx() != 44741:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
+    if (
+        lib.uniffi_zklink_sdk_checksum_method_contractmatching_create_signed_tx()
+        != 44741
+    ):
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_contractmatching_get_bytes() != 12250:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_contractmatching_get_signature() != 41128:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
-    if lib.uniffi_zklink_sdk_checksum_method_contractmatching_is_signature_valid() != 33576:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
+    if (
+        lib.uniffi_zklink_sdk_checksum_method_contractmatching_is_signature_valid()
+        != 33576
+    ):
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_contractmatching_is_valid() != 55586:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_contractmatching_json_str() != 42918:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_contractmatching_to_zklink_tx() != 43065:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_contractmatching_tx_hash() != 3288:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_deposit_get_bytes() != 46958:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_deposit_json_str() != 17811:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_deposit_tx_hash() != 37358:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_ethsigner_get_address() != 11362:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_ethsigner_sign_message() != 14536:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_forcedexit_create_signed_tx() != 17267:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_forcedexit_get_bytes() != 15553:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_forcedexit_get_signature() != 48117:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_forcedexit_is_signature_valid() != 6534:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_forcedexit_is_valid() != 46100:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_forcedexit_json_str() != 4050:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_forcedexit_to_zklink_tx() != 32455:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_forcedexit_tx_hash() != 45462:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_fullexit_get_bytes() != 52461:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_fullexit_is_valid() != 57198:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_fullexit_json_str() != 24199:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_fullexit_to_zklink_tx() != 51607:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_fullexit_tx_hash() != 48511:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_funding_create_signed_tx() != 38824:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_funding_get_bytes() != 63867:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_funding_get_signature() != 29468:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_funding_is_signature_valid() != 50669:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_funding_is_valid() != 4189:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_funding_json_str() != 55097:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_funding_to_zklink_tx() != 27295:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_funding_tx_hash() != 26610:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_liquidation_create_signed_tx() != 18143:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_liquidation_get_bytes() != 1134:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_liquidation_get_signature() != 31505:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_liquidation_is_signature_valid() != 8478:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_liquidation_is_valid() != 2828:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_liquidation_json_str() != 62587:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_liquidation_to_zklink_tx() != 30414:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_liquidation_tx_hash() != 34918:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_order_create_signed_order() != 18530:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_order_get_bytes() != 51161:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_order_get_eth_sign_msg() != 11725:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_order_get_signature() != 46876:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_order_is_signature_valid() != 6764:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_order_is_valid() != 56951:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_order_json_str() != 20284:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_ordermatching_create_signed_tx() != 27728:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_ordermatching_get_bytes() != 13177:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_ordermatching_get_signature() != 35878:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
-    if lib.uniffi_zklink_sdk_checksum_method_ordermatching_is_signature_valid() != 54946:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
+    if (
+        lib.uniffi_zklink_sdk_checksum_method_ordermatching_is_signature_valid()
+        != 54946
+    ):
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_ordermatching_is_valid() != 51995:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_ordermatching_json_str() != 33830:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_ordermatching_to_zklink_tx() != 23870:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_ordermatching_tx_hash() != 3162:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_signer_sign_auto_deleveraging() != 3485:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
-    if lib.uniffi_zklink_sdk_checksum_method_signer_sign_change_pubkey_with_create2data_auth() != 39808:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
-    if lib.uniffi_zklink_sdk_checksum_method_signer_sign_change_pubkey_with_eth_ecdsa_auth() != 63567:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
-    if lib.uniffi_zklink_sdk_checksum_method_signer_sign_change_pubkey_with_onchain_auth_data() != 26921:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
+    if (
+        lib.uniffi_zklink_sdk_checksum_method_signer_sign_change_pubkey_with_create2data_auth()
+        != 39808
+    ):
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
+    if (
+        lib.uniffi_zklink_sdk_checksum_method_signer_sign_change_pubkey_with_eth_ecdsa_auth()
+        != 63567
+    ):
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
+    if (
+        lib.uniffi_zklink_sdk_checksum_method_signer_sign_change_pubkey_with_onchain_auth_data()
+        != 26921
+    ):
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_signer_sign_contract_matching() != 27932:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_signer_sign_forced_exit() != 37862:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_signer_sign_funding() != 31213:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_signer_sign_liquidation() != 56257:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_signer_sign_order_matching() != 19982:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_signer_sign_transfer() != 51577:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_signer_sign_withdraw() != 56851:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_starksigner_sign_message() != 27027:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_transfer_create_signed_tx() != 17446:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_transfer_eth_signature() != 18454:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_transfer_get_bytes() != 56287:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_transfer_get_eth_sign_msg() != 46393:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_transfer_get_signature() != 55226:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_transfer_is_signature_valid() != 31540:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_transfer_is_valid() != 46475:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_transfer_json_str() != 28252:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_transfer_to_zklink_tx() != 64899:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_transfer_tx_hash() != 16259:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_updateglobalvar_get_bytes() != 40576:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_updateglobalvar_is_valid() != 7961:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_updateglobalvar_json_str() != 48653:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_updateglobalvar_to_zklink_tx() != 40091:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_updateglobalvar_tx_hash() != 4261:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_withdraw_create_signed_tx() != 15886:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_withdraw_eth_signature() != 28825:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_withdraw_get_bytes() != 15999:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_withdraw_get_eth_sign_msg() != 27813:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_withdraw_get_signature() != 56920:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_withdraw_is_signature_valid() != 9636:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_withdraw_is_valid() != 32004:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_withdraw_json_str() != 3719:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_withdraw_to_zklink_tx() != 26934:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_withdraw_tx_hash() != 25800:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_zklinksigner_public_key() != 11211:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_method_zklinksigner_sign_musig() != 46475:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_constructor_autodeleveraging_new() != 10122:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_constructor_changepubkey_new() != 10607:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_constructor_contract_new() != 32968:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_constructor_contractmatching_new() != 210:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_constructor_deposit_new() != 2732:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_constructor_ethsigner_new() != 58738:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_constructor_forcedexit_new() != 30328:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_constructor_fullexit_new() != 27234:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_constructor_funding_new() != 62515:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_constructor_liquidation_new() != 56634:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_constructor_order_new() != 13958:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_constructor_ordermatching_new() != 5934:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_constructor_signer_new() != 24354:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_constructor_starksigner_new() != 61581:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
-    if lib.uniffi_zklink_sdk_checksum_constructor_starksigner_new_from_hex_str() != 57960:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
+    if (
+        lib.uniffi_zklink_sdk_checksum_constructor_starksigner_new_from_hex_str()
+        != 57960
+    ):
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_constructor_transfer_new() != 31981:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_constructor_typeddata_new() != 46773:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_constructor_updateglobalvar_new() != 31819:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_constructor_withdraw_new() != 47491:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_constructor_zklinksigner_new() != 62411:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
-    if lib.uniffi_zklink_sdk_checksum_constructor_zklinksigner_new_from_bytes() != 17619:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
-    if lib.uniffi_zklink_sdk_checksum_constructor_zklinksigner_new_from_hex_eth_signer() != 60210:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
-    if lib.uniffi_zklink_sdk_checksum_constructor_zklinksigner_new_from_hex_stark_signer() != 21809:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
+    if (
+        lib.uniffi_zklink_sdk_checksum_constructor_zklinksigner_new_from_bytes()
+        != 17619
+    ):
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
+    if (
+        lib.uniffi_zklink_sdk_checksum_constructor_zklinksigner_new_from_hex_eth_signer()
+        != 60210
+    ):
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
+    if (
+        lib.uniffi_zklink_sdk_checksum_constructor_zklinksigner_new_from_hex_stark_signer()
+        != 21809
+    ):
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
     if lib.uniffi_zklink_sdk_checksum_constructor_zklinksigner_new_from_seed() != 47514:
-        raise InternalError("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+        raise InternalError(
+            "UniFFI API checksum mismatch: try cleaning and rebuilding your project"
+        )
+
 
 # A ctypes library to expose the extern-C FFI definitions.
 # This is an implementation detail which will be called internally by the public API.
@@ -814,28 +1203,38 @@ _UniffiLib.uniffi_zklink_sdk_fn_constructor_autodeleveraging_new.argtypes = (
     _UniffiRustBuffer,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_constructor_autodeleveraging_new.restype = ctypes.c_void_p
+_UniffiLib.uniffi_zklink_sdk_fn_constructor_autodeleveraging_new.restype = (
+    ctypes.c_void_p
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_create_signed_tx.argtypes = (
     ctypes.c_void_p,
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_create_signed_tx.restype = ctypes.c_void_p
+_UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_create_signed_tx.restype = (
+    ctypes.c_void_p
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_get_bytes.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_get_bytes.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_get_bytes.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_get_signature.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_get_signature.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_get_signature.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_is_signature_valid.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_is_signature_valid.restype = ctypes.c_int8
+_UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_is_signature_valid.restype = (
+    ctypes.c_int8
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_is_valid.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
@@ -845,17 +1244,23 @@ _UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_json_str.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_json_str.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_json_str.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_to_zklink_tx.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_to_zklink_tx.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_to_zklink_tx.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_tx_hash.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_tx_hash.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_tx_hash.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_free_changepubkey.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
@@ -870,12 +1275,16 @@ _UniffiLib.uniffi_zklink_sdk_fn_method_changepubkey_get_bytes.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_changepubkey_get_bytes.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_changepubkey_get_bytes.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_changepubkey_get_signature.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_changepubkey_get_signature.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_changepubkey_get_signature.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_changepubkey_is_onchain.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
@@ -885,7 +1294,9 @@ _UniffiLib.uniffi_zklink_sdk_fn_method_changepubkey_is_signature_valid.argtypes 
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_changepubkey_is_signature_valid.restype = ctypes.c_int8
+_UniffiLib.uniffi_zklink_sdk_fn_method_changepubkey_is_signature_valid.restype = (
+    ctypes.c_int8
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_changepubkey_is_valid.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
@@ -900,7 +1311,9 @@ _UniffiLib.uniffi_zklink_sdk_fn_method_changepubkey_to_zklink_tx.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_changepubkey_to_zklink_tx.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_changepubkey_to_zklink_tx.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_changepubkey_tx_hash.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
@@ -921,7 +1334,9 @@ _UniffiLib.uniffi_zklink_sdk_fn_method_contract_create_signed_contract.argtypes 
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_contract_create_signed_contract.restype = ctypes.c_void_p
+_UniffiLib.uniffi_zklink_sdk_fn_method_contract_create_signed_contract.restype = (
+    ctypes.c_void_p
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_contract_get_bytes.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
@@ -931,7 +1346,9 @@ _UniffiLib.uniffi_zklink_sdk_fn_method_contract_get_signature.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_contract_get_signature.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_contract_get_signature.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_contract_is_long.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
@@ -946,7 +1363,9 @@ _UniffiLib.uniffi_zklink_sdk_fn_method_contract_is_signature_valid.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_contract_is_signature_valid.restype = ctypes.c_int8
+_UniffiLib.uniffi_zklink_sdk_fn_method_contract_is_signature_valid.restype = (
+    ctypes.c_int8
+)
 _UniffiLib.uniffi_zklink_sdk_fn_free_contractmatching.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
@@ -956,28 +1375,38 @@ _UniffiLib.uniffi_zklink_sdk_fn_constructor_contractmatching_new.argtypes = (
     _UniffiRustBuffer,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_constructor_contractmatching_new.restype = ctypes.c_void_p
+_UniffiLib.uniffi_zklink_sdk_fn_constructor_contractmatching_new.restype = (
+    ctypes.c_void_p
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_create_signed_tx.argtypes = (
     ctypes.c_void_p,
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_create_signed_tx.restype = ctypes.c_void_p
+_UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_create_signed_tx.restype = (
+    ctypes.c_void_p
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_get_bytes.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_get_bytes.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_get_bytes.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_get_signature.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_get_signature.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_get_signature.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_is_signature_valid.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_is_signature_valid.restype = ctypes.c_int8
+_UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_is_signature_valid.restype = (
+    ctypes.c_int8
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_is_valid.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
@@ -987,17 +1416,23 @@ _UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_json_str.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_json_str.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_json_str.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_to_zklink_tx.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_to_zklink_tx.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_to_zklink_tx.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_tx_hash.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_tx_hash.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_tx_hash.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_free_deposit.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
@@ -1043,7 +1478,9 @@ _UniffiLib.uniffi_zklink_sdk_fn_method_ethsigner_sign_message.argtypes = (
     _UniffiRustBuffer,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_ethsigner_sign_message.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_ethsigner_sign_message.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_free_forcedexit.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
@@ -1059,7 +1496,9 @@ _UniffiLib.uniffi_zklink_sdk_fn_method_forcedexit_create_signed_tx.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_forcedexit_create_signed_tx.restype = ctypes.c_void_p
+_UniffiLib.uniffi_zklink_sdk_fn_method_forcedexit_create_signed_tx.restype = (
+    ctypes.c_void_p
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_forcedexit_get_bytes.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
@@ -1069,12 +1508,16 @@ _UniffiLib.uniffi_zklink_sdk_fn_method_forcedexit_get_signature.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_forcedexit_get_signature.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_forcedexit_get_signature.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_forcedexit_is_signature_valid.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_forcedexit_is_signature_valid.restype = ctypes.c_int8
+_UniffiLib.uniffi_zklink_sdk_fn_method_forcedexit_is_signature_valid.restype = (
+    ctypes.c_int8
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_forcedexit_is_valid.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
@@ -1089,7 +1532,9 @@ _UniffiLib.uniffi_zklink_sdk_fn_method_forcedexit_to_zklink_tx.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_forcedexit_to_zklink_tx.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_forcedexit_to_zklink_tx.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_forcedexit_tx_hash.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
@@ -1145,7 +1590,9 @@ _UniffiLib.uniffi_zklink_sdk_fn_method_funding_create_signed_tx.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_funding_create_signed_tx.restype = ctypes.c_void_p
+_UniffiLib.uniffi_zklink_sdk_fn_method_funding_create_signed_tx.restype = (
+    ctypes.c_void_p
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_funding_get_bytes.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
@@ -1160,7 +1607,9 @@ _UniffiLib.uniffi_zklink_sdk_fn_method_funding_is_signature_valid.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_funding_is_signature_valid.restype = ctypes.c_int8
+_UniffiLib.uniffi_zklink_sdk_fn_method_funding_is_signature_valid.restype = (
+    ctypes.c_int8
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_funding_is_valid.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
@@ -1196,7 +1645,9 @@ _UniffiLib.uniffi_zklink_sdk_fn_method_liquidation_create_signed_tx.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_liquidation_create_signed_tx.restype = ctypes.c_void_p
+_UniffiLib.uniffi_zklink_sdk_fn_method_liquidation_create_signed_tx.restype = (
+    ctypes.c_void_p
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_liquidation_get_bytes.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
@@ -1206,12 +1657,16 @@ _UniffiLib.uniffi_zklink_sdk_fn_method_liquidation_get_signature.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_liquidation_get_signature.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_liquidation_get_signature.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_liquidation_is_signature_valid.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_liquidation_is_signature_valid.restype = ctypes.c_int8
+_UniffiLib.uniffi_zklink_sdk_fn_method_liquidation_is_signature_valid.restype = (
+    ctypes.c_int8
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_liquidation_is_valid.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
@@ -1226,7 +1681,9 @@ _UniffiLib.uniffi_zklink_sdk_fn_method_liquidation_to_zklink_tx.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_liquidation_to_zklink_tx.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_liquidation_to_zklink_tx.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_liquidation_tx_hash.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
@@ -1259,7 +1716,9 @@ _UniffiLib.uniffi_zklink_sdk_fn_method_order_create_signed_order.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_order_create_signed_order.restype = ctypes.c_void_p
+_UniffiLib.uniffi_zklink_sdk_fn_method_order_create_signed_order.restype = (
+    ctypes.c_void_p
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_order_get_bytes.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
@@ -1272,7 +1731,9 @@ _UniffiLib.uniffi_zklink_sdk_fn_method_order_get_eth_sign_msg.argtypes = (
     ctypes.c_uint8,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_order_get_eth_sign_msg.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_order_get_eth_sign_msg.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_order_get_signature.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
@@ -1308,22 +1769,30 @@ _UniffiLib.uniffi_zklink_sdk_fn_method_ordermatching_create_signed_tx.argtypes =
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_ordermatching_create_signed_tx.restype = ctypes.c_void_p
+_UniffiLib.uniffi_zklink_sdk_fn_method_ordermatching_create_signed_tx.restype = (
+    ctypes.c_void_p
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_ordermatching_get_bytes.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_ordermatching_get_bytes.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_ordermatching_get_bytes.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_ordermatching_get_signature.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_ordermatching_get_signature.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_ordermatching_get_signature.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_ordermatching_is_signature_valid.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_ordermatching_is_signature_valid.restype = ctypes.c_int8
+_UniffiLib.uniffi_zklink_sdk_fn_method_ordermatching_is_signature_valid.restype = (
+    ctypes.c_int8
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_ordermatching_is_valid.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
@@ -1333,12 +1802,16 @@ _UniffiLib.uniffi_zklink_sdk_fn_method_ordermatching_json_str.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_ordermatching_json_str.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_ordermatching_json_str.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_ordermatching_to_zklink_tx.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_ordermatching_to_zklink_tx.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_ordermatching_to_zklink_tx.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_ordermatching_tx_hash.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
@@ -1360,38 +1833,50 @@ _UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_auto_deleveraging.argtypes = 
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_auto_deleveraging.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_auto_deleveraging.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_change_pubkey_with_create2data_auth.argtypes = (
     ctypes.c_void_p,
     ctypes.c_void_p,
     _UniffiRustBuffer,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_change_pubkey_with_create2data_auth.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_change_pubkey_with_create2data_auth.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_change_pubkey_with_eth_ecdsa_auth.argtypes = (
     ctypes.c_void_p,
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_change_pubkey_with_eth_ecdsa_auth.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_change_pubkey_with_eth_ecdsa_auth.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_change_pubkey_with_onchain_auth_data.argtypes = (
     ctypes.c_void_p,
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_change_pubkey_with_onchain_auth_data.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_change_pubkey_with_onchain_auth_data.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_contract_matching.argtypes = (
     ctypes.c_void_p,
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_contract_matching.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_contract_matching.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_forced_exit.argtypes = (
     ctypes.c_void_p,
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_forced_exit.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_forced_exit.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_funding.argtypes = (
     ctypes.c_void_p,
     ctypes.c_void_p,
@@ -1403,13 +1888,17 @@ _UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_liquidation.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_liquidation.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_liquidation.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_order_matching.argtypes = (
     ctypes.c_void_p,
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_order_matching.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_order_matching.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_transfer.argtypes = (
     ctypes.c_void_p,
     ctypes.c_void_p,
@@ -1441,14 +1930,18 @@ _UniffiLib.uniffi_zklink_sdk_fn_constructor_starksigner_new_from_hex_str.argtype
     _UniffiRustBuffer,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_constructor_starksigner_new_from_hex_str.restype = ctypes.c_void_p
+_UniffiLib.uniffi_zklink_sdk_fn_constructor_starksigner_new_from_hex_str.restype = (
+    ctypes.c_void_p
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_starksigner_sign_message.argtypes = (
     ctypes.c_void_p,
     ctypes.c_void_p,
     _UniffiRustBuffer,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_starksigner_sign_message.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_starksigner_sign_message.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_free_transfer.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
@@ -1464,14 +1957,18 @@ _UniffiLib.uniffi_zklink_sdk_fn_method_transfer_create_signed_tx.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_transfer_create_signed_tx.restype = ctypes.c_void_p
+_UniffiLib.uniffi_zklink_sdk_fn_method_transfer_create_signed_tx.restype = (
+    ctypes.c_void_p
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_transfer_eth_signature.argtypes = (
     ctypes.c_void_p,
     ctypes.c_void_p,
     _UniffiRustBuffer,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_transfer_eth_signature.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_transfer_eth_signature.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_transfer_get_bytes.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
@@ -1482,17 +1979,23 @@ _UniffiLib.uniffi_zklink_sdk_fn_method_transfer_get_eth_sign_msg.argtypes = (
     _UniffiRustBuffer,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_transfer_get_eth_sign_msg.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_transfer_get_eth_sign_msg.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_transfer_get_signature.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_transfer_get_signature.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_transfer_get_signature.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_transfer_is_signature_valid.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_transfer_is_signature_valid.restype = ctypes.c_int8
+_UniffiLib.uniffi_zklink_sdk_fn_method_transfer_is_signature_valid.restype = (
+    ctypes.c_int8
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_transfer_is_valid.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
@@ -1533,12 +2036,16 @@ _UniffiLib.uniffi_zklink_sdk_fn_constructor_updateglobalvar_new.argtypes = (
     _UniffiRustBuffer,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_constructor_updateglobalvar_new.restype = ctypes.c_void_p
+_UniffiLib.uniffi_zklink_sdk_fn_constructor_updateglobalvar_new.restype = (
+    ctypes.c_void_p
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_updateglobalvar_get_bytes.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_updateglobalvar_get_bytes.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_updateglobalvar_get_bytes.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_updateglobalvar_is_valid.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
@@ -1548,17 +2055,23 @@ _UniffiLib.uniffi_zklink_sdk_fn_method_updateglobalvar_json_str.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_updateglobalvar_json_str.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_updateglobalvar_json_str.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_updateglobalvar_to_zklink_tx.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_updateglobalvar_to_zklink_tx.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_updateglobalvar_to_zklink_tx.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_updateglobalvar_tx_hash.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_updateglobalvar_tx_hash.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_updateglobalvar_tx_hash.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_free_withdraw.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
@@ -1574,14 +2087,18 @@ _UniffiLib.uniffi_zklink_sdk_fn_method_withdraw_create_signed_tx.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_withdraw_create_signed_tx.restype = ctypes.c_void_p
+_UniffiLib.uniffi_zklink_sdk_fn_method_withdraw_create_signed_tx.restype = (
+    ctypes.c_void_p
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_withdraw_eth_signature.argtypes = (
     ctypes.c_void_p,
     ctypes.c_void_p,
     _UniffiRustBuffer,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_withdraw_eth_signature.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_withdraw_eth_signature.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_withdraw_get_bytes.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
@@ -1592,17 +2109,23 @@ _UniffiLib.uniffi_zklink_sdk_fn_method_withdraw_get_eth_sign_msg.argtypes = (
     _UniffiRustBuffer,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_withdraw_get_eth_sign_msg.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_withdraw_get_eth_sign_msg.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_withdraw_get_signature.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_withdraw_get_signature.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_withdraw_get_signature.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_withdraw_is_signature_valid.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_withdraw_is_signature_valid.restype = ctypes.c_int8
+_UniffiLib.uniffi_zklink_sdk_fn_method_withdraw_is_signature_valid.restype = (
+    ctypes.c_int8
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_withdraw_is_valid.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
@@ -1636,48 +2159,64 @@ _UniffiLib.uniffi_zklink_sdk_fn_constructor_zklinksigner_new_from_bytes.argtypes
     _UniffiRustBuffer,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_constructor_zklinksigner_new_from_bytes.restype = ctypes.c_void_p
+_UniffiLib.uniffi_zklink_sdk_fn_constructor_zklinksigner_new_from_bytes.restype = (
+    ctypes.c_void_p
+)
 _UniffiLib.uniffi_zklink_sdk_fn_constructor_zklinksigner_new_from_hex_eth_signer.argtypes = (
     _UniffiRustBuffer,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_constructor_zklinksigner_new_from_hex_eth_signer.restype = ctypes.c_void_p
+_UniffiLib.uniffi_zklink_sdk_fn_constructor_zklinksigner_new_from_hex_eth_signer.restype = (
+    ctypes.c_void_p
+)
 _UniffiLib.uniffi_zklink_sdk_fn_constructor_zklinksigner_new_from_hex_stark_signer.argtypes = (
     _UniffiRustBuffer,
     _UniffiRustBuffer,
     _UniffiRustBuffer,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_constructor_zklinksigner_new_from_hex_stark_signer.restype = ctypes.c_void_p
+_UniffiLib.uniffi_zklink_sdk_fn_constructor_zklinksigner_new_from_hex_stark_signer.restype = (
+    ctypes.c_void_p
+)
 _UniffiLib.uniffi_zklink_sdk_fn_constructor_zklinksigner_new_from_seed.argtypes = (
     _UniffiRustBuffer,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_constructor_zklinksigner_new_from_seed.restype = ctypes.c_void_p
+_UniffiLib.uniffi_zklink_sdk_fn_constructor_zklinksigner_new_from_seed.restype = (
+    ctypes.c_void_p
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_zklinksigner_public_key.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_zklinksigner_public_key.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_zklinksigner_public_key.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_method_zklinksigner_sign_musig.argtypes = (
     ctypes.c_void_p,
     _UniffiRustBuffer,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_method_zklinksigner_sign_musig.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_method_zklinksigner_sign_musig.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_func_create_signed_change_pubkey.argtypes = (
     ctypes.c_void_p,
     ctypes.c_void_p,
     _UniffiRustBuffer,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_func_create_signed_change_pubkey.restype = ctypes.c_void_p
+_UniffiLib.uniffi_zklink_sdk_fn_func_create_signed_change_pubkey.restype = (
+    ctypes.c_void_p
+)
 _UniffiLib.uniffi_zklink_sdk_fn_func_eth_signature_of_change_pubkey.argtypes = (
     ctypes.c_void_p,
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
-_UniffiLib.uniffi_zklink_sdk_fn_func_eth_signature_of_change_pubkey.restype = _UniffiRustBuffer
+_UniffiLib.uniffi_zklink_sdk_fn_func_eth_signature_of_change_pubkey.restype = (
+    _UniffiRustBuffer
+)
 _UniffiLib.uniffi_zklink_sdk_fn_func_get_public_key_hash.argtypes = (
     _UniffiRustBuffer,
     ctypes.POINTER(_UniffiRustCallStatus),
@@ -1727,13 +2266,9 @@ _UniffiLib.ffi_zklink_sdk_rust_future_poll_u8.argtypes = (
     ctypes.c_size_t,
 )
 _UniffiLib.ffi_zklink_sdk_rust_future_poll_u8.restype = None
-_UniffiLib.ffi_zklink_sdk_rust_future_cancel_u8.argtypes = (
-    ctypes.c_void_p,
-)
+_UniffiLib.ffi_zklink_sdk_rust_future_cancel_u8.argtypes = (ctypes.c_void_p,)
 _UniffiLib.ffi_zklink_sdk_rust_future_cancel_u8.restype = None
-_UniffiLib.ffi_zklink_sdk_rust_future_free_u8.argtypes = (
-    ctypes.c_void_p,
-)
+_UniffiLib.ffi_zklink_sdk_rust_future_free_u8.argtypes = (ctypes.c_void_p,)
 _UniffiLib.ffi_zklink_sdk_rust_future_free_u8.restype = None
 _UniffiLib.ffi_zklink_sdk_rust_future_complete_u8.argtypes = (
     ctypes.c_void_p,
@@ -1745,13 +2280,9 @@ _UniffiLib.ffi_zklink_sdk_rust_future_poll_i8.argtypes = (
     ctypes.c_size_t,
 )
 _UniffiLib.ffi_zklink_sdk_rust_future_poll_i8.restype = None
-_UniffiLib.ffi_zklink_sdk_rust_future_cancel_i8.argtypes = (
-    ctypes.c_void_p,
-)
+_UniffiLib.ffi_zklink_sdk_rust_future_cancel_i8.argtypes = (ctypes.c_void_p,)
 _UniffiLib.ffi_zklink_sdk_rust_future_cancel_i8.restype = None
-_UniffiLib.ffi_zklink_sdk_rust_future_free_i8.argtypes = (
-    ctypes.c_void_p,
-)
+_UniffiLib.ffi_zklink_sdk_rust_future_free_i8.argtypes = (ctypes.c_void_p,)
 _UniffiLib.ffi_zklink_sdk_rust_future_free_i8.restype = None
 _UniffiLib.ffi_zklink_sdk_rust_future_complete_i8.argtypes = (
     ctypes.c_void_p,
@@ -1763,13 +2294,9 @@ _UniffiLib.ffi_zklink_sdk_rust_future_poll_u16.argtypes = (
     ctypes.c_size_t,
 )
 _UniffiLib.ffi_zklink_sdk_rust_future_poll_u16.restype = None
-_UniffiLib.ffi_zklink_sdk_rust_future_cancel_u16.argtypes = (
-    ctypes.c_void_p,
-)
+_UniffiLib.ffi_zklink_sdk_rust_future_cancel_u16.argtypes = (ctypes.c_void_p,)
 _UniffiLib.ffi_zklink_sdk_rust_future_cancel_u16.restype = None
-_UniffiLib.ffi_zklink_sdk_rust_future_free_u16.argtypes = (
-    ctypes.c_void_p,
-)
+_UniffiLib.ffi_zklink_sdk_rust_future_free_u16.argtypes = (ctypes.c_void_p,)
 _UniffiLib.ffi_zklink_sdk_rust_future_free_u16.restype = None
 _UniffiLib.ffi_zklink_sdk_rust_future_complete_u16.argtypes = (
     ctypes.c_void_p,
@@ -1781,13 +2308,9 @@ _UniffiLib.ffi_zklink_sdk_rust_future_poll_i16.argtypes = (
     ctypes.c_size_t,
 )
 _UniffiLib.ffi_zklink_sdk_rust_future_poll_i16.restype = None
-_UniffiLib.ffi_zklink_sdk_rust_future_cancel_i16.argtypes = (
-    ctypes.c_void_p,
-)
+_UniffiLib.ffi_zklink_sdk_rust_future_cancel_i16.argtypes = (ctypes.c_void_p,)
 _UniffiLib.ffi_zklink_sdk_rust_future_cancel_i16.restype = None
-_UniffiLib.ffi_zklink_sdk_rust_future_free_i16.argtypes = (
-    ctypes.c_void_p,
-)
+_UniffiLib.ffi_zklink_sdk_rust_future_free_i16.argtypes = (ctypes.c_void_p,)
 _UniffiLib.ffi_zklink_sdk_rust_future_free_i16.restype = None
 _UniffiLib.ffi_zklink_sdk_rust_future_complete_i16.argtypes = (
     ctypes.c_void_p,
@@ -1799,13 +2322,9 @@ _UniffiLib.ffi_zklink_sdk_rust_future_poll_u32.argtypes = (
     ctypes.c_size_t,
 )
 _UniffiLib.ffi_zklink_sdk_rust_future_poll_u32.restype = None
-_UniffiLib.ffi_zklink_sdk_rust_future_cancel_u32.argtypes = (
-    ctypes.c_void_p,
-)
+_UniffiLib.ffi_zklink_sdk_rust_future_cancel_u32.argtypes = (ctypes.c_void_p,)
 _UniffiLib.ffi_zklink_sdk_rust_future_cancel_u32.restype = None
-_UniffiLib.ffi_zklink_sdk_rust_future_free_u32.argtypes = (
-    ctypes.c_void_p,
-)
+_UniffiLib.ffi_zklink_sdk_rust_future_free_u32.argtypes = (ctypes.c_void_p,)
 _UniffiLib.ffi_zklink_sdk_rust_future_free_u32.restype = None
 _UniffiLib.ffi_zklink_sdk_rust_future_complete_u32.argtypes = (
     ctypes.c_void_p,
@@ -1817,13 +2336,9 @@ _UniffiLib.ffi_zklink_sdk_rust_future_poll_i32.argtypes = (
     ctypes.c_size_t,
 )
 _UniffiLib.ffi_zklink_sdk_rust_future_poll_i32.restype = None
-_UniffiLib.ffi_zklink_sdk_rust_future_cancel_i32.argtypes = (
-    ctypes.c_void_p,
-)
+_UniffiLib.ffi_zklink_sdk_rust_future_cancel_i32.argtypes = (ctypes.c_void_p,)
 _UniffiLib.ffi_zklink_sdk_rust_future_cancel_i32.restype = None
-_UniffiLib.ffi_zklink_sdk_rust_future_free_i32.argtypes = (
-    ctypes.c_void_p,
-)
+_UniffiLib.ffi_zklink_sdk_rust_future_free_i32.argtypes = (ctypes.c_void_p,)
 _UniffiLib.ffi_zklink_sdk_rust_future_free_i32.restype = None
 _UniffiLib.ffi_zklink_sdk_rust_future_complete_i32.argtypes = (
     ctypes.c_void_p,
@@ -1835,13 +2350,9 @@ _UniffiLib.ffi_zklink_sdk_rust_future_poll_u64.argtypes = (
     ctypes.c_size_t,
 )
 _UniffiLib.ffi_zklink_sdk_rust_future_poll_u64.restype = None
-_UniffiLib.ffi_zklink_sdk_rust_future_cancel_u64.argtypes = (
-    ctypes.c_void_p,
-)
+_UniffiLib.ffi_zklink_sdk_rust_future_cancel_u64.argtypes = (ctypes.c_void_p,)
 _UniffiLib.ffi_zklink_sdk_rust_future_cancel_u64.restype = None
-_UniffiLib.ffi_zklink_sdk_rust_future_free_u64.argtypes = (
-    ctypes.c_void_p,
-)
+_UniffiLib.ffi_zklink_sdk_rust_future_free_u64.argtypes = (ctypes.c_void_p,)
 _UniffiLib.ffi_zklink_sdk_rust_future_free_u64.restype = None
 _UniffiLib.ffi_zklink_sdk_rust_future_complete_u64.argtypes = (
     ctypes.c_void_p,
@@ -1853,13 +2364,9 @@ _UniffiLib.ffi_zklink_sdk_rust_future_poll_i64.argtypes = (
     ctypes.c_size_t,
 )
 _UniffiLib.ffi_zklink_sdk_rust_future_poll_i64.restype = None
-_UniffiLib.ffi_zklink_sdk_rust_future_cancel_i64.argtypes = (
-    ctypes.c_void_p,
-)
+_UniffiLib.ffi_zklink_sdk_rust_future_cancel_i64.argtypes = (ctypes.c_void_p,)
 _UniffiLib.ffi_zklink_sdk_rust_future_cancel_i64.restype = None
-_UniffiLib.ffi_zklink_sdk_rust_future_free_i64.argtypes = (
-    ctypes.c_void_p,
-)
+_UniffiLib.ffi_zklink_sdk_rust_future_free_i64.argtypes = (ctypes.c_void_p,)
 _UniffiLib.ffi_zklink_sdk_rust_future_free_i64.restype = None
 _UniffiLib.ffi_zklink_sdk_rust_future_complete_i64.argtypes = (
     ctypes.c_void_p,
@@ -1871,13 +2378,9 @@ _UniffiLib.ffi_zklink_sdk_rust_future_poll_f32.argtypes = (
     ctypes.c_size_t,
 )
 _UniffiLib.ffi_zklink_sdk_rust_future_poll_f32.restype = None
-_UniffiLib.ffi_zklink_sdk_rust_future_cancel_f32.argtypes = (
-    ctypes.c_void_p,
-)
+_UniffiLib.ffi_zklink_sdk_rust_future_cancel_f32.argtypes = (ctypes.c_void_p,)
 _UniffiLib.ffi_zklink_sdk_rust_future_cancel_f32.restype = None
-_UniffiLib.ffi_zklink_sdk_rust_future_free_f32.argtypes = (
-    ctypes.c_void_p,
-)
+_UniffiLib.ffi_zklink_sdk_rust_future_free_f32.argtypes = (ctypes.c_void_p,)
 _UniffiLib.ffi_zklink_sdk_rust_future_free_f32.restype = None
 _UniffiLib.ffi_zklink_sdk_rust_future_complete_f32.argtypes = (
     ctypes.c_void_p,
@@ -1889,13 +2392,9 @@ _UniffiLib.ffi_zklink_sdk_rust_future_poll_f64.argtypes = (
     ctypes.c_size_t,
 )
 _UniffiLib.ffi_zklink_sdk_rust_future_poll_f64.restype = None
-_UniffiLib.ffi_zklink_sdk_rust_future_cancel_f64.argtypes = (
-    ctypes.c_void_p,
-)
+_UniffiLib.ffi_zklink_sdk_rust_future_cancel_f64.argtypes = (ctypes.c_void_p,)
 _UniffiLib.ffi_zklink_sdk_rust_future_cancel_f64.restype = None
-_UniffiLib.ffi_zklink_sdk_rust_future_free_f64.argtypes = (
-    ctypes.c_void_p,
-)
+_UniffiLib.ffi_zklink_sdk_rust_future_free_f64.argtypes = (ctypes.c_void_p,)
 _UniffiLib.ffi_zklink_sdk_rust_future_free_f64.restype = None
 _UniffiLib.ffi_zklink_sdk_rust_future_complete_f64.argtypes = (
     ctypes.c_void_p,
@@ -1907,13 +2406,9 @@ _UniffiLib.ffi_zklink_sdk_rust_future_poll_pointer.argtypes = (
     ctypes.c_size_t,
 )
 _UniffiLib.ffi_zklink_sdk_rust_future_poll_pointer.restype = None
-_UniffiLib.ffi_zklink_sdk_rust_future_cancel_pointer.argtypes = (
-    ctypes.c_void_p,
-)
+_UniffiLib.ffi_zklink_sdk_rust_future_cancel_pointer.argtypes = (ctypes.c_void_p,)
 _UniffiLib.ffi_zklink_sdk_rust_future_cancel_pointer.restype = None
-_UniffiLib.ffi_zklink_sdk_rust_future_free_pointer.argtypes = (
-    ctypes.c_void_p,
-)
+_UniffiLib.ffi_zklink_sdk_rust_future_free_pointer.argtypes = (ctypes.c_void_p,)
 _UniffiLib.ffi_zklink_sdk_rust_future_free_pointer.restype = None
 _UniffiLib.ffi_zklink_sdk_rust_future_complete_pointer.argtypes = (
     ctypes.c_void_p,
@@ -1925,13 +2420,9 @@ _UniffiLib.ffi_zklink_sdk_rust_future_poll_rust_buffer.argtypes = (
     ctypes.c_size_t,
 )
 _UniffiLib.ffi_zklink_sdk_rust_future_poll_rust_buffer.restype = None
-_UniffiLib.ffi_zklink_sdk_rust_future_cancel_rust_buffer.argtypes = (
-    ctypes.c_void_p,
-)
+_UniffiLib.ffi_zklink_sdk_rust_future_cancel_rust_buffer.argtypes = (ctypes.c_void_p,)
 _UniffiLib.ffi_zklink_sdk_rust_future_cancel_rust_buffer.restype = None
-_UniffiLib.ffi_zklink_sdk_rust_future_free_rust_buffer.argtypes = (
-    ctypes.c_void_p,
-)
+_UniffiLib.ffi_zklink_sdk_rust_future_free_rust_buffer.argtypes = (ctypes.c_void_p,)
 _UniffiLib.ffi_zklink_sdk_rust_future_free_rust_buffer.restype = None
 _UniffiLib.ffi_zklink_sdk_rust_future_complete_rust_buffer.argtypes = (
     ctypes.c_void_p,
@@ -1943,465 +2434,542 @@ _UniffiLib.ffi_zklink_sdk_rust_future_poll_void.argtypes = (
     ctypes.c_size_t,
 )
 _UniffiLib.ffi_zklink_sdk_rust_future_poll_void.restype = None
-_UniffiLib.ffi_zklink_sdk_rust_future_cancel_void.argtypes = (
-    ctypes.c_void_p,
-)
+_UniffiLib.ffi_zklink_sdk_rust_future_cancel_void.argtypes = (ctypes.c_void_p,)
 _UniffiLib.ffi_zklink_sdk_rust_future_cancel_void.restype = None
-_UniffiLib.ffi_zklink_sdk_rust_future_free_void.argtypes = (
-    ctypes.c_void_p,
-)
+_UniffiLib.ffi_zklink_sdk_rust_future_free_void.argtypes = (ctypes.c_void_p,)
 _UniffiLib.ffi_zklink_sdk_rust_future_free_void.restype = None
 _UniffiLib.ffi_zklink_sdk_rust_future_complete_void.argtypes = (
     ctypes.c_void_p,
     ctypes.POINTER(_UniffiRustCallStatus),
 )
 _UniffiLib.ffi_zklink_sdk_rust_future_complete_void.restype = None
-_UniffiLib.uniffi_zklink_sdk_checksum_func_create_signed_change_pubkey.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_func_create_signed_change_pubkey.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_func_create_signed_change_pubkey.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_func_create_signed_change_pubkey.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_func_eth_signature_of_change_pubkey.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_func_eth_signature_of_change_pubkey.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_func_eth_signature_of_change_pubkey.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_func_eth_signature_of_change_pubkey.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_func_get_public_key_hash.argtypes = (
-)
+_UniffiLib.uniffi_zklink_sdk_checksum_func_get_public_key_hash.argtypes = ()
 _UniffiLib.uniffi_zklink_sdk_checksum_func_get_public_key_hash.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_func_verify_musig.argtypes = (
-)
+_UniffiLib.uniffi_zklink_sdk_checksum_func_verify_musig.argtypes = ()
 _UniffiLib.uniffi_zklink_sdk_checksum_func_verify_musig.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_func_zklink_main_net_url.argtypes = (
-)
+_UniffiLib.uniffi_zklink_sdk_checksum_func_zklink_main_net_url.argtypes = ()
 _UniffiLib.uniffi_zklink_sdk_checksum_func_zklink_main_net_url.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_func_zklink_test_net_url.argtypes = (
-)
+_UniffiLib.uniffi_zklink_sdk_checksum_func_zklink_test_net_url.argtypes = ()
 _UniffiLib.uniffi_zklink_sdk_checksum_func_zklink_test_net_url.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_autodeleveraging_create_signed_tx.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_autodeleveraging_create_signed_tx.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_autodeleveraging_create_signed_tx.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_autodeleveraging_create_signed_tx.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_autodeleveraging_get_bytes.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_autodeleveraging_get_bytes.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_autodeleveraging_get_bytes.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_autodeleveraging_get_bytes.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_autodeleveraging_get_signature.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_autodeleveraging_get_signature.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_autodeleveraging_get_signature.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_autodeleveraging_get_signature.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_autodeleveraging_is_signature_valid.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_autodeleveraging_is_signature_valid.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_autodeleveraging_is_signature_valid.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_autodeleveraging_is_signature_valid.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_autodeleveraging_is_valid.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_autodeleveraging_is_valid.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_autodeleveraging_is_valid.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_autodeleveraging_is_valid.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_autodeleveraging_json_str.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_autodeleveraging_json_str.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_autodeleveraging_json_str.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_autodeleveraging_json_str.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_autodeleveraging_to_zklink_tx.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_autodeleveraging_to_zklink_tx.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_autodeleveraging_to_zklink_tx.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_autodeleveraging_to_zklink_tx.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_autodeleveraging_tx_hash.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_autodeleveraging_tx_hash.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_autodeleveraging_tx_hash.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_autodeleveraging_tx_hash.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_changepubkey_get_bytes.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_changepubkey_get_bytes.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_changepubkey_get_bytes.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_changepubkey_get_bytes.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_changepubkey_get_signature.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_changepubkey_get_signature.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_changepubkey_get_signature.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_changepubkey_get_signature.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_changepubkey_is_onchain.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_changepubkey_is_onchain.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_changepubkey_is_onchain.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_changepubkey_is_onchain.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_changepubkey_is_signature_valid.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_changepubkey_is_signature_valid.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_changepubkey_is_signature_valid.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_changepubkey_is_signature_valid.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_changepubkey_is_valid.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_changepubkey_is_valid.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_changepubkey_is_valid.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_changepubkey_is_valid.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_changepubkey_json_str.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_changepubkey_json_str.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_changepubkey_json_str.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_changepubkey_json_str.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_changepubkey_to_zklink_tx.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_changepubkey_to_zklink_tx.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_changepubkey_to_zklink_tx.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_changepubkey_to_zklink_tx.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_changepubkey_tx_hash.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_changepubkey_tx_hash.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_changepubkey_tx_hash.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_changepubkey_tx_hash.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_contract_create_signed_contract.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_contract_create_signed_contract.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_contract_create_signed_contract.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_contract_create_signed_contract.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_contract_get_bytes.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_contract_get_bytes.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_contract_get_bytes.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_contract_get_bytes.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_contract_get_signature.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_contract_get_signature.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_contract_get_signature.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_contract_get_signature.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_contract_is_long.argtypes = (
-)
+_UniffiLib.uniffi_zklink_sdk_checksum_method_contract_is_long.argtypes = ()
 _UniffiLib.uniffi_zklink_sdk_checksum_method_contract_is_long.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_contract_is_short.argtypes = (
-)
+_UniffiLib.uniffi_zklink_sdk_checksum_method_contract_is_short.argtypes = ()
 _UniffiLib.uniffi_zklink_sdk_checksum_method_contract_is_short.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_contract_is_signature_valid.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_contract_is_signature_valid.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_contract_is_signature_valid.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_contract_is_signature_valid.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_contractmatching_create_signed_tx.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_contractmatching_create_signed_tx.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_contractmatching_create_signed_tx.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_contractmatching_create_signed_tx.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_contractmatching_get_bytes.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_contractmatching_get_bytes.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_contractmatching_get_bytes.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_contractmatching_get_bytes.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_contractmatching_get_signature.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_contractmatching_get_signature.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_contractmatching_get_signature.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_contractmatching_get_signature.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_contractmatching_is_signature_valid.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_contractmatching_is_signature_valid.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_contractmatching_is_signature_valid.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_contractmatching_is_signature_valid.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_contractmatching_is_valid.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_contractmatching_is_valid.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_contractmatching_is_valid.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_contractmatching_is_valid.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_contractmatching_json_str.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_contractmatching_json_str.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_contractmatching_json_str.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_contractmatching_json_str.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_contractmatching_to_zklink_tx.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_contractmatching_to_zklink_tx.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_contractmatching_to_zklink_tx.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_contractmatching_to_zklink_tx.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_contractmatching_tx_hash.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_contractmatching_tx_hash.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_contractmatching_tx_hash.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_contractmatching_tx_hash.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_deposit_get_bytes.argtypes = (
-)
+_UniffiLib.uniffi_zklink_sdk_checksum_method_deposit_get_bytes.argtypes = ()
 _UniffiLib.uniffi_zklink_sdk_checksum_method_deposit_get_bytes.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_deposit_json_str.argtypes = (
-)
+_UniffiLib.uniffi_zklink_sdk_checksum_method_deposit_json_str.argtypes = ()
 _UniffiLib.uniffi_zklink_sdk_checksum_method_deposit_json_str.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_deposit_tx_hash.argtypes = (
-)
+_UniffiLib.uniffi_zklink_sdk_checksum_method_deposit_tx_hash.argtypes = ()
 _UniffiLib.uniffi_zklink_sdk_checksum_method_deposit_tx_hash.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_ethsigner_get_address.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_ethsigner_get_address.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_ethsigner_get_address.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_ethsigner_get_address.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_ethsigner_sign_message.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_ethsigner_sign_message.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_ethsigner_sign_message.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_ethsigner_sign_message.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_forcedexit_create_signed_tx.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_forcedexit_create_signed_tx.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_forcedexit_create_signed_tx.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_forcedexit_create_signed_tx.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_forcedexit_get_bytes.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_forcedexit_get_bytes.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_forcedexit_get_bytes.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_forcedexit_get_bytes.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_forcedexit_get_signature.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_forcedexit_get_signature.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_forcedexit_get_signature.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_forcedexit_get_signature.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_forcedexit_is_signature_valid.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_forcedexit_is_signature_valid.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_forcedexit_is_signature_valid.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_forcedexit_is_signature_valid.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_forcedexit_is_valid.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_forcedexit_is_valid.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_forcedexit_is_valid.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_forcedexit_is_valid.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_forcedexit_json_str.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_forcedexit_json_str.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_forcedexit_json_str.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_forcedexit_json_str.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_forcedexit_to_zklink_tx.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_forcedexit_to_zklink_tx.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_forcedexit_to_zklink_tx.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_forcedexit_to_zklink_tx.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_forcedexit_tx_hash.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_forcedexit_tx_hash.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_forcedexit_tx_hash.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_forcedexit_tx_hash.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_fullexit_get_bytes.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_fullexit_get_bytes.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_fullexit_get_bytes.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_fullexit_get_bytes.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_fullexit_is_valid.argtypes = (
-)
+_UniffiLib.uniffi_zklink_sdk_checksum_method_fullexit_is_valid.argtypes = ()
 _UniffiLib.uniffi_zklink_sdk_checksum_method_fullexit_is_valid.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_fullexit_json_str.argtypes = (
-)
+_UniffiLib.uniffi_zklink_sdk_checksum_method_fullexit_json_str.argtypes = ()
 _UniffiLib.uniffi_zklink_sdk_checksum_method_fullexit_json_str.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_fullexit_to_zklink_tx.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_fullexit_to_zklink_tx.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_fullexit_to_zklink_tx.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_fullexit_to_zklink_tx.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_fullexit_tx_hash.argtypes = (
-)
+_UniffiLib.uniffi_zklink_sdk_checksum_method_fullexit_tx_hash.argtypes = ()
 _UniffiLib.uniffi_zklink_sdk_checksum_method_fullexit_tx_hash.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_funding_create_signed_tx.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_funding_create_signed_tx.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_funding_create_signed_tx.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_funding_create_signed_tx.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_funding_get_bytes.argtypes = (
-)
+_UniffiLib.uniffi_zklink_sdk_checksum_method_funding_get_bytes.argtypes = ()
 _UniffiLib.uniffi_zklink_sdk_checksum_method_funding_get_bytes.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_funding_get_signature.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_funding_get_signature.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_funding_get_signature.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_funding_get_signature.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_funding_is_signature_valid.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_funding_is_signature_valid.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_funding_is_signature_valid.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_funding_is_signature_valid.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_funding_is_valid.argtypes = (
-)
+_UniffiLib.uniffi_zklink_sdk_checksum_method_funding_is_valid.argtypes = ()
 _UniffiLib.uniffi_zklink_sdk_checksum_method_funding_is_valid.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_funding_json_str.argtypes = (
-)
+_UniffiLib.uniffi_zklink_sdk_checksum_method_funding_json_str.argtypes = ()
 _UniffiLib.uniffi_zklink_sdk_checksum_method_funding_json_str.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_funding_to_zklink_tx.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_funding_to_zklink_tx.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_funding_to_zklink_tx.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_funding_to_zklink_tx.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_funding_tx_hash.argtypes = (
-)
+_UniffiLib.uniffi_zklink_sdk_checksum_method_funding_tx_hash.argtypes = ()
 _UniffiLib.uniffi_zklink_sdk_checksum_method_funding_tx_hash.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_liquidation_create_signed_tx.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_liquidation_create_signed_tx.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_liquidation_create_signed_tx.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_liquidation_create_signed_tx.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_liquidation_get_bytes.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_liquidation_get_bytes.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_liquidation_get_bytes.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_liquidation_get_bytes.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_liquidation_get_signature.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_liquidation_get_signature.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_liquidation_get_signature.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_liquidation_get_signature.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_liquidation_is_signature_valid.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_liquidation_is_signature_valid.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_liquidation_is_signature_valid.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_liquidation_is_signature_valid.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_liquidation_is_valid.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_liquidation_is_valid.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_liquidation_is_valid.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_liquidation_is_valid.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_liquidation_json_str.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_liquidation_json_str.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_liquidation_json_str.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_liquidation_json_str.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_liquidation_to_zklink_tx.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_liquidation_to_zklink_tx.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_liquidation_to_zklink_tx.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_liquidation_to_zklink_tx.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_liquidation_tx_hash.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_liquidation_tx_hash.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_liquidation_tx_hash.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_liquidation_tx_hash.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_order_create_signed_order.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_order_create_signed_order.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_order_create_signed_order.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_order_create_signed_order.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_order_get_bytes.argtypes = (
-)
+_UniffiLib.uniffi_zklink_sdk_checksum_method_order_get_bytes.argtypes = ()
 _UniffiLib.uniffi_zklink_sdk_checksum_method_order_get_bytes.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_order_get_eth_sign_msg.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_order_get_eth_sign_msg.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_order_get_eth_sign_msg.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_order_get_eth_sign_msg.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_order_get_signature.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_order_get_signature.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_order_get_signature.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_order_get_signature.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_order_is_signature_valid.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_order_is_signature_valid.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_order_is_signature_valid.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_order_is_signature_valid.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_order_is_valid.argtypes = (
-)
+_UniffiLib.uniffi_zklink_sdk_checksum_method_order_is_valid.argtypes = ()
 _UniffiLib.uniffi_zklink_sdk_checksum_method_order_is_valid.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_order_json_str.argtypes = (
-)
+_UniffiLib.uniffi_zklink_sdk_checksum_method_order_json_str.argtypes = ()
 _UniffiLib.uniffi_zklink_sdk_checksum_method_order_json_str.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_ordermatching_create_signed_tx.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_ordermatching_create_signed_tx.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_ordermatching_create_signed_tx.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_ordermatching_create_signed_tx.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_ordermatching_get_bytes.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_ordermatching_get_bytes.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_ordermatching_get_bytes.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_ordermatching_get_bytes.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_ordermatching_get_signature.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_ordermatching_get_signature.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_ordermatching_get_signature.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_ordermatching_get_signature.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_ordermatching_is_signature_valid.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_ordermatching_is_signature_valid.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_ordermatching_is_signature_valid.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_ordermatching_is_signature_valid.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_ordermatching_is_valid.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_ordermatching_is_valid.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_ordermatching_is_valid.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_ordermatching_is_valid.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_ordermatching_json_str.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_ordermatching_json_str.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_ordermatching_json_str.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_ordermatching_json_str.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_ordermatching_to_zklink_tx.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_ordermatching_to_zklink_tx.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_ordermatching_to_zklink_tx.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_ordermatching_to_zklink_tx.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_ordermatching_tx_hash.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_ordermatching_tx_hash.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_ordermatching_tx_hash.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_ordermatching_tx_hash.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_auto_deleveraging.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_auto_deleveraging.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_auto_deleveraging.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_auto_deleveraging.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_change_pubkey_with_create2data_auth.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_change_pubkey_with_create2data_auth.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_change_pubkey_with_create2data_auth.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_change_pubkey_with_create2data_auth.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_change_pubkey_with_eth_ecdsa_auth.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_change_pubkey_with_eth_ecdsa_auth.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_change_pubkey_with_eth_ecdsa_auth.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_change_pubkey_with_eth_ecdsa_auth.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_change_pubkey_with_onchain_auth_data.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_change_pubkey_with_onchain_auth_data.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_change_pubkey_with_onchain_auth_data.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_change_pubkey_with_onchain_auth_data.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_contract_matching.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_contract_matching.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_contract_matching.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_contract_matching.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_forced_exit.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_forced_exit.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_forced_exit.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_forced_exit.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_funding.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_funding.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_funding.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_funding.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_liquidation.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_liquidation.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_liquidation.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_liquidation.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_order_matching.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_order_matching.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_order_matching.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_order_matching.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_transfer.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_transfer.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_transfer.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_transfer.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_withdraw.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_withdraw.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_withdraw.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_signer_sign_withdraw.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_starksigner_sign_message.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_starksigner_sign_message.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_starksigner_sign_message.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_starksigner_sign_message.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_transfer_create_signed_tx.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_transfer_create_signed_tx.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_transfer_create_signed_tx.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_transfer_create_signed_tx.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_transfer_eth_signature.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_transfer_eth_signature.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_transfer_eth_signature.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_transfer_eth_signature.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_transfer_get_bytes.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_transfer_get_bytes.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_transfer_get_bytes.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_transfer_get_bytes.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_transfer_get_eth_sign_msg.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_transfer_get_eth_sign_msg.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_transfer_get_eth_sign_msg.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_transfer_get_eth_sign_msg.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_transfer_get_signature.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_transfer_get_signature.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_transfer_get_signature.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_transfer_get_signature.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_transfer_is_signature_valid.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_transfer_is_signature_valid.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_transfer_is_signature_valid.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_transfer_is_signature_valid.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_transfer_is_valid.argtypes = (
-)
+_UniffiLib.uniffi_zklink_sdk_checksum_method_transfer_is_valid.argtypes = ()
 _UniffiLib.uniffi_zklink_sdk_checksum_method_transfer_is_valid.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_transfer_json_str.argtypes = (
-)
+_UniffiLib.uniffi_zklink_sdk_checksum_method_transfer_json_str.argtypes = ()
 _UniffiLib.uniffi_zklink_sdk_checksum_method_transfer_json_str.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_transfer_to_zklink_tx.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_transfer_to_zklink_tx.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_transfer_to_zklink_tx.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_transfer_to_zklink_tx.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_transfer_tx_hash.argtypes = (
-)
+_UniffiLib.uniffi_zklink_sdk_checksum_method_transfer_tx_hash.argtypes = ()
 _UniffiLib.uniffi_zklink_sdk_checksum_method_transfer_tx_hash.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_updateglobalvar_get_bytes.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_updateglobalvar_get_bytes.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_updateglobalvar_get_bytes.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_updateglobalvar_get_bytes.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_updateglobalvar_is_valid.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_updateglobalvar_is_valid.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_updateglobalvar_is_valid.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_updateglobalvar_is_valid.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_updateglobalvar_json_str.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_updateglobalvar_json_str.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_updateglobalvar_json_str.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_updateglobalvar_json_str.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_updateglobalvar_to_zklink_tx.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_updateglobalvar_to_zklink_tx.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_updateglobalvar_to_zklink_tx.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_updateglobalvar_to_zklink_tx.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_updateglobalvar_tx_hash.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_updateglobalvar_tx_hash.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_updateglobalvar_tx_hash.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_updateglobalvar_tx_hash.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_withdraw_create_signed_tx.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_withdraw_create_signed_tx.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_withdraw_create_signed_tx.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_withdraw_create_signed_tx.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_withdraw_eth_signature.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_withdraw_eth_signature.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_withdraw_eth_signature.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_withdraw_eth_signature.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_withdraw_get_bytes.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_withdraw_get_bytes.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_withdraw_get_bytes.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_withdraw_get_bytes.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_withdraw_get_eth_sign_msg.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_withdraw_get_eth_sign_msg.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_withdraw_get_eth_sign_msg.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_withdraw_get_eth_sign_msg.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_withdraw_get_signature.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_withdraw_get_signature.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_withdraw_get_signature.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_withdraw_get_signature.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_withdraw_is_signature_valid.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_withdraw_is_signature_valid.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_withdraw_is_signature_valid.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_withdraw_is_signature_valid.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_withdraw_is_valid.argtypes = (
-)
+_UniffiLib.uniffi_zklink_sdk_checksum_method_withdraw_is_valid.argtypes = ()
 _UniffiLib.uniffi_zklink_sdk_checksum_method_withdraw_is_valid.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_withdraw_json_str.argtypes = (
-)
+_UniffiLib.uniffi_zklink_sdk_checksum_method_withdraw_json_str.argtypes = ()
 _UniffiLib.uniffi_zklink_sdk_checksum_method_withdraw_json_str.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_withdraw_to_zklink_tx.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_withdraw_to_zklink_tx.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_withdraw_to_zklink_tx.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_withdraw_to_zklink_tx.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_withdraw_tx_hash.argtypes = (
-)
+_UniffiLib.uniffi_zklink_sdk_checksum_method_withdraw_tx_hash.argtypes = ()
 _UniffiLib.uniffi_zklink_sdk_checksum_method_withdraw_tx_hash.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_zklinksigner_public_key.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_zklinksigner_public_key.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_zklinksigner_public_key.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_zklinksigner_public_key.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_method_zklinksigner_sign_musig.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_method_zklinksigner_sign_musig.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_method_zklinksigner_sign_musig.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_method_zklinksigner_sign_musig.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_autodeleveraging_new.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_autodeleveraging_new.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_autodeleveraging_new.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_autodeleveraging_new.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_changepubkey_new.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_changepubkey_new.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_changepubkey_new.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_changepubkey_new.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_contract_new.argtypes = (
-)
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_contract_new.argtypes = ()
 _UniffiLib.uniffi_zklink_sdk_checksum_constructor_contract_new.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_contractmatching_new.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_contractmatching_new.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_contractmatching_new.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_contractmatching_new.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_deposit_new.argtypes = (
-)
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_deposit_new.argtypes = ()
 _UniffiLib.uniffi_zklink_sdk_checksum_constructor_deposit_new.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_ethsigner_new.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_ethsigner_new.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_ethsigner_new.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_ethsigner_new.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_forcedexit_new.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_forcedexit_new.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_forcedexit_new.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_forcedexit_new.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_fullexit_new.argtypes = (
-)
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_fullexit_new.argtypes = ()
 _UniffiLib.uniffi_zklink_sdk_checksum_constructor_fullexit_new.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_funding_new.argtypes = (
-)
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_funding_new.argtypes = ()
 _UniffiLib.uniffi_zklink_sdk_checksum_constructor_funding_new.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_liquidation_new.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_liquidation_new.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_liquidation_new.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_liquidation_new.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_order_new.argtypes = (
-)
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_order_new.argtypes = ()
 _UniffiLib.uniffi_zklink_sdk_checksum_constructor_order_new.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_ordermatching_new.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_ordermatching_new.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_ordermatching_new.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_ordermatching_new.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_signer_new.argtypes = (
-)
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_signer_new.argtypes = ()
 _UniffiLib.uniffi_zklink_sdk_checksum_constructor_signer_new.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_starksigner_new.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_starksigner_new.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_starksigner_new.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_starksigner_new.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_starksigner_new_from_hex_str.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_starksigner_new_from_hex_str.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_starksigner_new_from_hex_str.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_starksigner_new_from_hex_str.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_transfer_new.argtypes = (
-)
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_transfer_new.argtypes = ()
 _UniffiLib.uniffi_zklink_sdk_checksum_constructor_transfer_new.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_typeddata_new.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_typeddata_new.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_typeddata_new.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_typeddata_new.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_updateglobalvar_new.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_updateglobalvar_new.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_updateglobalvar_new.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_updateglobalvar_new.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_withdraw_new.argtypes = (
-)
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_withdraw_new.argtypes = ()
 _UniffiLib.uniffi_zklink_sdk_checksum_constructor_withdraw_new.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_zklinksigner_new.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_zklinksigner_new.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_zklinksigner_new.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_zklinksigner_new.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_zklinksigner_new_from_bytes.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_zklinksigner_new_from_bytes.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_zklinksigner_new_from_bytes.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_zklinksigner_new_from_bytes.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_zklinksigner_new_from_hex_eth_signer.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_zklinksigner_new_from_hex_eth_signer.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_zklinksigner_new_from_hex_eth_signer.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_zklinksigner_new_from_hex_eth_signer.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_zklinksigner_new_from_hex_stark_signer.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_zklinksigner_new_from_hex_stark_signer.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_zklinksigner_new_from_hex_stark_signer.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_zklinksigner_new_from_hex_stark_signer.restype = ctypes.c_uint16
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_zklinksigner_new_from_seed.argtypes = (
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_zklinksigner_new_from_seed.argtypes = ()
+_UniffiLib.uniffi_zklink_sdk_checksum_constructor_zklinksigner_new_from_seed.restype = (
+    ctypes.c_uint16
 )
-_UniffiLib.uniffi_zklink_sdk_checksum_constructor_zklinksigner_new_from_seed.restype = ctypes.c_uint16
-_UniffiLib.ffi_zklink_sdk_uniffi_contract_version.argtypes = (
-)
+_UniffiLib.ffi_zklink_sdk_uniffi_contract_version.argtypes = ()
 _UniffiLib.ffi_zklink_sdk_uniffi_contract_version.restype = ctypes.c_uint32
 _uniffi_check_contract_api_version(_UniffiLib)
 _uniffi_check_api_checksums(_UniffiLib)
@@ -2424,6 +2992,7 @@ class _UniffiConverterUInt8(_UniffiConverterPrimitiveInt):
     def write_unchecked(value, buf):
         buf.write_u8(value)
 
+
 class _UniffiConverterUInt16(_UniffiConverterPrimitiveInt):
     CLASS_NAME = "u16"
     VALUE_MIN = 0
@@ -2437,9 +3006,10 @@ class _UniffiConverterUInt16(_UniffiConverterPrimitiveInt):
     def write_unchecked(value, buf):
         buf.write_u16(value)
 
+
 class _UniffiConverterInt16(_UniffiConverterPrimitiveInt):
     CLASS_NAME = "i16"
-    VALUE_MIN = -2**15
+    VALUE_MIN = -(2**15)
     VALUE_MAX = 2**15
 
     @staticmethod
@@ -2449,6 +3019,7 @@ class _UniffiConverterInt16(_UniffiConverterPrimitiveInt):
     @staticmethod
     def write_unchecked(value, buf):
         buf.write_i16(value)
+
 
 class _UniffiConverterUInt32(_UniffiConverterPrimitiveInt):
     CLASS_NAME = "u32"
@@ -2463,6 +3034,7 @@ class _UniffiConverterUInt32(_UniffiConverterPrimitiveInt):
     def write_unchecked(value, buf):
         buf.write_u32(value)
 
+
 class _UniffiConverterUInt64(_UniffiConverterPrimitiveInt):
     CLASS_NAME = "u64"
     VALUE_MIN = 0
@@ -2475,6 +3047,7 @@ class _UniffiConverterUInt64(_UniffiConverterPrimitiveInt):
     @staticmethod
     def write_unchecked(value, buf):
         buf.write_u64(value)
+
 
 class _UniffiConverterBool(_UniffiConverterPrimitive):
     @classmethod
@@ -2492,6 +3065,7 @@ class _UniffiConverterBool(_UniffiConverterPrimitive):
     @staticmethod
     def lift(value):
         return value != 0
+
 
 class _UniffiConverterString:
     @staticmethod
@@ -2528,13 +3102,15 @@ class _UniffiConverterString:
             return builder.finalize()
 
 
-
 class AutoDeleveraging:
     _pointer: ctypes.c_void_p
+
     def __init__(self, builder: "AutoDeleveragingBuilder"):
-        
-        self._pointer = _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_constructor_autodeleveraging_new,
-        _UniffiConverterTypeAutoDeleveragingBuilder.lower(builder))
+
+        self._pointer = _rust_call(
+            _UniffiLib.uniffi_zklink_sdk_fn_constructor_autodeleveraging_new,
+            _UniffiConverterTypeAutoDeleveragingBuilder.lower(builder),
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
@@ -2551,54 +3127,85 @@ class AutoDeleveraging:
         inst._pointer = pointer
         return inst
 
-
     def create_signed_tx(self, signer: "ZkLinkSigner") -> "AutoDeleveraging":
-        
+
         return _UniffiConverterTypeAutoDeleveraging.lift(
             _rust_call_with_error(
-    _UniffiConverterTypeZkSignerError,_UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_create_signed_tx,self._pointer,
-        _UniffiConverterTypeZkLinkSigner.lower(signer))
+                _UniffiConverterTypeZkSignerError,
+                _UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_create_signed_tx,
+                self._pointer,
+                _UniffiConverterTypeZkLinkSigner.lower(signer),
+            )
         )
 
-
-    def get_bytes(self, ) -> "typing.List[int]":
+    def get_bytes(
+        self,
+    ) -> "typing.List[int]":
         return _UniffiConverterSequenceUInt8.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_get_bytes,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_get_bytes,
+                self._pointer,
+            )
         )
 
-    def get_signature(self, ) -> "ZkLinkSignature":
+    def get_signature(
+        self,
+    ) -> "ZkLinkSignature":
         return _UniffiConverterTypeZkLinkSignature.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_get_signature,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_get_signature,
+                self._pointer,
+            )
         )
 
-    def is_signature_valid(self, ):
+    def is_signature_valid(
+        self,
+    ):
         return _UniffiConverterBool.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_is_signature_valid,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_is_signature_valid,
+                self._pointer,
+            )
         )
 
-    def is_valid(self, ):
+    def is_valid(
+        self,
+    ):
         return _UniffiConverterBool.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_is_valid,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_is_valid,
+                self._pointer,
+            )
         )
 
-    def json_str(self, ):
+    def json_str(
+        self,
+    ):
         return _UniffiConverterString.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_json_str,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_json_str,
+                self._pointer,
+            )
         )
 
-    def to_zklink_tx(self, ) -> "ZkLinkTx":
+    def to_zklink_tx(
+        self,
+    ) -> "ZkLinkTx":
         return _UniffiConverterTypeZkLinkTx.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_to_zklink_tx,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_to_zklink_tx,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def tx_hash(self, ) -> "typing.List[int]":
+    def tx_hash(
+        self,
+    ) -> "typing.List[int]":
         return _UniffiConverterSequenceUInt8.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_tx_hash,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_autodeleveraging_tx_hash,
+                self._pointer,
+            )
         )
 
 
@@ -2613,7 +3220,11 @@ class _UniffiConverterTypeAutoDeleveraging:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, AutoDeleveraging):
-            raise TypeError("Expected AutoDeleveraging instance, {} found".format(type(value).__name__))
+            raise TypeError(
+                "Expected AutoDeleveraging instance, {} found".format(
+                    type(value).__name__
+                )
+            )
         buf.write_u64(cls.lower(value))
 
     @staticmethod
@@ -2625,13 +3236,15 @@ class _UniffiConverterTypeAutoDeleveraging:
         return value._pointer
 
 
-
 class ChangePubKey:
     _pointer: ctypes.c_void_p
+
     def __init__(self, builder: "ChangePubKeyBuilder"):
-        
-        self._pointer = _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_constructor_changepubkey_new,
-        _UniffiConverterTypeChangePubKeyBuilder.lower(builder))
+
+        self._pointer = _rust_call(
+            _UniffiLib.uniffi_zklink_sdk_fn_constructor_changepubkey_new,
+            _UniffiConverterTypeChangePubKeyBuilder.lower(builder),
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
@@ -2648,85 +3261,85 @@ class ChangePubKey:
         inst._pointer = pointer
         return inst
 
-
-    def get_bytes(self, ) -> "typing.List[int]":
+    def get_bytes(
+        self,
+    ) -> "typing.List[int]":
         return _UniffiConverterSequenceUInt8.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_changepubkey_get_bytes,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_changepubkey_get_bytes,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def get_signature(self, ) -> "ZkLinkSignature":
+    def get_signature(
+        self,
+    ) -> "ZkLinkSignature":
         return _UniffiConverterTypeZkLinkSignature.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_changepubkey_get_signature,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_changepubkey_get_signature,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def is_onchain(self, ):
+    def is_onchain(
+        self,
+    ):
         return _UniffiConverterBool.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_changepubkey_is_onchain,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_changepubkey_is_onchain,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def is_signature_valid(self, ):
+    def is_signature_valid(
+        self,
+    ):
         return _UniffiConverterBool.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_changepubkey_is_signature_valid,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_changepubkey_is_signature_valid,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def is_valid(self, ):
+    def is_valid(
+        self,
+    ):
         return _UniffiConverterBool.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_changepubkey_is_valid,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_changepubkey_is_valid,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def json_str(self, ):
+    def json_str(
+        self,
+    ):
         return _UniffiConverterString.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_changepubkey_json_str,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_changepubkey_json_str,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def to_zklink_tx(self, ) -> "ZkLinkTx":
+    def to_zklink_tx(
+        self,
+    ) -> "ZkLinkTx":
         return _UniffiConverterTypeZkLinkTx.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_changepubkey_to_zklink_tx,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_changepubkey_to_zklink_tx,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def tx_hash(self, ) -> "typing.List[int]":
+    def tx_hash(
+        self,
+    ) -> "typing.List[int]":
         return _UniffiConverterSequenceUInt8.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_changepubkey_tx_hash,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_changepubkey_tx_hash,
+                self._pointer,
+            )
         )
-
-
-
-
 
 
 class _UniffiConverterTypeChangePubKey:
@@ -2740,7 +3353,9 @@ class _UniffiConverterTypeChangePubKey:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, ChangePubKey):
-            raise TypeError("Expected ChangePubKey instance, {} found".format(type(value).__name__))
+            raise TypeError(
+                "Expected ChangePubKey instance, {} found".format(type(value).__name__)
+            )
         buf.write_u64(cls.lower(value))
 
     @staticmethod
@@ -2752,13 +3367,15 @@ class _UniffiConverterTypeChangePubKey:
         return value._pointer
 
 
-
 class Contract:
     _pointer: ctypes.c_void_p
+
     def __init__(self, builder: "ContractBuilder"):
-        
-        self._pointer = _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_constructor_contract_new,
-        _UniffiConverterTypeContractBuilder.lower(builder))
+
+        self._pointer = _rust_call(
+            _UniffiLib.uniffi_zklink_sdk_fn_constructor_contract_new,
+            _UniffiConverterTypeContractBuilder.lower(builder),
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
@@ -2775,68 +3392,66 @@ class Contract:
         inst._pointer = pointer
         return inst
 
-
     def create_signed_contract(self, zklink_signer: "ZkLinkSigner") -> "Contract":
-        
+
         return _UniffiConverterTypeContract.lift(
             _rust_call_with_error(
-    _UniffiConverterTypeZkSignerError,_UniffiLib.uniffi_zklink_sdk_fn_method_contract_create_signed_contract,self._pointer,
-        _UniffiConverterTypeZkLinkSigner.lower(zklink_signer))
+                _UniffiConverterTypeZkSignerError,
+                _UniffiLib.uniffi_zklink_sdk_fn_method_contract_create_signed_contract,
+                self._pointer,
+                _UniffiConverterTypeZkLinkSigner.lower(zklink_signer),
+            )
         )
 
-
-
-
-
-
-    def get_bytes(self, ) -> "typing.List[int]":
+    def get_bytes(
+        self,
+    ) -> "typing.List[int]":
         return _UniffiConverterSequenceUInt8.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_contract_get_bytes,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_contract_get_bytes,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def get_signature(self, ) -> "ZkLinkSignature":
+    def get_signature(
+        self,
+    ) -> "ZkLinkSignature":
         return _UniffiConverterTypeZkLinkSignature.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_contract_get_signature,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_contract_get_signature,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def is_long(self, ):
+    def is_long(
+        self,
+    ):
         return _UniffiConverterBool.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_contract_is_long,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_contract_is_long,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def is_short(self, ):
+    def is_short(
+        self,
+    ):
         return _UniffiConverterBool.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_contract_is_short,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_contract_is_short,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def is_signature_valid(self, ):
+    def is_signature_valid(
+        self,
+    ):
         return _UniffiConverterBool.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_contract_is_signature_valid,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_contract_is_signature_valid,
+                self._pointer,
+            )
         )
-
-
-
-
 
 
 class _UniffiConverterTypeContract:
@@ -2850,7 +3465,9 @@ class _UniffiConverterTypeContract:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, Contract):
-            raise TypeError("Expected Contract instance, {} found".format(type(value).__name__))
+            raise TypeError(
+                "Expected Contract instance, {} found".format(type(value).__name__)
+            )
         buf.write_u64(cls.lower(value))
 
     @staticmethod
@@ -2862,13 +3479,15 @@ class _UniffiConverterTypeContract:
         return value._pointer
 
 
-
 class ContractMatching:
     _pointer: ctypes.c_void_p
+
     def __init__(self, builder: "ContractMatchingBuilder"):
-        
-        self._pointer = _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_constructor_contractmatching_new,
-        _UniffiConverterTypeContractMatchingBuilder.lower(builder))
+
+        self._pointer = _rust_call(
+            _UniffiLib.uniffi_zklink_sdk_fn_constructor_contractmatching_new,
+            _UniffiConverterTypeContractMatchingBuilder.lower(builder),
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
@@ -2885,88 +3504,86 @@ class ContractMatching:
         inst._pointer = pointer
         return inst
 
-
     def create_signed_tx(self, signer: "ZkLinkSigner") -> "ContractMatching":
-        
+
         return _UniffiConverterTypeContractMatching.lift(
             _rust_call_with_error(
-    _UniffiConverterTypeZkSignerError,_UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_create_signed_tx,self._pointer,
-        _UniffiConverterTypeZkLinkSigner.lower(signer))
+                _UniffiConverterTypeZkSignerError,
+                _UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_create_signed_tx,
+                self._pointer,
+                _UniffiConverterTypeZkLinkSigner.lower(signer),
+            )
         )
 
-
-
-
-
-
-    def get_bytes(self, ) -> "typing.List[int]":
+    def get_bytes(
+        self,
+    ) -> "typing.List[int]":
         return _UniffiConverterSequenceUInt8.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_get_bytes,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_get_bytes,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def get_signature(self, ) -> "ZkLinkSignature":
+    def get_signature(
+        self,
+    ) -> "ZkLinkSignature":
         return _UniffiConverterTypeZkLinkSignature.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_get_signature,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_get_signature,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def is_signature_valid(self, ):
+    def is_signature_valid(
+        self,
+    ):
         return _UniffiConverterBool.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_is_signature_valid,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_is_signature_valid,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def is_valid(self, ):
+    def is_valid(
+        self,
+    ):
         return _UniffiConverterBool.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_is_valid,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_is_valid,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def json_str(self, ):
+    def json_str(
+        self,
+    ):
         return _UniffiConverterString.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_json_str,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_json_str,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def to_zklink_tx(self, ) -> "ZkLinkTx":
+    def to_zklink_tx(
+        self,
+    ) -> "ZkLinkTx":
         return _UniffiConverterTypeZkLinkTx.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_to_zklink_tx,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_to_zklink_tx,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def tx_hash(self, ) -> "typing.List[int]":
+    def tx_hash(
+        self,
+    ) -> "typing.List[int]":
         return _UniffiConverterSequenceUInt8.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_tx_hash,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_contractmatching_tx_hash,
+                self._pointer,
+            )
         )
-
-
-
-
 
 
 class _UniffiConverterTypeContractMatching:
@@ -2980,7 +3597,11 @@ class _UniffiConverterTypeContractMatching:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, ContractMatching):
-            raise TypeError("Expected ContractMatching instance, {} found".format(type(value).__name__))
+            raise TypeError(
+                "Expected ContractMatching instance, {} found".format(
+                    type(value).__name__
+                )
+            )
         buf.write_u64(cls.lower(value))
 
     @staticmethod
@@ -2992,13 +3613,15 @@ class _UniffiConverterTypeContractMatching:
         return value._pointer
 
 
-
 class Deposit:
     _pointer: ctypes.c_void_p
+
     def __init__(self, builder: "DepositBuilder"):
-        
-        self._pointer = _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_constructor_deposit_new,
-        _UniffiConverterTypeDepositBuilder.lower(builder))
+
+        self._pointer = _rust_call(
+            _UniffiLib.uniffi_zklink_sdk_fn_constructor_deposit_new,
+            _UniffiConverterTypeDepositBuilder.lower(builder),
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
@@ -3015,35 +3638,35 @@ class Deposit:
         inst._pointer = pointer
         return inst
 
-
-    def get_bytes(self, ) -> "typing.List[int]":
+    def get_bytes(
+        self,
+    ) -> "typing.List[int]":
         return _UniffiConverterSequenceUInt8.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_deposit_get_bytes,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_deposit_get_bytes,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def json_str(self, ):
+    def json_str(
+        self,
+    ):
         return _UniffiConverterString.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_deposit_json_str,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_deposit_json_str,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def tx_hash(self, ) -> "typing.List[int]":
+    def tx_hash(
+        self,
+    ) -> "typing.List[int]":
         return _UniffiConverterSequenceUInt8.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_deposit_tx_hash,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_deposit_tx_hash,
+                self._pointer,
+            )
         )
-
-
-
-
 
 
 class _UniffiConverterTypeDeposit:
@@ -3057,7 +3680,9 @@ class _UniffiConverterTypeDeposit:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, Deposit):
-            raise TypeError("Expected Deposit instance, {} found".format(type(value).__name__))
+            raise TypeError(
+                "Expected Deposit instance, {} found".format(type(value).__name__)
+            )
         buf.write_u64(cls.lower(value))
 
     @staticmethod
@@ -3069,13 +3694,16 @@ class _UniffiConverterTypeDeposit:
         return value._pointer
 
 
-
 class EthSigner:
     _pointer: ctypes.c_void_p
+
     def __init__(self, private_key: str):
-        
-        self._pointer = _rust_call_with_error(_UniffiConverterTypeEthSignerError,_UniffiLib.uniffi_zklink_sdk_fn_constructor_ethsigner_new,
-        _UniffiConverterString.lower(private_key))
+
+        self._pointer = _rust_call_with_error(
+            _UniffiConverterTypeEthSignerError,
+            _UniffiLib.uniffi_zklink_sdk_fn_constructor_ethsigner_new,
+            _UniffiConverterString.lower(private_key),
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
@@ -3092,28 +3720,26 @@ class EthSigner:
         inst._pointer = pointer
         return inst
 
-
-    def get_address(self, ) -> "Address":
+    def get_address(
+        self,
+    ) -> "Address":
         return _UniffiConverterTypeAddress.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_ethsigner_get_address,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_ethsigner_get_address,
+                self._pointer,
+            )
         )
-
-
-
-
-
 
     def sign_message(self, message: "typing.List[int]") -> "PackedEthSignature":
-        
+
         return _UniffiConverterTypePackedEthSignature.lift(
             _rust_call_with_error(
-    _UniffiConverterTypeEthSignerError,_UniffiLib.uniffi_zklink_sdk_fn_method_ethsigner_sign_message,self._pointer,
-        _UniffiConverterSequenceUInt8.lower(message))
+                _UniffiConverterTypeEthSignerError,
+                _UniffiLib.uniffi_zklink_sdk_fn_method_ethsigner_sign_message,
+                self._pointer,
+                _UniffiConverterSequenceUInt8.lower(message),
+            )
         )
-
-
-
-
 
 
 class _UniffiConverterTypeEthSigner:
@@ -3127,7 +3753,9 @@ class _UniffiConverterTypeEthSigner:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, EthSigner):
-            raise TypeError("Expected EthSigner instance, {} found".format(type(value).__name__))
+            raise TypeError(
+                "Expected EthSigner instance, {} found".format(type(value).__name__)
+            )
         buf.write_u64(cls.lower(value))
 
     @staticmethod
@@ -3139,13 +3767,15 @@ class _UniffiConverterTypeEthSigner:
         return value._pointer
 
 
-
 class ForcedExit:
     _pointer: ctypes.c_void_p
+
     def __init__(self, builder: "ForcedExitBuilder"):
-        
-        self._pointer = _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_constructor_forcedexit_new,
-        _UniffiConverterTypeForcedExitBuilder.lower(builder))
+
+        self._pointer = _rust_call(
+            _UniffiLib.uniffi_zklink_sdk_fn_constructor_forcedexit_new,
+            _UniffiConverterTypeForcedExitBuilder.lower(builder),
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
@@ -3162,88 +3792,86 @@ class ForcedExit:
         inst._pointer = pointer
         return inst
 
-
     def create_signed_tx(self, signer: "ZkLinkSigner") -> "ForcedExit":
-        
+
         return _UniffiConverterTypeForcedExit.lift(
             _rust_call_with_error(
-    _UniffiConverterTypeZkSignerError,_UniffiLib.uniffi_zklink_sdk_fn_method_forcedexit_create_signed_tx,self._pointer,
-        _UniffiConverterTypeZkLinkSigner.lower(signer))
+                _UniffiConverterTypeZkSignerError,
+                _UniffiLib.uniffi_zklink_sdk_fn_method_forcedexit_create_signed_tx,
+                self._pointer,
+                _UniffiConverterTypeZkLinkSigner.lower(signer),
+            )
         )
 
-
-
-
-
-
-    def get_bytes(self, ) -> "typing.List[int]":
+    def get_bytes(
+        self,
+    ) -> "typing.List[int]":
         return _UniffiConverterSequenceUInt8.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_forcedexit_get_bytes,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_forcedexit_get_bytes,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def get_signature(self, ) -> "ZkLinkSignature":
+    def get_signature(
+        self,
+    ) -> "ZkLinkSignature":
         return _UniffiConverterTypeZkLinkSignature.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_forcedexit_get_signature,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_forcedexit_get_signature,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def is_signature_valid(self, ):
+    def is_signature_valid(
+        self,
+    ):
         return _UniffiConverterBool.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_forcedexit_is_signature_valid,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_forcedexit_is_signature_valid,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def is_valid(self, ):
+    def is_valid(
+        self,
+    ):
         return _UniffiConverterBool.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_forcedexit_is_valid,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_forcedexit_is_valid,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def json_str(self, ):
+    def json_str(
+        self,
+    ):
         return _UniffiConverterString.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_forcedexit_json_str,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_forcedexit_json_str,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def to_zklink_tx(self, ) -> "ZkLinkTx":
+    def to_zklink_tx(
+        self,
+    ) -> "ZkLinkTx":
         return _UniffiConverterTypeZkLinkTx.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_forcedexit_to_zklink_tx,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_forcedexit_to_zklink_tx,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def tx_hash(self, ) -> "typing.List[int]":
+    def tx_hash(
+        self,
+    ) -> "typing.List[int]":
         return _UniffiConverterSequenceUInt8.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_forcedexit_tx_hash,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_forcedexit_tx_hash,
+                self._pointer,
+            )
         )
-
-
-
-
 
 
 class _UniffiConverterTypeForcedExit:
@@ -3257,7 +3885,9 @@ class _UniffiConverterTypeForcedExit:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, ForcedExit):
-            raise TypeError("Expected ForcedExit instance, {} found".format(type(value).__name__))
+            raise TypeError(
+                "Expected ForcedExit instance, {} found".format(type(value).__name__)
+            )
         buf.write_u64(cls.lower(value))
 
     @staticmethod
@@ -3269,13 +3899,15 @@ class _UniffiConverterTypeForcedExit:
         return value._pointer
 
 
-
 class FullExit:
     _pointer: ctypes.c_void_p
+
     def __init__(self, builder: "FullExitBuilder"):
-        
-        self._pointer = _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_constructor_fullexit_new,
-        _UniffiConverterTypeFullExitBuilder.lower(builder))
+
+        self._pointer = _rust_call(
+            _UniffiLib.uniffi_zklink_sdk_fn_constructor_fullexit_new,
+            _UniffiConverterTypeFullExitBuilder.lower(builder),
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
@@ -3292,55 +3924,55 @@ class FullExit:
         inst._pointer = pointer
         return inst
 
-
-    def get_bytes(self, ) -> "typing.List[int]":
+    def get_bytes(
+        self,
+    ) -> "typing.List[int]":
         return _UniffiConverterSequenceUInt8.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_fullexit_get_bytes,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_fullexit_get_bytes,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def is_valid(self, ):
+    def is_valid(
+        self,
+    ):
         return _UniffiConverterBool.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_fullexit_is_valid,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_fullexit_is_valid,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def json_str(self, ):
+    def json_str(
+        self,
+    ):
         return _UniffiConverterString.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_fullexit_json_str,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_fullexit_json_str,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def to_zklink_tx(self, ) -> "ZkLinkTx":
+    def to_zklink_tx(
+        self,
+    ) -> "ZkLinkTx":
         return _UniffiConverterTypeZkLinkTx.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_fullexit_to_zklink_tx,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_fullexit_to_zklink_tx,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def tx_hash(self, ) -> "typing.List[int]":
+    def tx_hash(
+        self,
+    ) -> "typing.List[int]":
         return _UniffiConverterSequenceUInt8.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_fullexit_tx_hash,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_fullexit_tx_hash,
+                self._pointer,
+            )
         )
-
-
-
-
 
 
 class _UniffiConverterTypeFullExit:
@@ -3354,7 +3986,9 @@ class _UniffiConverterTypeFullExit:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, FullExit):
-            raise TypeError("Expected FullExit instance, {} found".format(type(value).__name__))
+            raise TypeError(
+                "Expected FullExit instance, {} found".format(type(value).__name__)
+            )
         buf.write_u64(cls.lower(value))
 
     @staticmethod
@@ -3366,13 +4000,15 @@ class _UniffiConverterTypeFullExit:
         return value._pointer
 
 
-
 class Funding:
     _pointer: ctypes.c_void_p
+
     def __init__(self, builder: "FundingBuilder"):
-        
-        self._pointer = _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_constructor_funding_new,
-        _UniffiConverterTypeFundingBuilder.lower(builder))
+
+        self._pointer = _rust_call(
+            _UniffiLib.uniffi_zklink_sdk_fn_constructor_funding_new,
+            _UniffiConverterTypeFundingBuilder.lower(builder),
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
@@ -3389,88 +4025,86 @@ class Funding:
         inst._pointer = pointer
         return inst
 
-
     def create_signed_tx(self, signer: "ZkLinkSigner") -> "Funding":
-        
+
         return _UniffiConverterTypeFunding.lift(
             _rust_call_with_error(
-    _UniffiConverterTypeZkSignerError,_UniffiLib.uniffi_zklink_sdk_fn_method_funding_create_signed_tx,self._pointer,
-        _UniffiConverterTypeZkLinkSigner.lower(signer))
+                _UniffiConverterTypeZkSignerError,
+                _UniffiLib.uniffi_zklink_sdk_fn_method_funding_create_signed_tx,
+                self._pointer,
+                _UniffiConverterTypeZkLinkSigner.lower(signer),
+            )
         )
 
-
-
-
-
-
-    def get_bytes(self, ) -> "typing.List[int]":
+    def get_bytes(
+        self,
+    ) -> "typing.List[int]":
         return _UniffiConverterSequenceUInt8.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_funding_get_bytes,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_funding_get_bytes,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def get_signature(self, ) -> "ZkLinkSignature":
+    def get_signature(
+        self,
+    ) -> "ZkLinkSignature":
         return _UniffiConverterTypeZkLinkSignature.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_funding_get_signature,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_funding_get_signature,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def is_signature_valid(self, ):
+    def is_signature_valid(
+        self,
+    ):
         return _UniffiConverterBool.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_funding_is_signature_valid,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_funding_is_signature_valid,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def is_valid(self, ):
+    def is_valid(
+        self,
+    ):
         return _UniffiConverterBool.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_funding_is_valid,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_funding_is_valid,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def json_str(self, ):
+    def json_str(
+        self,
+    ):
         return _UniffiConverterString.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_funding_json_str,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_funding_json_str,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def to_zklink_tx(self, ) -> "ZkLinkTx":
+    def to_zklink_tx(
+        self,
+    ) -> "ZkLinkTx":
         return _UniffiConverterTypeZkLinkTx.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_funding_to_zklink_tx,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_funding_to_zklink_tx,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def tx_hash(self, ) -> "typing.List[int]":
+    def tx_hash(
+        self,
+    ) -> "typing.List[int]":
         return _UniffiConverterSequenceUInt8.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_funding_tx_hash,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_funding_tx_hash,
+                self._pointer,
+            )
         )
-
-
-
-
 
 
 class _UniffiConverterTypeFunding:
@@ -3484,7 +4118,9 @@ class _UniffiConverterTypeFunding:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, Funding):
-            raise TypeError("Expected Funding instance, {} found".format(type(value).__name__))
+            raise TypeError(
+                "Expected Funding instance, {} found".format(type(value).__name__)
+            )
         buf.write_u64(cls.lower(value))
 
     @staticmethod
@@ -3496,13 +4132,15 @@ class _UniffiConverterTypeFunding:
         return value._pointer
 
 
-
 class Liquidation:
     _pointer: ctypes.c_void_p
+
     def __init__(self, builder: "LiquidationBuilder"):
-        
-        self._pointer = _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_constructor_liquidation_new,
-        _UniffiConverterTypeLiquidationBuilder.lower(builder))
+
+        self._pointer = _rust_call(
+            _UniffiLib.uniffi_zklink_sdk_fn_constructor_liquidation_new,
+            _UniffiConverterTypeLiquidationBuilder.lower(builder),
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
@@ -3519,88 +4157,86 @@ class Liquidation:
         inst._pointer = pointer
         return inst
 
-
     def create_signed_tx(self, signer: "ZkLinkSigner") -> "Liquidation":
-        
+
         return _UniffiConverterTypeLiquidation.lift(
             _rust_call_with_error(
-    _UniffiConverterTypeZkSignerError,_UniffiLib.uniffi_zklink_sdk_fn_method_liquidation_create_signed_tx,self._pointer,
-        _UniffiConverterTypeZkLinkSigner.lower(signer))
+                _UniffiConverterTypeZkSignerError,
+                _UniffiLib.uniffi_zklink_sdk_fn_method_liquidation_create_signed_tx,
+                self._pointer,
+                _UniffiConverterTypeZkLinkSigner.lower(signer),
+            )
         )
 
-
-
-
-
-
-    def get_bytes(self, ) -> "typing.List[int]":
+    def get_bytes(
+        self,
+    ) -> "typing.List[int]":
         return _UniffiConverterSequenceUInt8.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_liquidation_get_bytes,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_liquidation_get_bytes,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def get_signature(self, ) -> "ZkLinkSignature":
+    def get_signature(
+        self,
+    ) -> "ZkLinkSignature":
         return _UniffiConverterTypeZkLinkSignature.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_liquidation_get_signature,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_liquidation_get_signature,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def is_signature_valid(self, ):
+    def is_signature_valid(
+        self,
+    ):
         return _UniffiConverterBool.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_liquidation_is_signature_valid,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_liquidation_is_signature_valid,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def is_valid(self, ):
+    def is_valid(
+        self,
+    ):
         return _UniffiConverterBool.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_liquidation_is_valid,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_liquidation_is_valid,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def json_str(self, ):
+    def json_str(
+        self,
+    ):
         return _UniffiConverterString.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_liquidation_json_str,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_liquidation_json_str,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def to_zklink_tx(self, ) -> "ZkLinkTx":
+    def to_zklink_tx(
+        self,
+    ) -> "ZkLinkTx":
         return _UniffiConverterTypeZkLinkTx.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_liquidation_to_zklink_tx,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_liquidation_to_zklink_tx,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def tx_hash(self, ) -> "typing.List[int]":
+    def tx_hash(
+        self,
+    ) -> "typing.List[int]":
         return _UniffiConverterSequenceUInt8.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_liquidation_tx_hash,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_liquidation_tx_hash,
+                self._pointer,
+            )
         )
-
-
-
-
 
 
 class _UniffiConverterTypeLiquidation:
@@ -3614,7 +4250,9 @@ class _UniffiConverterTypeLiquidation:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, Liquidation):
-            raise TypeError("Expected Liquidation instance, {} found".format(type(value).__name__))
+            raise TypeError(
+                "Expected Liquidation instance, {} found".format(type(value).__name__)
+            )
         buf.write_u64(cls.lower(value))
 
     @staticmethod
@@ -3626,37 +4264,42 @@ class _UniffiConverterTypeLiquidation:
         return value._pointer
 
 
-
 class Order:
     _pointer: ctypes.c_void_p
-    def __init__(self, account_id: "AccountId",sub_account_id: "SubAccountId",slot_id: "SlotId",nonce: "Nonce",base_token_id: "TokenId",quote_token_id: "TokenId",amount: "BigUint",price: "BigUint",is_sell: bool,has_subsidy: bool,maker_fee_rate: "int",taker_fee_rate: "int",signature: "typing.Optional[ZkLinkSignature]"):
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        self._pointer = _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_constructor_order_new,
-        _UniffiConverterTypeAccountId.lower(account_id),
-        _UniffiConverterTypeSubAccountId.lower(sub_account_id),
-        _UniffiConverterTypeSlotId.lower(slot_id),
-        _UniffiConverterTypeNonce.lower(nonce),
-        _UniffiConverterTypeTokenId.lower(base_token_id),
-        _UniffiConverterTypeTokenId.lower(quote_token_id),
-        _UniffiConverterTypeBigUint.lower(amount),
-        _UniffiConverterTypeBigUint.lower(price),
-        _UniffiConverterBool.lower(is_sell),
-        _UniffiConverterBool.lower(has_subsidy),
-        _UniffiConverterUInt8.lower(maker_fee_rate),
-        _UniffiConverterUInt8.lower(taker_fee_rate),
-        _UniffiConverterOptionalTypeZkLinkSignature.lower(signature))
+
+    def __init__(
+        self,
+        account_id: "AccountId",
+        sub_account_id: "SubAccountId",
+        slot_id: "SlotId",
+        nonce: "Nonce",
+        base_token_id: "TokenId",
+        quote_token_id: "TokenId",
+        amount: "BigUint",
+        price: "BigUint",
+        is_sell: bool,
+        has_subsidy: bool,
+        maker_fee_rate: "int",
+        taker_fee_rate: "int",
+        signature: "typing.Optional[ZkLinkSignature]",
+    ):
+
+        self._pointer = _rust_call(
+            _UniffiLib.uniffi_zklink_sdk_fn_constructor_order_new,
+            _UniffiConverterTypeAccountId.lower(account_id),
+            _UniffiConverterTypeSubAccountId.lower(sub_account_id),
+            _UniffiConverterTypeSlotId.lower(slot_id),
+            _UniffiConverterTypeNonce.lower(nonce),
+            _UniffiConverterTypeTokenId.lower(base_token_id),
+            _UniffiConverterTypeTokenId.lower(quote_token_id),
+            _UniffiConverterTypeBigUint.lower(amount),
+            _UniffiConverterTypeBigUint.lower(price),
+            _UniffiConverterBool.lower(is_sell),
+            _UniffiConverterBool.lower(has_subsidy),
+            _UniffiConverterUInt8.lower(maker_fee_rate),
+            _UniffiConverterUInt8.lower(taker_fee_rate),
+            _UniffiConverterOptionalTypeZkLinkSignature.lower(signature),
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
@@ -3673,84 +4316,78 @@ class Order:
         inst._pointer = pointer
         return inst
 
-
     def create_signed_order(self, zklink_signer: "ZkLinkSigner") -> "Order":
-        
+
         return _UniffiConverterTypeOrder.lift(
             _rust_call_with_error(
-    _UniffiConverterTypeZkSignerError,_UniffiLib.uniffi_zklink_sdk_fn_method_order_create_signed_order,self._pointer,
-        _UniffiConverterTypeZkLinkSigner.lower(zklink_signer))
+                _UniffiConverterTypeZkSignerError,
+                _UniffiLib.uniffi_zklink_sdk_fn_method_order_create_signed_order,
+                self._pointer,
+                _UniffiConverterTypeZkLinkSigner.lower(zklink_signer),
+            )
         )
 
-
-
-
-
-
-    def get_bytes(self, ) -> "typing.List[int]":
+    def get_bytes(
+        self,
+    ) -> "typing.List[int]":
         return _UniffiConverterSequenceUInt8.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_order_get_bytes,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_order_get_bytes,
+                self._pointer,
+            )
         )
 
+    def get_eth_sign_msg(self, quote_token: str, based_token: str, decimals: "int"):
 
-
-
-
-
-    def get_eth_sign_msg(self, quote_token: str,based_token: str,decimals: "int"):
-        
-        
-        
         return _UniffiConverterString.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_order_get_eth_sign_msg,self._pointer,
-        _UniffiConverterString.lower(quote_token),
-        _UniffiConverterString.lower(based_token),
-        _UniffiConverterUInt8.lower(decimals))
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_order_get_eth_sign_msg,
+                self._pointer,
+                _UniffiConverterString.lower(quote_token),
+                _UniffiConverterString.lower(based_token),
+                _UniffiConverterUInt8.lower(decimals),
+            )
         )
 
-
-
-
-
-
-    def get_signature(self, ) -> "ZkLinkSignature":
+    def get_signature(
+        self,
+    ) -> "ZkLinkSignature":
         return _UniffiConverterTypeZkLinkSignature.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_order_get_signature,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_order_get_signature,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def is_signature_valid(self, ):
+    def is_signature_valid(
+        self,
+    ):
         return _UniffiConverterBool.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_order_is_signature_valid,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_order_is_signature_valid,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def is_valid(self, ):
+    def is_valid(
+        self,
+    ):
         return _UniffiConverterBool.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_order_is_valid,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_order_is_valid,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def json_str(self, ):
+    def json_str(
+        self,
+    ):
         return _UniffiConverterString.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_order_json_str,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_order_json_str,
+                self._pointer,
+            )
         )
-
-
-
-
 
 
 class _UniffiConverterTypeOrder:
@@ -3764,7 +4401,9 @@ class _UniffiConverterTypeOrder:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, Order):
-            raise TypeError("Expected Order instance, {} found".format(type(value).__name__))
+            raise TypeError(
+                "Expected Order instance, {} found".format(type(value).__name__)
+            )
         buf.write_u64(cls.lower(value))
 
     @staticmethod
@@ -3776,13 +4415,15 @@ class _UniffiConverterTypeOrder:
         return value._pointer
 
 
-
 class OrderMatching:
     _pointer: ctypes.c_void_p
+
     def __init__(self, builder: "OrderMatchingBuilder"):
-        
-        self._pointer = _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_constructor_ordermatching_new,
-        _UniffiConverterTypeOrderMatchingBuilder.lower(builder))
+
+        self._pointer = _rust_call(
+            _UniffiLib.uniffi_zklink_sdk_fn_constructor_ordermatching_new,
+            _UniffiConverterTypeOrderMatchingBuilder.lower(builder),
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
@@ -3799,88 +4440,86 @@ class OrderMatching:
         inst._pointer = pointer
         return inst
 
-
     def create_signed_tx(self, signer: "ZkLinkSigner") -> "OrderMatching":
-        
+
         return _UniffiConverterTypeOrderMatching.lift(
             _rust_call_with_error(
-    _UniffiConverterTypeZkSignerError,_UniffiLib.uniffi_zklink_sdk_fn_method_ordermatching_create_signed_tx,self._pointer,
-        _UniffiConverterTypeZkLinkSigner.lower(signer))
+                _UniffiConverterTypeZkSignerError,
+                _UniffiLib.uniffi_zklink_sdk_fn_method_ordermatching_create_signed_tx,
+                self._pointer,
+                _UniffiConverterTypeZkLinkSigner.lower(signer),
+            )
         )
 
-
-
-
-
-
-    def get_bytes(self, ) -> "typing.List[int]":
+    def get_bytes(
+        self,
+    ) -> "typing.List[int]":
         return _UniffiConverterSequenceUInt8.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_ordermatching_get_bytes,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_ordermatching_get_bytes,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def get_signature(self, ) -> "ZkLinkSignature":
+    def get_signature(
+        self,
+    ) -> "ZkLinkSignature":
         return _UniffiConverterTypeZkLinkSignature.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_ordermatching_get_signature,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_ordermatching_get_signature,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def is_signature_valid(self, ):
+    def is_signature_valid(
+        self,
+    ):
         return _UniffiConverterBool.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_ordermatching_is_signature_valid,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_ordermatching_is_signature_valid,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def is_valid(self, ):
+    def is_valid(
+        self,
+    ):
         return _UniffiConverterBool.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_ordermatching_is_valid,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_ordermatching_is_valid,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def json_str(self, ):
+    def json_str(
+        self,
+    ):
         return _UniffiConverterString.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_ordermatching_json_str,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_ordermatching_json_str,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def to_zklink_tx(self, ) -> "ZkLinkTx":
+    def to_zklink_tx(
+        self,
+    ) -> "ZkLinkTx":
         return _UniffiConverterTypeZkLinkTx.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_ordermatching_to_zklink_tx,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_ordermatching_to_zklink_tx,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def tx_hash(self, ) -> "typing.List[int]":
+    def tx_hash(
+        self,
+    ) -> "typing.List[int]":
         return _UniffiConverterSequenceUInt8.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_ordermatching_tx_hash,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_ordermatching_tx_hash,
+                self._pointer,
+            )
         )
-
-
-
-
 
 
 class _UniffiConverterTypeOrderMatching:
@@ -3894,7 +4533,9 @@ class _UniffiConverterTypeOrderMatching:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, OrderMatching):
-            raise TypeError("Expected OrderMatching instance, {} found".format(type(value).__name__))
+            raise TypeError(
+                "Expected OrderMatching instance, {} found".format(type(value).__name__)
+            )
         buf.write_u64(cls.lower(value))
 
     @staticmethod
@@ -3906,15 +4547,17 @@ class _UniffiConverterTypeOrderMatching:
         return value._pointer
 
 
-
 class Signer:
     _pointer: ctypes.c_void_p
-    def __init__(self, private_key: str,l1_type: "L1SignerType"):
-        
-        
-        self._pointer = _rust_call_with_error(_UniffiConverterTypeSignError,_UniffiLib.uniffi_zklink_sdk_fn_constructor_signer_new,
-        _UniffiConverterString.lower(private_key),
-        _UniffiConverterTypeL1SignerType.lower(l1_type))
+
+    def __init__(self, private_key: str, l1_type: "L1SignerType"):
+
+        self._pointer = _rust_call_with_error(
+            _UniffiConverterTypeSignError,
+            _UniffiLib.uniffi_zklink_sdk_fn_constructor_signer_new,
+            _UniffiConverterString.lower(private_key),
+            _UniffiConverterTypeL1SignerType.lower(l1_type),
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
@@ -3931,162 +4574,151 @@ class Signer:
         inst._pointer = pointer
         return inst
 
-
     def sign_auto_deleveraging(self, tx: "AutoDeleveraging") -> "TxSignature":
-        
+
         return _UniffiConverterTypeTxSignature.lift(
             _rust_call_with_error(
-    _UniffiConverterTypeSignError,_UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_auto_deleveraging,self._pointer,
-        _UniffiConverterTypeAutoDeleveraging.lower(tx))
+                _UniffiConverterTypeSignError,
+                _UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_auto_deleveraging,
+                self._pointer,
+                _UniffiConverterTypeAutoDeleveraging.lower(tx),
+            )
         )
 
+    def sign_change_pubkey_with_create2data_auth(
+        self, tx: "ChangePubKey", crate2data: "Create2Data"
+    ) -> "TxSignature":
 
-
-
-
-
-    def sign_change_pubkey_with_create2data_auth(self, tx: "ChangePubKey",crate2data: "Create2Data") -> "TxSignature":
-        
-        
         return _UniffiConverterTypeTxSignature.lift(
             _rust_call_with_error(
-    _UniffiConverterTypeSignError,_UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_change_pubkey_with_create2data_auth,self._pointer,
-        _UniffiConverterTypeChangePubKey.lower(tx),
-        _UniffiConverterTypeCreate2Data.lower(crate2data))
+                _UniffiConverterTypeSignError,
+                _UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_change_pubkey_with_create2data_auth,
+                self._pointer,
+                _UniffiConverterTypeChangePubKey.lower(tx),
+                _UniffiConverterTypeCreate2Data.lower(crate2data),
+            )
         )
 
+    def sign_change_pubkey_with_eth_ecdsa_auth(
+        self, tx: "ChangePubKey"
+    ) -> "TxSignature":
 
-
-
-
-
-    def sign_change_pubkey_with_eth_ecdsa_auth(self, tx: "ChangePubKey") -> "TxSignature":
-        
         return _UniffiConverterTypeTxSignature.lift(
             _rust_call_with_error(
-    _UniffiConverterTypeSignError,_UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_change_pubkey_with_eth_ecdsa_auth,self._pointer,
-        _UniffiConverterTypeChangePubKey.lower(tx))
+                _UniffiConverterTypeSignError,
+                _UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_change_pubkey_with_eth_ecdsa_auth,
+                self._pointer,
+                _UniffiConverterTypeChangePubKey.lower(tx),
+            )
         )
 
+    def sign_change_pubkey_with_onchain_auth_data(
+        self, tx: "ChangePubKey"
+    ) -> "TxSignature":
 
-
-
-
-
-    def sign_change_pubkey_with_onchain_auth_data(self, tx: "ChangePubKey") -> "TxSignature":
-        
         return _UniffiConverterTypeTxSignature.lift(
             _rust_call_with_error(
-    _UniffiConverterTypeSignError,_UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_change_pubkey_with_onchain_auth_data,self._pointer,
-        _UniffiConverterTypeChangePubKey.lower(tx))
+                _UniffiConverterTypeSignError,
+                _UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_change_pubkey_with_onchain_auth_data,
+                self._pointer,
+                _UniffiConverterTypeChangePubKey.lower(tx),
+            )
         )
-
-
-
-
-
 
     def sign_contract_matching(self, tx: "ContractMatching") -> "TxSignature":
-        
+
         return _UniffiConverterTypeTxSignature.lift(
             _rust_call_with_error(
-    _UniffiConverterTypeSignError,_UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_contract_matching,self._pointer,
-        _UniffiConverterTypeContractMatching.lower(tx))
+                _UniffiConverterTypeSignError,
+                _UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_contract_matching,
+                self._pointer,
+                _UniffiConverterTypeContractMatching.lower(tx),
+            )
         )
-
-
-
-
-
 
     def sign_forced_exit(self, tx: "ForcedExit") -> "TxSignature":
-        
+
         return _UniffiConverterTypeTxSignature.lift(
             _rust_call_with_error(
-    _UniffiConverterTypeSignError,_UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_forced_exit,self._pointer,
-        _UniffiConverterTypeForcedExit.lower(tx))
+                _UniffiConverterTypeSignError,
+                _UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_forced_exit,
+                self._pointer,
+                _UniffiConverterTypeForcedExit.lower(tx),
+            )
         )
-
-
-
-
-
 
     def sign_funding(self, tx: "Funding") -> "TxSignature":
-        
+
         return _UniffiConverterTypeTxSignature.lift(
             _rust_call_with_error(
-    _UniffiConverterTypeSignError,_UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_funding,self._pointer,
-        _UniffiConverterTypeFunding.lower(tx))
+                _UniffiConverterTypeSignError,
+                _UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_funding,
+                self._pointer,
+                _UniffiConverterTypeFunding.lower(tx),
+            )
         )
-
-
-
-
-
 
     def sign_liquidation(self, tx: "Liquidation") -> "TxSignature":
-        
+
         return _UniffiConverterTypeTxSignature.lift(
             _rust_call_with_error(
-    _UniffiConverterTypeSignError,_UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_liquidation,self._pointer,
-        _UniffiConverterTypeLiquidation.lower(tx))
+                _UniffiConverterTypeSignError,
+                _UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_liquidation,
+                self._pointer,
+                _UniffiConverterTypeLiquidation.lower(tx),
+            )
         )
-
-
-
-
-
 
     def sign_order_matching(self, tx: "OrderMatching") -> "TxSignature":
-        
+
         return _UniffiConverterTypeTxSignature.lift(
             _rust_call_with_error(
-    _UniffiConverterTypeSignError,_UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_order_matching,self._pointer,
-        _UniffiConverterTypeOrderMatching.lower(tx))
+                _UniffiConverterTypeSignError,
+                _UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_order_matching,
+                self._pointer,
+                _UniffiConverterTypeOrderMatching.lower(tx),
+            )
         )
 
+    def sign_transfer(
+        self,
+        tx: "Transfer",
+        token_sybmol: str,
+        chain_id: "typing.Optional[str]",
+        addr: "typing.Optional[str]",
+    ) -> "TxSignature":
 
-
-
-
-
-    def sign_transfer(self, tx: "Transfer",token_sybmol: str,chain_id: "typing.Optional[str]",addr: "typing.Optional[str]") -> "TxSignature":
-        
-        
-        
-        
         return _UniffiConverterTypeTxSignature.lift(
             _rust_call_with_error(
-    _UniffiConverterTypeSignError,_UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_transfer,self._pointer,
-        _UniffiConverterTypeTransfer.lower(tx),
-        _UniffiConverterString.lower(token_sybmol),
-        _UniffiConverterOptionalString.lower(chain_id),
-        _UniffiConverterOptionalString.lower(addr))
+                _UniffiConverterTypeSignError,
+                _UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_transfer,
+                self._pointer,
+                _UniffiConverterTypeTransfer.lower(tx),
+                _UniffiConverterString.lower(token_sybmol),
+                _UniffiConverterOptionalString.lower(chain_id),
+                _UniffiConverterOptionalString.lower(addr),
+            )
         )
 
+    def sign_withdraw(
+        self,
+        tx: "Withdraw",
+        l2_source_token_symbol: str,
+        chain_id: "typing.Optional[str]",
+        addr: "typing.Optional[str]",
+    ) -> "TxSignature":
 
-
-
-
-
-    def sign_withdraw(self, tx: "Withdraw",l2_source_token_symbol: str,chain_id: "typing.Optional[str]",addr: "typing.Optional[str]") -> "TxSignature":
-        
-        
-        
-        
         return _UniffiConverterTypeTxSignature.lift(
             _rust_call_with_error(
-    _UniffiConverterTypeSignError,_UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_withdraw,self._pointer,
-        _UniffiConverterTypeWithdraw.lower(tx),
-        _UniffiConverterString.lower(l2_source_token_symbol),
-        _UniffiConverterOptionalString.lower(chain_id),
-        _UniffiConverterOptionalString.lower(addr))
+                _UniffiConverterTypeSignError,
+                _UniffiLib.uniffi_zklink_sdk_fn_method_signer_sign_withdraw,
+                self._pointer,
+                _UniffiConverterTypeWithdraw.lower(tx),
+                _UniffiConverterString.lower(l2_source_token_symbol),
+                _UniffiConverterOptionalString.lower(chain_id),
+                _UniffiConverterOptionalString.lower(addr),
+            )
         )
-
-
-
-
 
 
 class _UniffiConverterTypeSigner:
@@ -4100,7 +4732,9 @@ class _UniffiConverterTypeSigner:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, Signer):
-            raise TypeError("Expected Signer instance, {} found".format(type(value).__name__))
+            raise TypeError(
+                "Expected Signer instance, {} found".format(type(value).__name__)
+            )
         buf.write_u64(cls.lower(value))
 
     @staticmethod
@@ -4112,11 +4746,15 @@ class _UniffiConverterTypeSigner:
         return value._pointer
 
 
-
 class StarkSigner:
     _pointer: ctypes.c_void_p
-    def __init__(self, ):
-        self._pointer = _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_constructor_starksigner_new,)
+
+    def __init__(
+        self,
+    ):
+        self._pointer = _rust_call(
+            _UniffiLib.uniffi_zklink_sdk_fn_constructor_starksigner_new,
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
@@ -4135,27 +4773,28 @@ class StarkSigner:
 
     @classmethod
     def new_from_hex_str(cls, hex_str: str):
-        
+
         # Call the (fallible) function before creating any half-baked object instances.
-        pointer = _rust_call_with_error(_UniffiConverterTypeStarkSignerError,_UniffiLib.uniffi_zklink_sdk_fn_constructor_starksigner_new_from_hex_str,
-        _UniffiConverterString.lower(hex_str))
+        pointer = _rust_call_with_error(
+            _UniffiConverterTypeStarkSignerError,
+            _UniffiLib.uniffi_zklink_sdk_fn_constructor_starksigner_new_from_hex_str,
+            _UniffiConverterString.lower(hex_str),
+        )
         return cls._make_instance_(pointer)
 
+    def sign_message(
+        self, typed_data: "TypedData", addr: str
+    ) -> "StarkEip712Signature":
 
-
-    def sign_message(self, typed_data: "TypedData",addr: str) -> "StarkEip712Signature":
-        
-        
         return _UniffiConverterTypeStarkEip712Signature.lift(
             _rust_call_with_error(
-    _UniffiConverterTypeStarkSignerError,_UniffiLib.uniffi_zklink_sdk_fn_method_starksigner_sign_message,self._pointer,
-        _UniffiConverterTypeTypedData.lower(typed_data),
-        _UniffiConverterString.lower(addr))
+                _UniffiConverterTypeStarkSignerError,
+                _UniffiLib.uniffi_zklink_sdk_fn_method_starksigner_sign_message,
+                self._pointer,
+                _UniffiConverterTypeTypedData.lower(typed_data),
+                _UniffiConverterString.lower(addr),
+            )
         )
-
-
-
-
 
 
 class _UniffiConverterTypeStarkSigner:
@@ -4169,7 +4808,9 @@ class _UniffiConverterTypeStarkSigner:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, StarkSigner):
-            raise TypeError("Expected StarkSigner instance, {} found".format(type(value).__name__))
+            raise TypeError(
+                "Expected StarkSigner instance, {} found".format(type(value).__name__)
+            )
         buf.write_u64(cls.lower(value))
 
     @staticmethod
@@ -4181,13 +4822,15 @@ class _UniffiConverterTypeStarkSigner:
         return value._pointer
 
 
-
 class Transfer:
     _pointer: ctypes.c_void_p
+
     def __init__(self, builder: "TransferBuilder"):
-        
-        self._pointer = _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_constructor_transfer_new,
-        _UniffiConverterTypeTransferBuilder.lower(builder))
+
+        self._pointer = _rust_call(
+            _UniffiLib.uniffi_zklink_sdk_fn_constructor_transfer_new,
+            _UniffiConverterTypeTransferBuilder.lower(builder),
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
@@ -4204,115 +4847,110 @@ class Transfer:
         inst._pointer = pointer
         return inst
 
-
     def create_signed_tx(self, signer: "ZkLinkSigner") -> "Transfer":
-        
+
         return _UniffiConverterTypeTransfer.lift(
             _rust_call_with_error(
-    _UniffiConverterTypeZkSignerError,_UniffiLib.uniffi_zklink_sdk_fn_method_transfer_create_signed_tx,self._pointer,
-        _UniffiConverterTypeZkLinkSigner.lower(signer))
+                _UniffiConverterTypeZkSignerError,
+                _UniffiLib.uniffi_zklink_sdk_fn_method_transfer_create_signed_tx,
+                self._pointer,
+                _UniffiConverterTypeZkLinkSigner.lower(signer),
+            )
         )
 
+    def eth_signature(
+        self, eth_signer: "EthSigner", token_symbol: str
+    ) -> "TxLayer1Signature":
 
-
-
-
-
-    def eth_signature(self, eth_signer: "EthSigner",token_symbol: str) -> "TxLayer1Signature":
-        
-        
         return _UniffiConverterTypeTxLayer1Signature.lift(
             _rust_call_with_error(
-    _UniffiConverterTypeZkSignerError,_UniffiLib.uniffi_zklink_sdk_fn_method_transfer_eth_signature,self._pointer,
-        _UniffiConverterTypeEthSigner.lower(eth_signer),
-        _UniffiConverterString.lower(token_symbol))
+                _UniffiConverterTypeZkSignerError,
+                _UniffiLib.uniffi_zklink_sdk_fn_method_transfer_eth_signature,
+                self._pointer,
+                _UniffiConverterTypeEthSigner.lower(eth_signer),
+                _UniffiConverterString.lower(token_symbol),
+            )
         )
 
-
-
-
-
-
-    def get_bytes(self, ) -> "typing.List[int]":
+    def get_bytes(
+        self,
+    ) -> "typing.List[int]":
         return _UniffiConverterSequenceUInt8.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_transfer_get_bytes,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_transfer_get_bytes,
+                self._pointer,
+            )
         )
-
-
-
-
-
 
     def get_eth_sign_msg(self, token_symbol: str):
-        
+
         return _UniffiConverterString.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_transfer_get_eth_sign_msg,self._pointer,
-        _UniffiConverterString.lower(token_symbol))
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_transfer_get_eth_sign_msg,
+                self._pointer,
+                _UniffiConverterString.lower(token_symbol),
+            )
         )
 
-
-
-
-
-
-    def get_signature(self, ) -> "ZkLinkSignature":
+    def get_signature(
+        self,
+    ) -> "ZkLinkSignature":
         return _UniffiConverterTypeZkLinkSignature.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_transfer_get_signature,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_transfer_get_signature,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def is_signature_valid(self, ):
+    def is_signature_valid(
+        self,
+    ):
         return _UniffiConverterBool.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_transfer_is_signature_valid,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_transfer_is_signature_valid,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def is_valid(self, ):
+    def is_valid(
+        self,
+    ):
         return _UniffiConverterBool.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_transfer_is_valid,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_transfer_is_valid,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def json_str(self, ):
+    def json_str(
+        self,
+    ):
         return _UniffiConverterString.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_transfer_json_str,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_transfer_json_str,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def to_zklink_tx(self, ) -> "ZkLinkTx":
+    def to_zklink_tx(
+        self,
+    ) -> "ZkLinkTx":
         return _UniffiConverterTypeZkLinkTx.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_transfer_to_zklink_tx,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_transfer_to_zklink_tx,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def tx_hash(self, ) -> "typing.List[int]":
+    def tx_hash(
+        self,
+    ) -> "typing.List[int]":
         return _UniffiConverterSequenceUInt8.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_transfer_tx_hash,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_transfer_tx_hash,
+                self._pointer,
+            )
         )
-
-
-
-
 
 
 class _UniffiConverterTypeTransfer:
@@ -4326,7 +4964,9 @@ class _UniffiConverterTypeTransfer:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, Transfer):
-            raise TypeError("Expected Transfer instance, {} found".format(type(value).__name__))
+            raise TypeError(
+                "Expected Transfer instance, {} found".format(type(value).__name__)
+            )
         buf.write_u64(cls.lower(value))
 
     @staticmethod
@@ -4338,15 +4978,16 @@ class _UniffiConverterTypeTransfer:
         return value._pointer
 
 
-
 class TypedData:
     _pointer: ctypes.c_void_p
-    def __init__(self, message: "TypedDataMessage",chain_id: str):
-        
-        
-        self._pointer = _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_constructor_typeddata_new,
-        _UniffiConverterTypeTypedDataMessage.lower(message),
-        _UniffiConverterString.lower(chain_id))
+
+    def __init__(self, message: "TypedDataMessage", chain_id: str):
+
+        self._pointer = _rust_call(
+            _UniffiLib.uniffi_zklink_sdk_fn_constructor_typeddata_new,
+            _UniffiConverterTypeTypedDataMessage.lower(message),
+            _UniffiConverterString.lower(chain_id),
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
@@ -4375,7 +5016,9 @@ class _UniffiConverterTypeTypedData:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, TypedData):
-            raise TypeError("Expected TypedData instance, {} found".format(type(value).__name__))
+            raise TypeError(
+                "Expected TypedData instance, {} found".format(type(value).__name__)
+            )
         buf.write_u64(cls.lower(value))
 
     @staticmethod
@@ -4387,13 +5030,15 @@ class _UniffiConverterTypeTypedData:
         return value._pointer
 
 
-
 class UpdateGlobalVar:
     _pointer: ctypes.c_void_p
+
     def __init__(self, builder: "UpdateGlobalVarBuilder"):
-        
-        self._pointer = _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_constructor_updateglobalvar_new,
-        _UniffiConverterTypeUpdateGlobalVarBuilder.lower(builder))
+
+        self._pointer = _rust_call(
+            _UniffiLib.uniffi_zklink_sdk_fn_constructor_updateglobalvar_new,
+            _UniffiConverterTypeUpdateGlobalVarBuilder.lower(builder),
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
@@ -4410,55 +5055,55 @@ class UpdateGlobalVar:
         inst._pointer = pointer
         return inst
 
-
-    def get_bytes(self, ) -> "typing.List[int]":
+    def get_bytes(
+        self,
+    ) -> "typing.List[int]":
         return _UniffiConverterSequenceUInt8.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_updateglobalvar_get_bytes,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_updateglobalvar_get_bytes,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def is_valid(self, ):
+    def is_valid(
+        self,
+    ):
         return _UniffiConverterBool.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_updateglobalvar_is_valid,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_updateglobalvar_is_valid,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def json_str(self, ):
+    def json_str(
+        self,
+    ):
         return _UniffiConverterString.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_updateglobalvar_json_str,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_updateglobalvar_json_str,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def to_zklink_tx(self, ) -> "ZkLinkTx":
+    def to_zklink_tx(
+        self,
+    ) -> "ZkLinkTx":
         return _UniffiConverterTypeZkLinkTx.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_updateglobalvar_to_zklink_tx,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_updateglobalvar_to_zklink_tx,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def tx_hash(self, ) -> "typing.List[int]":
+    def tx_hash(
+        self,
+    ) -> "typing.List[int]":
         return _UniffiConverterSequenceUInt8.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_updateglobalvar_tx_hash,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_updateglobalvar_tx_hash,
+                self._pointer,
+            )
         )
-
-
-
-
 
 
 class _UniffiConverterTypeUpdateGlobalVar:
@@ -4472,7 +5117,11 @@ class _UniffiConverterTypeUpdateGlobalVar:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, UpdateGlobalVar):
-            raise TypeError("Expected UpdateGlobalVar instance, {} found".format(type(value).__name__))
+            raise TypeError(
+                "Expected UpdateGlobalVar instance, {} found".format(
+                    type(value).__name__
+                )
+            )
         buf.write_u64(cls.lower(value))
 
     @staticmethod
@@ -4484,13 +5133,15 @@ class _UniffiConverterTypeUpdateGlobalVar:
         return value._pointer
 
 
-
 class Withdraw:
     _pointer: ctypes.c_void_p
+
     def __init__(self, builder: "WithdrawBuilder"):
-        
-        self._pointer = _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_constructor_withdraw_new,
-        _UniffiConverterTypeWithdrawBuilder.lower(builder))
+
+        self._pointer = _rust_call(
+            _UniffiLib.uniffi_zklink_sdk_fn_constructor_withdraw_new,
+            _UniffiConverterTypeWithdrawBuilder.lower(builder),
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
@@ -4507,115 +5158,110 @@ class Withdraw:
         inst._pointer = pointer
         return inst
 
-
     def create_signed_tx(self, signer: "ZkLinkSigner") -> "Withdraw":
-        
+
         return _UniffiConverterTypeWithdraw.lift(
             _rust_call_with_error(
-    _UniffiConverterTypeZkSignerError,_UniffiLib.uniffi_zklink_sdk_fn_method_withdraw_create_signed_tx,self._pointer,
-        _UniffiConverterTypeZkLinkSigner.lower(signer))
+                _UniffiConverterTypeZkSignerError,
+                _UniffiLib.uniffi_zklink_sdk_fn_method_withdraw_create_signed_tx,
+                self._pointer,
+                _UniffiConverterTypeZkLinkSigner.lower(signer),
+            )
         )
 
+    def eth_signature(
+        self, eth_signer: "EthSigner", l2_source_token_symbol: str
+    ) -> "PackedEthSignature":
 
-
-
-
-
-    def eth_signature(self, eth_signer: "EthSigner",l2_source_token_symbol: str) -> "PackedEthSignature":
-        
-        
         return _UniffiConverterTypePackedEthSignature.lift(
             _rust_call_with_error(
-    _UniffiConverterTypeZkSignerError,_UniffiLib.uniffi_zklink_sdk_fn_method_withdraw_eth_signature,self._pointer,
-        _UniffiConverterTypeEthSigner.lower(eth_signer),
-        _UniffiConverterString.lower(l2_source_token_symbol))
+                _UniffiConverterTypeZkSignerError,
+                _UniffiLib.uniffi_zklink_sdk_fn_method_withdraw_eth_signature,
+                self._pointer,
+                _UniffiConverterTypeEthSigner.lower(eth_signer),
+                _UniffiConverterString.lower(l2_source_token_symbol),
+            )
         )
 
-
-
-
-
-
-    def get_bytes(self, ) -> "typing.List[int]":
+    def get_bytes(
+        self,
+    ) -> "typing.List[int]":
         return _UniffiConverterSequenceUInt8.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_withdraw_get_bytes,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_withdraw_get_bytes,
+                self._pointer,
+            )
         )
-
-
-
-
-
 
     def get_eth_sign_msg(self, token_symbol: str):
-        
+
         return _UniffiConverterString.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_withdraw_get_eth_sign_msg,self._pointer,
-        _UniffiConverterString.lower(token_symbol))
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_withdraw_get_eth_sign_msg,
+                self._pointer,
+                _UniffiConverterString.lower(token_symbol),
+            )
         )
 
-
-
-
-
-
-    def get_signature(self, ) -> "ZkLinkSignature":
+    def get_signature(
+        self,
+    ) -> "ZkLinkSignature":
         return _UniffiConverterTypeZkLinkSignature.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_withdraw_get_signature,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_withdraw_get_signature,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def is_signature_valid(self, ):
+    def is_signature_valid(
+        self,
+    ):
         return _UniffiConverterBool.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_withdraw_is_signature_valid,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_withdraw_is_signature_valid,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def is_valid(self, ):
+    def is_valid(
+        self,
+    ):
         return _UniffiConverterBool.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_withdraw_is_valid,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_withdraw_is_valid,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def json_str(self, ):
+    def json_str(
+        self,
+    ):
         return _UniffiConverterString.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_withdraw_json_str,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_withdraw_json_str,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def to_zklink_tx(self, ) -> "ZkLinkTx":
+    def to_zklink_tx(
+        self,
+    ) -> "ZkLinkTx":
         return _UniffiConverterTypeZkLinkTx.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_withdraw_to_zklink_tx,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_withdraw_to_zklink_tx,
+                self._pointer,
+            )
         )
 
-
-
-
-
-
-    def tx_hash(self, ) -> "typing.List[int]":
+    def tx_hash(
+        self,
+    ) -> "typing.List[int]":
         return _UniffiConverterSequenceUInt8.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_withdraw_tx_hash,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_withdraw_tx_hash,
+                self._pointer,
+            )
         )
-
-
-
-
 
 
 class _UniffiConverterTypeWithdraw:
@@ -4629,7 +5275,9 @@ class _UniffiConverterTypeWithdraw:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, Withdraw):
-            raise TypeError("Expected Withdraw instance, {} found".format(type(value).__name__))
+            raise TypeError(
+                "Expected Withdraw instance, {} found".format(type(value).__name__)
+            )
         buf.write_u64(cls.lower(value))
 
     @staticmethod
@@ -4641,11 +5289,16 @@ class _UniffiConverterTypeWithdraw:
         return value._pointer
 
 
-
 class ZkLinkSigner:
     _pointer: ctypes.c_void_p
-    def __init__(self, ):
-        self._pointer = _rust_call_with_error(_UniffiConverterTypeZkSignerError,_UniffiLib.uniffi_zklink_sdk_fn_constructor_zklinksigner_new,)
+
+    def __init__(
+        self,
+    ):
+        self._pointer = _rust_call_with_error(
+            _UniffiConverterTypeZkSignerError,
+            _UniffiLib.uniffi_zklink_sdk_fn_constructor_zklinksigner_new,
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
@@ -4664,66 +5317,70 @@ class ZkLinkSigner:
 
     @classmethod
     def new_from_bytes(cls, slice: "typing.List[int]"):
-        
-        # Call the (fallible) function before creating any half-baked object instances.
-        pointer = _rust_call_with_error(_UniffiConverterTypeZkSignerError,_UniffiLib.uniffi_zklink_sdk_fn_constructor_zklinksigner_new_from_bytes,
-        _UniffiConverterSequenceUInt8.lower(slice))
-        return cls._make_instance_(pointer)
 
+        # Call the (fallible) function before creating any half-baked object instances.
+        pointer = _rust_call_with_error(
+            _UniffiConverterTypeZkSignerError,
+            _UniffiLib.uniffi_zklink_sdk_fn_constructor_zklinksigner_new_from_bytes,
+            _UniffiConverterSequenceUInt8.lower(slice),
+        )
+        return cls._make_instance_(pointer)
 
     @classmethod
     def new_from_hex_eth_signer(cls, eth_hex_private_key: str):
-        
-        # Call the (fallible) function before creating any half-baked object instances.
-        pointer = _rust_call_with_error(_UniffiConverterTypeZkSignerError,_UniffiLib.uniffi_zklink_sdk_fn_constructor_zklinksigner_new_from_hex_eth_signer,
-        _UniffiConverterString.lower(eth_hex_private_key))
-        return cls._make_instance_(pointer)
 
+        # Call the (fallible) function before creating any half-baked object instances.
+        pointer = _rust_call_with_error(
+            _UniffiConverterTypeZkSignerError,
+            _UniffiLib.uniffi_zklink_sdk_fn_constructor_zklinksigner_new_from_hex_eth_signer,
+            _UniffiConverterString.lower(eth_hex_private_key),
+        )
+        return cls._make_instance_(pointer)
 
     @classmethod
-    def new_from_hex_stark_signer(cls, hex_private_key: str,addr: str,chain_id: str):
-        
-        
-        
-        # Call the (fallible) function before creating any half-baked object instances.
-        pointer = _rust_call_with_error(_UniffiConverterTypeZkSignerError,_UniffiLib.uniffi_zklink_sdk_fn_constructor_zklinksigner_new_from_hex_stark_signer,
-        _UniffiConverterString.lower(hex_private_key),
-        _UniffiConverterString.lower(addr),
-        _UniffiConverterString.lower(chain_id))
-        return cls._make_instance_(pointer)
+    def new_from_hex_stark_signer(cls, hex_private_key: str, addr: str, chain_id: str):
 
+        # Call the (fallible) function before creating any half-baked object instances.
+        pointer = _rust_call_with_error(
+            _UniffiConverterTypeZkSignerError,
+            _UniffiLib.uniffi_zklink_sdk_fn_constructor_zklinksigner_new_from_hex_stark_signer,
+            _UniffiConverterString.lower(hex_private_key),
+            _UniffiConverterString.lower(addr),
+            _UniffiConverterString.lower(chain_id),
+        )
+        return cls._make_instance_(pointer)
 
     @classmethod
     def new_from_seed(cls, seed: "typing.List[int]"):
-        
+
         # Call the (fallible) function before creating any half-baked object instances.
-        pointer = _rust_call_with_error(_UniffiConverterTypeZkSignerError,_UniffiLib.uniffi_zklink_sdk_fn_constructor_zklinksigner_new_from_seed,
-        _UniffiConverterSequenceUInt8.lower(seed))
+        pointer = _rust_call_with_error(
+            _UniffiConverterTypeZkSignerError,
+            _UniffiLib.uniffi_zklink_sdk_fn_constructor_zklinksigner_new_from_seed,
+            _UniffiConverterSequenceUInt8.lower(seed),
+        )
         return cls._make_instance_(pointer)
 
-
-
-    def public_key(self, ) -> "PackedPublicKey":
+    def public_key(
+        self,
+    ) -> "PackedPublicKey":
         return _UniffiConverterTypePackedPublicKey.lift(
-            _rust_call(_UniffiLib.uniffi_zklink_sdk_fn_method_zklinksigner_public_key,self._pointer,)
+            _rust_call(
+                _UniffiLib.uniffi_zklink_sdk_fn_method_zklinksigner_public_key,
+                self._pointer,
+            )
         )
-
-
-
-
-
 
     def sign_musig(self, msg: "typing.List[int]") -> "ZkLinkSignature":
-        
+
         return _UniffiConverterTypeZkLinkSignature.lift(
             _rust_call_with_error(
-    _UniffiConverterTypeZkSignerError,_UniffiLib.uniffi_zklink_sdk_fn_method_zklinksigner_sign_musig,self._pointer,
-        _UniffiConverterSequenceUInt8.lower(msg))
+                _UniffiConverterTypeZkSignerError,
+                _UniffiLib.uniffi_zklink_sdk_fn_method_zklinksigner_sign_musig,
+                self._pointer,
+                _UniffiConverterSequenceUInt8.lower(msg),
+            )
         )
-
-
-
-
 
 
 class _UniffiConverterTypeZkLinkSigner:
@@ -4737,7 +5394,9 @@ class _UniffiConverterTypeZkLinkSigner:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, ZkLinkSigner):
-            raise TypeError("Expected ZkLinkSigner instance, {} found".format(type(value).__name__))
+            raise TypeError(
+                "Expected ZkLinkSigner instance, {} found".format(type(value).__name__)
+            )
         buf.write_u64(cls.lower(value))
 
     @staticmethod
@@ -4750,10 +5409,33 @@ class _UniffiConverterTypeZkLinkSigner:
 
 
 class AutoDeleveragingBuilder:
-    account_id: "AccountId";sub_account_id: "SubAccountId";sub_account_nonce: "Nonce";contract_prices: "typing.List[ContractPrice]";margin_prices: "typing.List[SpotPriceInfo]";adl_account_id: "AccountId";pair_id: "PairId";adl_size: "BigUint";adl_price: "BigUint";fee: "BigUint";fee_token: "TokenId";
+    account_id: "AccountId"
+    sub_account_id: "SubAccountId"
+    sub_account_nonce: "Nonce"
+    contract_prices: "typing.List[ContractPrice]"
+    margin_prices: "typing.List[SpotPriceInfo]"
+    adl_account_id: "AccountId"
+    pair_id: "PairId"
+    adl_size: "BigUint"
+    adl_price: "BigUint"
+    fee: "BigUint"
+    fee_token: "TokenId"
 
     @typing.no_type_check
-    def __init__(self, account_id: "AccountId", sub_account_id: "SubAccountId", sub_account_nonce: "Nonce", contract_prices: "typing.List[ContractPrice]", margin_prices: "typing.List[SpotPriceInfo]", adl_account_id: "AccountId", pair_id: "PairId", adl_size: "BigUint", adl_price: "BigUint", fee: "BigUint", fee_token: "TokenId"):
+    def __init__(
+        self,
+        account_id: "AccountId",
+        sub_account_id: "SubAccountId",
+        sub_account_nonce: "Nonce",
+        contract_prices: "typing.List[ContractPrice]",
+        margin_prices: "typing.List[SpotPriceInfo]",
+        adl_account_id: "AccountId",
+        pair_id: "PairId",
+        adl_size: "BigUint",
+        adl_price: "BigUint",
+        fee: "BigUint",
+        fee_token: "TokenId",
+    ):
         self.account_id = account_id
         self.sub_account_id = sub_account_id
         self.sub_account_nonce = sub_account_nonce
@@ -4767,7 +5449,19 @@ class AutoDeleveragingBuilder:
         self.fee_token = fee_token
 
     def __str__(self):
-        return "AutoDeleveragingBuilder(account_id={}, sub_account_id={}, sub_account_nonce={}, contract_prices={}, margin_prices={}, adl_account_id={}, pair_id={}, adl_size={}, adl_price={}, fee={}, fee_token={})".format(self.account_id, self.sub_account_id, self.sub_account_nonce, self.contract_prices, self.margin_prices, self.adl_account_id, self.pair_id, self.adl_size, self.adl_price, self.fee, self.fee_token)
+        return "AutoDeleveragingBuilder(account_id={}, sub_account_id={}, sub_account_nonce={}, contract_prices={}, margin_prices={}, adl_account_id={}, pair_id={}, adl_size={}, adl_price={}, fee={}, fee_token={})".format(
+            self.account_id,
+            self.sub_account_id,
+            self.sub_account_nonce,
+            self.contract_prices,
+            self.margin_prices,
+            self.adl_account_id,
+            self.pair_id,
+            self.adl_size,
+            self.adl_price,
+            self.fee,
+            self.fee_token,
+        )
 
     def __eq__(self, other):
         if self.account_id != other.account_id:
@@ -4793,6 +5487,7 @@ class AutoDeleveragingBuilder:
         if self.fee_token != other.fee_token:
             return False
         return True
+
 
 class _UniffiConverterTypeAutoDeleveragingBuilder(_UniffiConverterRustBuffer):
     @staticmethod
@@ -4827,10 +5522,29 @@ class _UniffiConverterTypeAutoDeleveragingBuilder(_UniffiConverterRustBuffer):
 
 
 class ChangePubKeyBuilder:
-    chain_id: "ChainId";account_id: "AccountId";sub_account_id: "SubAccountId";new_pubkey_hash: "PubKeyHash";fee_token: "TokenId";fee: "BigUint";nonce: "Nonce";eth_signature: "typing.Optional[PackedEthSignature]";timestamp: "TimeStamp";
+    chain_id: "ChainId"
+    account_id: "AccountId"
+    sub_account_id: "SubAccountId"
+    new_pubkey_hash: "PubKeyHash"
+    fee_token: "TokenId"
+    fee: "BigUint"
+    nonce: "Nonce"
+    eth_signature: "typing.Optional[PackedEthSignature]"
+    timestamp: "TimeStamp"
 
     @typing.no_type_check
-    def __init__(self, chain_id: "ChainId", account_id: "AccountId", sub_account_id: "SubAccountId", new_pubkey_hash: "PubKeyHash", fee_token: "TokenId", fee: "BigUint", nonce: "Nonce", eth_signature: "typing.Optional[PackedEthSignature]", timestamp: "TimeStamp"):
+    def __init__(
+        self,
+        chain_id: "ChainId",
+        account_id: "AccountId",
+        sub_account_id: "SubAccountId",
+        new_pubkey_hash: "PubKeyHash",
+        fee_token: "TokenId",
+        fee: "BigUint",
+        nonce: "Nonce",
+        eth_signature: "typing.Optional[PackedEthSignature]",
+        timestamp: "TimeStamp",
+    ):
         self.chain_id = chain_id
         self.account_id = account_id
         self.sub_account_id = sub_account_id
@@ -4842,7 +5556,17 @@ class ChangePubKeyBuilder:
         self.timestamp = timestamp
 
     def __str__(self):
-        return "ChangePubKeyBuilder(chain_id={}, account_id={}, sub_account_id={}, new_pubkey_hash={}, fee_token={}, fee={}, nonce={}, eth_signature={}, timestamp={})".format(self.chain_id, self.account_id, self.sub_account_id, self.new_pubkey_hash, self.fee_token, self.fee, self.nonce, self.eth_signature, self.timestamp)
+        return "ChangePubKeyBuilder(chain_id={}, account_id={}, sub_account_id={}, new_pubkey_hash={}, fee_token={}, fee={}, nonce={}, eth_signature={}, timestamp={})".format(
+            self.chain_id,
+            self.account_id,
+            self.sub_account_id,
+            self.new_pubkey_hash,
+            self.fee_token,
+            self.fee,
+            self.nonce,
+            self.eth_signature,
+            self.timestamp,
+        )
 
     def __eq__(self, other):
         if self.chain_id != other.chain_id:
@@ -4864,6 +5588,7 @@ class ChangePubKeyBuilder:
         if self.timestamp != other.timestamp:
             return False
         return True
+
 
 class _UniffiConverterTypeChangePubKeyBuilder(_UniffiConverterRustBuffer):
     @staticmethod
@@ -4894,10 +5619,33 @@ class _UniffiConverterTypeChangePubKeyBuilder(_UniffiConverterRustBuffer):
 
 
 class ContractBuilder:
-    account_id: "AccountId";sub_account_id: "SubAccountId";slot_id: "SlotId";nonce: "Nonce";pair_id: "PairId";size: "BigUint";price: "BigUint";direction: bool;taker_fee_rate: "int";maker_fee_rate: "int";has_subsidy: bool;
+    account_id: "AccountId"
+    sub_account_id: "SubAccountId"
+    slot_id: "SlotId"
+    nonce: "Nonce"
+    pair_id: "PairId"
+    size: "BigUint"
+    price: "BigUint"
+    direction: bool
+    taker_fee_rate: "int"
+    maker_fee_rate: "int"
+    has_subsidy: bool
 
     @typing.no_type_check
-    def __init__(self, account_id: "AccountId", sub_account_id: "SubAccountId", slot_id: "SlotId", nonce: "Nonce", pair_id: "PairId", size: "BigUint", price: "BigUint", direction: bool, taker_fee_rate: "int", maker_fee_rate: "int", has_subsidy: bool):
+    def __init__(
+        self,
+        account_id: "AccountId",
+        sub_account_id: "SubAccountId",
+        slot_id: "SlotId",
+        nonce: "Nonce",
+        pair_id: "PairId",
+        size: "BigUint",
+        price: "BigUint",
+        direction: bool,
+        taker_fee_rate: "int",
+        maker_fee_rate: "int",
+        has_subsidy: bool,
+    ):
         self.account_id = account_id
         self.sub_account_id = sub_account_id
         self.slot_id = slot_id
@@ -4911,7 +5659,19 @@ class ContractBuilder:
         self.has_subsidy = has_subsidy
 
     def __str__(self):
-        return "ContractBuilder(account_id={}, sub_account_id={}, slot_id={}, nonce={}, pair_id={}, size={}, price={}, direction={}, taker_fee_rate={}, maker_fee_rate={}, has_subsidy={})".format(self.account_id, self.sub_account_id, self.slot_id, self.nonce, self.pair_id, self.size, self.price, self.direction, self.taker_fee_rate, self.maker_fee_rate, self.has_subsidy)
+        return "ContractBuilder(account_id={}, sub_account_id={}, slot_id={}, nonce={}, pair_id={}, size={}, price={}, direction={}, taker_fee_rate={}, maker_fee_rate={}, has_subsidy={})".format(
+            self.account_id,
+            self.sub_account_id,
+            self.slot_id,
+            self.nonce,
+            self.pair_id,
+            self.size,
+            self.price,
+            self.direction,
+            self.taker_fee_rate,
+            self.maker_fee_rate,
+            self.has_subsidy,
+        )
 
     def __eq__(self, other):
         if self.account_id != other.account_id:
@@ -4937,6 +5697,7 @@ class ContractBuilder:
         if self.has_subsidy != other.has_subsidy:
             return False
         return True
+
 
 class _UniffiConverterTypeContractBuilder(_UniffiConverterRustBuffer):
     @staticmethod
@@ -4971,10 +5732,27 @@ class _UniffiConverterTypeContractBuilder(_UniffiConverterRustBuffer):
 
 
 class ContractMatchingBuilder:
-    account_id: "AccountId";sub_account_id: "SubAccountId";taker: "Contract";maker: "typing.List[Contract]";fee: "BigUint";fee_token: "TokenId";contract_prices: "typing.List[ContractPrice]";margin_prices: "typing.List[SpotPriceInfo]";
+    account_id: "AccountId"
+    sub_account_id: "SubAccountId"
+    taker: "Contract"
+    maker: "typing.List[Contract]"
+    fee: "BigUint"
+    fee_token: "TokenId"
+    contract_prices: "typing.List[ContractPrice]"
+    margin_prices: "typing.List[SpotPriceInfo]"
 
     @typing.no_type_check
-    def __init__(self, account_id: "AccountId", sub_account_id: "SubAccountId", taker: "Contract", maker: "typing.List[Contract]", fee: "BigUint", fee_token: "TokenId", contract_prices: "typing.List[ContractPrice]", margin_prices: "typing.List[SpotPriceInfo]"):
+    def __init__(
+        self,
+        account_id: "AccountId",
+        sub_account_id: "SubAccountId",
+        taker: "Contract",
+        maker: "typing.List[Contract]",
+        fee: "BigUint",
+        fee_token: "TokenId",
+        contract_prices: "typing.List[ContractPrice]",
+        margin_prices: "typing.List[SpotPriceInfo]",
+    ):
         self.account_id = account_id
         self.sub_account_id = sub_account_id
         self.taker = taker
@@ -4985,7 +5763,16 @@ class ContractMatchingBuilder:
         self.margin_prices = margin_prices
 
     def __str__(self):
-        return "ContractMatchingBuilder(account_id={}, sub_account_id={}, taker={}, maker={}, fee={}, fee_token={}, contract_prices={}, margin_prices={})".format(self.account_id, self.sub_account_id, self.taker, self.maker, self.fee, self.fee_token, self.contract_prices, self.margin_prices)
+        return "ContractMatchingBuilder(account_id={}, sub_account_id={}, taker={}, maker={}, fee={}, fee_token={}, contract_prices={}, margin_prices={})".format(
+            self.account_id,
+            self.sub_account_id,
+            self.taker,
+            self.maker,
+            self.fee,
+            self.fee_token,
+            self.contract_prices,
+            self.margin_prices,
+        )
 
     def __eq__(self, other):
         if self.account_id != other.account_id:
@@ -5005,6 +5792,7 @@ class ContractMatchingBuilder:
         if self.margin_prices != other.margin_prices:
             return False
         return True
+
 
 class _UniffiConverterTypeContractMatchingBuilder(_UniffiConverterRustBuffer):
     @staticmethod
@@ -5033,7 +5821,8 @@ class _UniffiConverterTypeContractMatchingBuilder(_UniffiConverterRustBuffer):
 
 
 class ContractPrice:
-    pair_id: "PairId";market_price: "BigUint";
+    pair_id: "PairId"
+    market_price: "BigUint"
 
     @typing.no_type_check
     def __init__(self, pair_id: "PairId", market_price: "BigUint"):
@@ -5041,7 +5830,9 @@ class ContractPrice:
         self.market_price = market_price
 
     def __str__(self):
-        return "ContractPrice(pair_id={}, market_price={})".format(self.pair_id, self.market_price)
+        return "ContractPrice(pair_id={}, market_price={})".format(
+            self.pair_id, self.market_price
+        )
 
     def __eq__(self, other):
         if self.pair_id != other.pair_id:
@@ -5049,6 +5840,7 @@ class ContractPrice:
         if self.market_price != other.market_price:
             return False
         return True
+
 
 class _UniffiConverterTypeContractPrice(_UniffiConverterRustBuffer):
     @staticmethod
@@ -5065,16 +5857,22 @@ class _UniffiConverterTypeContractPrice(_UniffiConverterRustBuffer):
 
 
 class Create2Data:
-    creator_address: "ZkLinkAddress";salt_arg: "H256";code_hash: "H256";
+    creator_address: "ZkLinkAddress"
+    salt_arg: "H256"
+    code_hash: "H256"
 
     @typing.no_type_check
-    def __init__(self, creator_address: "ZkLinkAddress", salt_arg: "H256", code_hash: "H256"):
+    def __init__(
+        self, creator_address: "ZkLinkAddress", salt_arg: "H256", code_hash: "H256"
+    ):
         self.creator_address = creator_address
         self.salt_arg = salt_arg
         self.code_hash = code_hash
 
     def __str__(self):
-        return "Create2Data(creator_address={}, salt_arg={}, code_hash={})".format(self.creator_address, self.salt_arg, self.code_hash)
+        return "Create2Data(creator_address={}, salt_arg={}, code_hash={})".format(
+            self.creator_address, self.salt_arg, self.code_hash
+        )
 
     def __eq__(self, other):
         if self.creator_address != other.creator_address:
@@ -5084,6 +5882,7 @@ class Create2Data:
         if self.code_hash != other.code_hash:
             return False
         return True
+
 
 class _UniffiConverterTypeCreate2Data(_UniffiConverterRustBuffer):
     @staticmethod
@@ -5102,10 +5901,31 @@ class _UniffiConverterTypeCreate2Data(_UniffiConverterRustBuffer):
 
 
 class DepositBuilder:
-    from_address: "ZkLinkAddress";to_address: "ZkLinkAddress";from_chain_id: "ChainId";sub_account_id: "SubAccountId";l2_target_token: "TokenId";l1_source_token: "TokenId";amount: "BigUint";serial_id: "int";l2_hash: "H256";eth_hash: "typing.Optional[H256]";
+    from_address: "ZkLinkAddress"
+    to_address: "ZkLinkAddress"
+    from_chain_id: "ChainId"
+    sub_account_id: "SubAccountId"
+    l2_target_token: "TokenId"
+    l1_source_token: "TokenId"
+    amount: "BigUint"
+    serial_id: "int"
+    l2_hash: "H256"
+    eth_hash: "typing.Optional[H256]"
 
     @typing.no_type_check
-    def __init__(self, from_address: "ZkLinkAddress", to_address: "ZkLinkAddress", from_chain_id: "ChainId", sub_account_id: "SubAccountId", l2_target_token: "TokenId", l1_source_token: "TokenId", amount: "BigUint", serial_id: "int", l2_hash: "H256", eth_hash: "typing.Optional[H256]"):
+    def __init__(
+        self,
+        from_address: "ZkLinkAddress",
+        to_address: "ZkLinkAddress",
+        from_chain_id: "ChainId",
+        sub_account_id: "SubAccountId",
+        l2_target_token: "TokenId",
+        l1_source_token: "TokenId",
+        amount: "BigUint",
+        serial_id: "int",
+        l2_hash: "H256",
+        eth_hash: "typing.Optional[H256]",
+    ):
         self.from_address = from_address
         self.to_address = to_address
         self.from_chain_id = from_chain_id
@@ -5118,7 +5938,18 @@ class DepositBuilder:
         self.eth_hash = eth_hash
 
     def __str__(self):
-        return "DepositBuilder(from_address={}, to_address={}, from_chain_id={}, sub_account_id={}, l2_target_token={}, l1_source_token={}, amount={}, serial_id={}, l2_hash={}, eth_hash={})".format(self.from_address, self.to_address, self.from_chain_id, self.sub_account_id, self.l2_target_token, self.l1_source_token, self.amount, self.serial_id, self.l2_hash, self.eth_hash)
+        return "DepositBuilder(from_address={}, to_address={}, from_chain_id={}, sub_account_id={}, l2_target_token={}, l1_source_token={}, amount={}, serial_id={}, l2_hash={}, eth_hash={})".format(
+            self.from_address,
+            self.to_address,
+            self.from_chain_id,
+            self.sub_account_id,
+            self.l2_target_token,
+            self.l1_source_token,
+            self.amount,
+            self.serial_id,
+            self.l2_hash,
+            self.eth_hash,
+        )
 
     def __eq__(self, other):
         if self.from_address != other.from_address:
@@ -5142,6 +5973,7 @@ class DepositBuilder:
         if self.eth_hash != other.eth_hash:
             return False
         return True
+
 
 class _UniffiConverterTypeDepositBuilder(_UniffiConverterRustBuffer):
     @staticmethod
@@ -5174,10 +6006,33 @@ class _UniffiConverterTypeDepositBuilder(_UniffiConverterRustBuffer):
 
 
 class ForcedExitBuilder:
-    to_chain_id: "ChainId";initiator_account_id: "AccountId";initiator_sub_account_id: "SubAccountId";target: "ZkLinkAddress";target_sub_account_id: "SubAccountId";l2_source_token: "TokenId";l1_target_token: "TokenId";initiator_nonce: "Nonce";exit_amount: "BigUint";withdraw_to_l1: bool;timestamp: "TimeStamp";
+    to_chain_id: "ChainId"
+    initiator_account_id: "AccountId"
+    initiator_sub_account_id: "SubAccountId"
+    target: "ZkLinkAddress"
+    target_sub_account_id: "SubAccountId"
+    l2_source_token: "TokenId"
+    l1_target_token: "TokenId"
+    initiator_nonce: "Nonce"
+    exit_amount: "BigUint"
+    withdraw_to_l1: bool
+    timestamp: "TimeStamp"
 
     @typing.no_type_check
-    def __init__(self, to_chain_id: "ChainId", initiator_account_id: "AccountId", initiator_sub_account_id: "SubAccountId", target: "ZkLinkAddress", target_sub_account_id: "SubAccountId", l2_source_token: "TokenId", l1_target_token: "TokenId", initiator_nonce: "Nonce", exit_amount: "BigUint", withdraw_to_l1: bool, timestamp: "TimeStamp"):
+    def __init__(
+        self,
+        to_chain_id: "ChainId",
+        initiator_account_id: "AccountId",
+        initiator_sub_account_id: "SubAccountId",
+        target: "ZkLinkAddress",
+        target_sub_account_id: "SubAccountId",
+        l2_source_token: "TokenId",
+        l1_target_token: "TokenId",
+        initiator_nonce: "Nonce",
+        exit_amount: "BigUint",
+        withdraw_to_l1: bool,
+        timestamp: "TimeStamp",
+    ):
         self.to_chain_id = to_chain_id
         self.initiator_account_id = initiator_account_id
         self.initiator_sub_account_id = initiator_sub_account_id
@@ -5191,7 +6046,19 @@ class ForcedExitBuilder:
         self.timestamp = timestamp
 
     def __str__(self):
-        return "ForcedExitBuilder(to_chain_id={}, initiator_account_id={}, initiator_sub_account_id={}, target={}, target_sub_account_id={}, l2_source_token={}, l1_target_token={}, initiator_nonce={}, exit_amount={}, withdraw_to_l1={}, timestamp={})".format(self.to_chain_id, self.initiator_account_id, self.initiator_sub_account_id, self.target, self.target_sub_account_id, self.l2_source_token, self.l1_target_token, self.initiator_nonce, self.exit_amount, self.withdraw_to_l1, self.timestamp)
+        return "ForcedExitBuilder(to_chain_id={}, initiator_account_id={}, initiator_sub_account_id={}, target={}, target_sub_account_id={}, l2_source_token={}, l1_target_token={}, initiator_nonce={}, exit_amount={}, withdraw_to_l1={}, timestamp={})".format(
+            self.to_chain_id,
+            self.initiator_account_id,
+            self.initiator_sub_account_id,
+            self.target,
+            self.target_sub_account_id,
+            self.l2_source_token,
+            self.l1_target_token,
+            self.initiator_nonce,
+            self.exit_amount,
+            self.withdraw_to_l1,
+            self.timestamp,
+        )
 
     def __eq__(self, other):
         if self.to_chain_id != other.to_chain_id:
@@ -5217,6 +6084,7 @@ class ForcedExitBuilder:
         if self.timestamp != other.timestamp:
             return False
         return True
+
 
 class _UniffiConverterTypeForcedExitBuilder(_UniffiConverterRustBuffer):
     @staticmethod
@@ -5251,10 +6119,31 @@ class _UniffiConverterTypeForcedExitBuilder(_UniffiConverterRustBuffer):
 
 
 class FullExitBuilder:
-    to_chain_id: "ChainId";account_id: "AccountId";sub_account_id: "SubAccountId";exit_address: "ZkLinkAddress";l2_source_token: "TokenId";l1_target_token: "TokenId";contract_prices: "typing.List[ContractPrice]";margin_prices: "typing.List[SpotPriceInfo]";serial_id: "int";l2_hash: "H256";
+    to_chain_id: "ChainId"
+    account_id: "AccountId"
+    sub_account_id: "SubAccountId"
+    exit_address: "ZkLinkAddress"
+    l2_source_token: "TokenId"
+    l1_target_token: "TokenId"
+    contract_prices: "typing.List[ContractPrice]"
+    margin_prices: "typing.List[SpotPriceInfo]"
+    serial_id: "int"
+    l2_hash: "H256"
 
     @typing.no_type_check
-    def __init__(self, to_chain_id: "ChainId", account_id: "AccountId", sub_account_id: "SubAccountId", exit_address: "ZkLinkAddress", l2_source_token: "TokenId", l1_target_token: "TokenId", contract_prices: "typing.List[ContractPrice]", margin_prices: "typing.List[SpotPriceInfo]", serial_id: "int", l2_hash: "H256"):
+    def __init__(
+        self,
+        to_chain_id: "ChainId",
+        account_id: "AccountId",
+        sub_account_id: "SubAccountId",
+        exit_address: "ZkLinkAddress",
+        l2_source_token: "TokenId",
+        l1_target_token: "TokenId",
+        contract_prices: "typing.List[ContractPrice]",
+        margin_prices: "typing.List[SpotPriceInfo]",
+        serial_id: "int",
+        l2_hash: "H256",
+    ):
         self.to_chain_id = to_chain_id
         self.account_id = account_id
         self.sub_account_id = sub_account_id
@@ -5267,7 +6156,18 @@ class FullExitBuilder:
         self.l2_hash = l2_hash
 
     def __str__(self):
-        return "FullExitBuilder(to_chain_id={}, account_id={}, sub_account_id={}, exit_address={}, l2_source_token={}, l1_target_token={}, contract_prices={}, margin_prices={}, serial_id={}, l2_hash={})".format(self.to_chain_id, self.account_id, self.sub_account_id, self.exit_address, self.l2_source_token, self.l1_target_token, self.contract_prices, self.margin_prices, self.serial_id, self.l2_hash)
+        return "FullExitBuilder(to_chain_id={}, account_id={}, sub_account_id={}, exit_address={}, l2_source_token={}, l1_target_token={}, contract_prices={}, margin_prices={}, serial_id={}, l2_hash={})".format(
+            self.to_chain_id,
+            self.account_id,
+            self.sub_account_id,
+            self.exit_address,
+            self.l2_source_token,
+            self.l1_target_token,
+            self.contract_prices,
+            self.margin_prices,
+            self.serial_id,
+            self.l2_hash,
+        )
 
     def __eq__(self, other):
         if self.to_chain_id != other.to_chain_id:
@@ -5291,6 +6191,7 @@ class FullExitBuilder:
         if self.l2_hash != other.l2_hash:
             return False
         return True
+
 
 class _UniffiConverterTypeFullExitBuilder(_UniffiConverterRustBuffer):
     @staticmethod
@@ -5323,10 +6224,23 @@ class _UniffiConverterTypeFullExitBuilder(_UniffiConverterRustBuffer):
 
 
 class FundingBuilder:
-    account_id: "AccountId";sub_account_id: "SubAccountId";sub_account_nonce: "Nonce";funding_account_ids: "typing.List[AccountId]";fee: "BigUint";fee_token: "TokenId";
+    account_id: "AccountId"
+    sub_account_id: "SubAccountId"
+    sub_account_nonce: "Nonce"
+    funding_account_ids: "typing.List[AccountId]"
+    fee: "BigUint"
+    fee_token: "TokenId"
 
     @typing.no_type_check
-    def __init__(self, account_id: "AccountId", sub_account_id: "SubAccountId", sub_account_nonce: "Nonce", funding_account_ids: "typing.List[AccountId]", fee: "BigUint", fee_token: "TokenId"):
+    def __init__(
+        self,
+        account_id: "AccountId",
+        sub_account_id: "SubAccountId",
+        sub_account_nonce: "Nonce",
+        funding_account_ids: "typing.List[AccountId]",
+        fee: "BigUint",
+        fee_token: "TokenId",
+    ):
         self.account_id = account_id
         self.sub_account_id = sub_account_id
         self.sub_account_nonce = sub_account_nonce
@@ -5335,7 +6249,14 @@ class FundingBuilder:
         self.fee_token = fee_token
 
     def __str__(self):
-        return "FundingBuilder(account_id={}, sub_account_id={}, sub_account_nonce={}, funding_account_ids={}, fee={}, fee_token={})".format(self.account_id, self.sub_account_id, self.sub_account_nonce, self.funding_account_ids, self.fee, self.fee_token)
+        return "FundingBuilder(account_id={}, sub_account_id={}, sub_account_nonce={}, funding_account_ids={}, fee={}, fee_token={})".format(
+            self.account_id,
+            self.sub_account_id,
+            self.sub_account_nonce,
+            self.funding_account_ids,
+            self.fee,
+            self.fee_token,
+        )
 
     def __eq__(self, other):
         if self.account_id != other.account_id:
@@ -5351,6 +6272,7 @@ class FundingBuilder:
         if self.fee_token != other.fee_token:
             return False
         return True
+
 
 class _UniffiConverterTypeFundingBuilder(_UniffiConverterRustBuffer):
     @staticmethod
@@ -5375,7 +6297,9 @@ class _UniffiConverterTypeFundingBuilder(_UniffiConverterRustBuffer):
 
 
 class FundingInfo:
-    pair_id: "PairId";price: "BigUint";funding_rate: "int";
+    pair_id: "PairId"
+    price: "BigUint"
+    funding_rate: "int"
 
     @typing.no_type_check
     def __init__(self, pair_id: "PairId", price: "BigUint", funding_rate: "int"):
@@ -5384,7 +6308,9 @@ class FundingInfo:
         self.funding_rate = funding_rate
 
     def __str__(self):
-        return "FundingInfo(pair_id={}, price={}, funding_rate={})".format(self.pair_id, self.price, self.funding_rate)
+        return "FundingInfo(pair_id={}, price={}, funding_rate={})".format(
+            self.pair_id, self.price, self.funding_rate
+        )
 
     def __eq__(self, other):
         if self.pair_id != other.pair_id:
@@ -5394,6 +6320,7 @@ class FundingInfo:
         if self.funding_rate != other.funding_rate:
             return False
         return True
+
 
 class _UniffiConverterTypeFundingInfo(_UniffiConverterRustBuffer):
     @staticmethod
@@ -5412,10 +6339,27 @@ class _UniffiConverterTypeFundingInfo(_UniffiConverterRustBuffer):
 
 
 class LiquidationBuilder:
-    account_id: "AccountId";sub_account_id: "SubAccountId";sub_account_nonce: "Nonce";contract_prices: "typing.List[ContractPrice]";margin_prices: "typing.List[SpotPriceInfo]";liquidation_account_id: "AccountId";fee: "BigUint";fee_token: "TokenId";
+    account_id: "AccountId"
+    sub_account_id: "SubAccountId"
+    sub_account_nonce: "Nonce"
+    contract_prices: "typing.List[ContractPrice]"
+    margin_prices: "typing.List[SpotPriceInfo]"
+    liquidation_account_id: "AccountId"
+    fee: "BigUint"
+    fee_token: "TokenId"
 
     @typing.no_type_check
-    def __init__(self, account_id: "AccountId", sub_account_id: "SubAccountId", sub_account_nonce: "Nonce", contract_prices: "typing.List[ContractPrice]", margin_prices: "typing.List[SpotPriceInfo]", liquidation_account_id: "AccountId", fee: "BigUint", fee_token: "TokenId"):
+    def __init__(
+        self,
+        account_id: "AccountId",
+        sub_account_id: "SubAccountId",
+        sub_account_nonce: "Nonce",
+        contract_prices: "typing.List[ContractPrice]",
+        margin_prices: "typing.List[SpotPriceInfo]",
+        liquidation_account_id: "AccountId",
+        fee: "BigUint",
+        fee_token: "TokenId",
+    ):
         self.account_id = account_id
         self.sub_account_id = sub_account_id
         self.sub_account_nonce = sub_account_nonce
@@ -5426,7 +6370,16 @@ class LiquidationBuilder:
         self.fee_token = fee_token
 
     def __str__(self):
-        return "LiquidationBuilder(account_id={}, sub_account_id={}, sub_account_nonce={}, contract_prices={}, margin_prices={}, liquidation_account_id={}, fee={}, fee_token={})".format(self.account_id, self.sub_account_id, self.sub_account_nonce, self.contract_prices, self.margin_prices, self.liquidation_account_id, self.fee, self.fee_token)
+        return "LiquidationBuilder(account_id={}, sub_account_id={}, sub_account_nonce={}, contract_prices={}, margin_prices={}, liquidation_account_id={}, fee={}, fee_token={})".format(
+            self.account_id,
+            self.sub_account_id,
+            self.sub_account_nonce,
+            self.contract_prices,
+            self.margin_prices,
+            self.liquidation_account_id,
+            self.fee,
+            self.fee_token,
+        )
 
     def __eq__(self, other):
         if self.account_id != other.account_id:
@@ -5446,6 +6399,7 @@ class LiquidationBuilder:
         if self.fee_token != other.fee_token:
             return False
         return True
+
 
 class _UniffiConverterTypeLiquidationBuilder(_UniffiConverterRustBuffer):
     @staticmethod
@@ -5474,7 +6428,7 @@ class _UniffiConverterTypeLiquidationBuilder(_UniffiConverterRustBuffer):
 
 
 class Message:
-    data: str;
+    data: str
 
     @typing.no_type_check
     def __init__(self, data: str):
@@ -5487,6 +6441,7 @@ class Message:
         if self.data != other.data:
             return False
         return True
+
 
 class _UniffiConverterTypeMessage(_UniffiConverterRustBuffer):
     @staticmethod
@@ -5501,15 +6456,22 @@ class _UniffiConverterTypeMessage(_UniffiConverterRustBuffer):
 
 
 class OraclePrices:
-    contract_prices: "typing.List[ContractPrice]";margin_prices: "typing.List[SpotPriceInfo]";
+    contract_prices: "typing.List[ContractPrice]"
+    margin_prices: "typing.List[SpotPriceInfo]"
 
     @typing.no_type_check
-    def __init__(self, contract_prices: "typing.List[ContractPrice]", margin_prices: "typing.List[SpotPriceInfo]"):
+    def __init__(
+        self,
+        contract_prices: "typing.List[ContractPrice]",
+        margin_prices: "typing.List[SpotPriceInfo]",
+    ):
         self.contract_prices = contract_prices
         self.margin_prices = margin_prices
 
     def __str__(self):
-        return "OraclePrices(contract_prices={}, margin_prices={})".format(self.contract_prices, self.margin_prices)
+        return "OraclePrices(contract_prices={}, margin_prices={})".format(
+            self.contract_prices, self.margin_prices
+        )
 
     def __eq__(self, other):
         if self.contract_prices != other.contract_prices:
@@ -5517,6 +6479,7 @@ class OraclePrices:
         if self.margin_prices != other.margin_prices:
             return False
         return True
+
 
 class _UniffiConverterTypeOraclePrices(_UniffiConverterRustBuffer):
     @staticmethod
@@ -5533,10 +6496,31 @@ class _UniffiConverterTypeOraclePrices(_UniffiConverterRustBuffer):
 
 
 class OrderMatchingBuilder:
-    account_id: "AccountId";sub_account_id: "SubAccountId";taker: "Order";maker: "Order";fee: "BigUint";fee_token: "TokenId";contract_prices: "typing.List[ContractPrice]";margin_prices: "typing.List[SpotPriceInfo]";expect_base_amount: "BigUint";expect_quote_amount: "BigUint";
+    account_id: "AccountId"
+    sub_account_id: "SubAccountId"
+    taker: "Order"
+    maker: "Order"
+    fee: "BigUint"
+    fee_token: "TokenId"
+    contract_prices: "typing.List[ContractPrice]"
+    margin_prices: "typing.List[SpotPriceInfo]"
+    expect_base_amount: "BigUint"
+    expect_quote_amount: "BigUint"
 
     @typing.no_type_check
-    def __init__(self, account_id: "AccountId", sub_account_id: "SubAccountId", taker: "Order", maker: "Order", fee: "BigUint", fee_token: "TokenId", contract_prices: "typing.List[ContractPrice]", margin_prices: "typing.List[SpotPriceInfo]", expect_base_amount: "BigUint", expect_quote_amount: "BigUint"):
+    def __init__(
+        self,
+        account_id: "AccountId",
+        sub_account_id: "SubAccountId",
+        taker: "Order",
+        maker: "Order",
+        fee: "BigUint",
+        fee_token: "TokenId",
+        contract_prices: "typing.List[ContractPrice]",
+        margin_prices: "typing.List[SpotPriceInfo]",
+        expect_base_amount: "BigUint",
+        expect_quote_amount: "BigUint",
+    ):
         self.account_id = account_id
         self.sub_account_id = sub_account_id
         self.taker = taker
@@ -5549,7 +6533,18 @@ class OrderMatchingBuilder:
         self.expect_quote_amount = expect_quote_amount
 
     def __str__(self):
-        return "OrderMatchingBuilder(account_id={}, sub_account_id={}, taker={}, maker={}, fee={}, fee_token={}, contract_prices={}, margin_prices={}, expect_base_amount={}, expect_quote_amount={})".format(self.account_id, self.sub_account_id, self.taker, self.maker, self.fee, self.fee_token, self.contract_prices, self.margin_prices, self.expect_base_amount, self.expect_quote_amount)
+        return "OrderMatchingBuilder(account_id={}, sub_account_id={}, taker={}, maker={}, fee={}, fee_token={}, contract_prices={}, margin_prices={}, expect_base_amount={}, expect_quote_amount={})".format(
+            self.account_id,
+            self.sub_account_id,
+            self.taker,
+            self.maker,
+            self.fee,
+            self.fee_token,
+            self.contract_prices,
+            self.margin_prices,
+            self.expect_base_amount,
+            self.expect_quote_amount,
+        )
 
     def __eq__(self, other):
         if self.account_id != other.account_id:
@@ -5573,6 +6568,7 @@ class OrderMatchingBuilder:
         if self.expect_quote_amount != other.expect_quote_amount:
             return False
         return True
+
 
 class _UniffiConverterTypeOrderMatchingBuilder(_UniffiConverterRustBuffer):
     @staticmethod
@@ -5605,7 +6601,8 @@ class _UniffiConverterTypeOrderMatchingBuilder(_UniffiConverterRustBuffer):
 
 
 class SpotPriceInfo:
-    token_id: "TokenId";price: "BigUint";
+    token_id: "TokenId"
+    price: "BigUint"
 
     @typing.no_type_check
     def __init__(self, token_id: "TokenId", price: "BigUint"):
@@ -5622,6 +6619,7 @@ class SpotPriceInfo:
             return False
         return True
 
+
 class _UniffiConverterTypeSpotPriceInfo(_UniffiConverterRustBuffer):
     @staticmethod
     def read(buf):
@@ -5637,10 +6635,29 @@ class _UniffiConverterTypeSpotPriceInfo(_UniffiConverterRustBuffer):
 
 
 class TransferBuilder:
-    account_id: "AccountId";to_address: "ZkLinkAddress";from_sub_account_id: "SubAccountId";to_sub_account_id: "SubAccountId";token: "TokenId";amount: "BigUint";fee: "BigUint";nonce: "Nonce";timestamp: "TimeStamp";
+    account_id: "AccountId"
+    to_address: "ZkLinkAddress"
+    from_sub_account_id: "SubAccountId"
+    to_sub_account_id: "SubAccountId"
+    token: "TokenId"
+    amount: "BigUint"
+    fee: "BigUint"
+    nonce: "Nonce"
+    timestamp: "TimeStamp"
 
     @typing.no_type_check
-    def __init__(self, account_id: "AccountId", to_address: "ZkLinkAddress", from_sub_account_id: "SubAccountId", to_sub_account_id: "SubAccountId", token: "TokenId", amount: "BigUint", fee: "BigUint", nonce: "Nonce", timestamp: "TimeStamp"):
+    def __init__(
+        self,
+        account_id: "AccountId",
+        to_address: "ZkLinkAddress",
+        from_sub_account_id: "SubAccountId",
+        to_sub_account_id: "SubAccountId",
+        token: "TokenId",
+        amount: "BigUint",
+        fee: "BigUint",
+        nonce: "Nonce",
+        timestamp: "TimeStamp",
+    ):
         self.account_id = account_id
         self.to_address = to_address
         self.from_sub_account_id = from_sub_account_id
@@ -5652,7 +6669,17 @@ class TransferBuilder:
         self.timestamp = timestamp
 
     def __str__(self):
-        return "TransferBuilder(account_id={}, to_address={}, from_sub_account_id={}, to_sub_account_id={}, token={}, amount={}, fee={}, nonce={}, timestamp={})".format(self.account_id, self.to_address, self.from_sub_account_id, self.to_sub_account_id, self.token, self.amount, self.fee, self.nonce, self.timestamp)
+        return "TransferBuilder(account_id={}, to_address={}, from_sub_account_id={}, to_sub_account_id={}, token={}, amount={}, fee={}, nonce={}, timestamp={})".format(
+            self.account_id,
+            self.to_address,
+            self.from_sub_account_id,
+            self.to_sub_account_id,
+            self.token,
+            self.amount,
+            self.fee,
+            self.nonce,
+            self.timestamp,
+        )
 
     def __eq__(self, other):
         if self.account_id != other.account_id:
@@ -5674,6 +6701,7 @@ class TransferBuilder:
         if self.timestamp != other.timestamp:
             return False
         return True
+
 
 class _UniffiConverterTypeTransferBuilder(_UniffiConverterRustBuffer):
     @staticmethod
@@ -5704,10 +6732,17 @@ class _UniffiConverterTypeTransferBuilder(_UniffiConverterRustBuffer):
 
 
 class TxMessage:
-    transaction: str;amount: str;fee: str;token: str;to: str;nonce: str;
+    transaction: str
+    amount: str
+    fee: str
+    token: str
+    to: str
+    nonce: str
 
     @typing.no_type_check
-    def __init__(self, transaction: str, amount: str, fee: str, token: str, to: str, nonce: str):
+    def __init__(
+        self, transaction: str, amount: str, fee: str, token: str, to: str, nonce: str
+    ):
         self.transaction = transaction
         self.amount = amount
         self.fee = fee
@@ -5716,7 +6751,9 @@ class TxMessage:
         self.nonce = nonce
 
     def __str__(self):
-        return "TxMessage(transaction={}, amount={}, fee={}, token={}, to={}, nonce={})".format(self.transaction, self.amount, self.fee, self.token, self.to, self.nonce)
+        return "TxMessage(transaction={}, amount={}, fee={}, token={}, to={}, nonce={})".format(
+            self.transaction, self.amount, self.fee, self.token, self.to, self.nonce
+        )
 
     def __eq__(self, other):
         if self.transaction != other.transaction:
@@ -5732,6 +6769,7 @@ class TxMessage:
         if self.nonce != other.nonce:
             return False
         return True
+
 
 class _UniffiConverterTypeTxMessage(_UniffiConverterRustBuffer):
     @staticmethod
@@ -5756,15 +6794,20 @@ class _UniffiConverterTypeTxMessage(_UniffiConverterRustBuffer):
 
 
 class TxSignature:
-    tx: "ZkLinkTx";layer1_signature: "typing.Optional[TxLayer1Signature]";
+    tx: "ZkLinkTx"
+    layer1_signature: "typing.Optional[TxLayer1Signature]"
 
     @typing.no_type_check
-    def __init__(self, tx: "ZkLinkTx", layer1_signature: "typing.Optional[TxLayer1Signature]"):
+    def __init__(
+        self, tx: "ZkLinkTx", layer1_signature: "typing.Optional[TxLayer1Signature]"
+    ):
         self.tx = tx
         self.layer1_signature = layer1_signature
 
     def __str__(self):
-        return "TxSignature(tx={}, layer1_signature={})".format(self.tx, self.layer1_signature)
+        return "TxSignature(tx={}, layer1_signature={})".format(
+            self.tx, self.layer1_signature
+        )
 
     def __eq__(self, other):
         if self.tx != other.tx:
@@ -5772,6 +6815,7 @@ class TxSignature:
         if self.layer1_signature != other.layer1_signature:
             return False
         return True
+
 
 class _UniffiConverterTypeTxSignature(_UniffiConverterRustBuffer):
     @staticmethod
@@ -5788,17 +6832,28 @@ class _UniffiConverterTypeTxSignature(_UniffiConverterRustBuffer):
 
 
 class UpdateGlobalVarBuilder:
-    from_chain_id: "ChainId";sub_account_id: "SubAccountId";parameter: "Parameter";serial_id: "int";
+    from_chain_id: "ChainId"
+    sub_account_id: "SubAccountId"
+    parameter: "Parameter"
+    serial_id: "int"
 
     @typing.no_type_check
-    def __init__(self, from_chain_id: "ChainId", sub_account_id: "SubAccountId", parameter: "Parameter", serial_id: "int"):
+    def __init__(
+        self,
+        from_chain_id: "ChainId",
+        sub_account_id: "SubAccountId",
+        parameter: "Parameter",
+        serial_id: "int",
+    ):
         self.from_chain_id = from_chain_id
         self.sub_account_id = sub_account_id
         self.parameter = parameter
         self.serial_id = serial_id
 
     def __str__(self):
-        return "UpdateGlobalVarBuilder(from_chain_id={}, sub_account_id={}, parameter={}, serial_id={})".format(self.from_chain_id, self.sub_account_id, self.parameter, self.serial_id)
+        return "UpdateGlobalVarBuilder(from_chain_id={}, sub_account_id={}, parameter={}, serial_id={})".format(
+            self.from_chain_id, self.sub_account_id, self.parameter, self.serial_id
+        )
 
     def __eq__(self, other):
         if self.from_chain_id != other.from_chain_id:
@@ -5810,6 +6865,7 @@ class UpdateGlobalVarBuilder:
         if self.serial_id != other.serial_id:
             return False
         return True
+
 
 class _UniffiConverterTypeUpdateGlobalVarBuilder(_UniffiConverterRustBuffer):
     @staticmethod
@@ -5830,10 +6886,37 @@ class _UniffiConverterTypeUpdateGlobalVarBuilder(_UniffiConverterRustBuffer):
 
 
 class WithdrawBuilder:
-    account_id: "AccountId";sub_account_id: "SubAccountId";to_chain_id: "ChainId";to_address: "ZkLinkAddress";l2_source_token: "TokenId";l1_target_token: "TokenId";amount: "BigUint";call_data: "typing.Optional[typing.List[int]]";fee: "BigUint";nonce: "Nonce";withdraw_fee_ratio: "int";withdraw_to_l1: bool;timestamp: "TimeStamp";
+    account_id: "AccountId"
+    sub_account_id: "SubAccountId"
+    to_chain_id: "ChainId"
+    to_address: "ZkLinkAddress"
+    l2_source_token: "TokenId"
+    l1_target_token: "TokenId"
+    amount: "BigUint"
+    call_data: "typing.Optional[typing.List[int]]"
+    fee: "BigUint"
+    nonce: "Nonce"
+    withdraw_fee_ratio: "int"
+    withdraw_to_l1: bool
+    timestamp: "TimeStamp"
 
     @typing.no_type_check
-    def __init__(self, account_id: "AccountId", sub_account_id: "SubAccountId", to_chain_id: "ChainId", to_address: "ZkLinkAddress", l2_source_token: "TokenId", l1_target_token: "TokenId", amount: "BigUint", call_data: "typing.Optional[typing.List[int]]", fee: "BigUint", nonce: "Nonce", withdraw_fee_ratio: "int", withdraw_to_l1: bool, timestamp: "TimeStamp"):
+    def __init__(
+        self,
+        account_id: "AccountId",
+        sub_account_id: "SubAccountId",
+        to_chain_id: "ChainId",
+        to_address: "ZkLinkAddress",
+        l2_source_token: "TokenId",
+        l1_target_token: "TokenId",
+        amount: "BigUint",
+        call_data: "typing.Optional[typing.List[int]]",
+        fee: "BigUint",
+        nonce: "Nonce",
+        withdraw_fee_ratio: "int",
+        withdraw_to_l1: bool,
+        timestamp: "TimeStamp",
+    ):
         self.account_id = account_id
         self.sub_account_id = sub_account_id
         self.to_chain_id = to_chain_id
@@ -5849,7 +6932,21 @@ class WithdrawBuilder:
         self.timestamp = timestamp
 
     def __str__(self):
-        return "WithdrawBuilder(account_id={}, sub_account_id={}, to_chain_id={}, to_address={}, l2_source_token={}, l1_target_token={}, amount={}, call_data={}, fee={}, nonce={}, withdraw_fee_ratio={}, withdraw_to_l1={}, timestamp={})".format(self.account_id, self.sub_account_id, self.to_chain_id, self.to_address, self.l2_source_token, self.l1_target_token, self.amount, self.call_data, self.fee, self.nonce, self.withdraw_fee_ratio, self.withdraw_to_l1, self.timestamp)
+        return "WithdrawBuilder(account_id={}, sub_account_id={}, to_chain_id={}, to_address={}, l2_source_token={}, l1_target_token={}, amount={}, call_data={}, fee={}, nonce={}, withdraw_fee_ratio={}, withdraw_to_l1={}, timestamp={})".format(
+            self.account_id,
+            self.sub_account_id,
+            self.to_chain_id,
+            self.to_address,
+            self.l2_source_token,
+            self.l1_target_token,
+            self.amount,
+            self.call_data,
+            self.fee,
+            self.nonce,
+            self.withdraw_fee_ratio,
+            self.withdraw_to_l1,
+            self.timestamp,
+        )
 
     def __eq__(self, other):
         if self.account_id != other.account_id:
@@ -5879,6 +6976,7 @@ class WithdrawBuilder:
         if self.timestamp != other.timestamp:
             return False
         return True
+
 
 class _UniffiConverterTypeWithdrawBuilder(_UniffiConverterRustBuffer):
     @staticmethod
@@ -5917,7 +7015,8 @@ class _UniffiConverterTypeWithdrawBuilder(_UniffiConverterRustBuffer):
 
 
 class ZkLinkSignature:
-    pub_key: "PackedPublicKey";signature: "PackedSignature";
+    pub_key: "PackedPublicKey"
+    signature: "PackedSignature"
 
     @typing.no_type_check
     def __init__(self, pub_key: "PackedPublicKey", signature: "PackedSignature"):
@@ -5925,7 +7024,9 @@ class ZkLinkSignature:
         self.signature = signature
 
     def __str__(self):
-        return "ZkLinkSignature(pub_key={}, signature={})".format(self.pub_key, self.signature)
+        return "ZkLinkSignature(pub_key={}, signature={})".format(
+            self.pub_key, self.signature
+        )
 
     def __eq__(self, other):
         if self.pub_key != other.pub_key:
@@ -5933,6 +7034,7 @@ class ZkLinkSignature:
         if self.signature != other.signature:
             return False
         return True
+
 
 class _UniffiConverterTypeZkLinkSignature(_UniffiConverterRustBuffer):
     @staticmethod
@@ -5948,22 +7050,19 @@ class _UniffiConverterTypeZkLinkSignature(_UniffiConverterRustBuffer):
         _UniffiConverterTypePackedSignature.write(value.signature, buf)
 
 
-
-
-
 class ChangePubKeyAuthData:
     def __init__(self):
         raise RuntimeError("ChangePubKeyAuthData cannot be instantiated directly")
 
     # Each enum variant is a nested class of the enum itself.
     class ONCHAIN:
-        
 
         @typing.no_type_check
-        def __init__(self,):
-            
+        def __init__(
+            self,
+        ):
+
             pass
-            
 
         def __str__(self):
             return "ChangePubKeyAuthData.ONCHAIN()".format()
@@ -5972,17 +7071,19 @@ class ChangePubKeyAuthData:
             if not other.is_onchain():
                 return False
             return True
+
     class ETH_ECDSA:
-        eth_signature: "PackedEthSignature";
+        eth_signature: "PackedEthSignature"
 
         @typing.no_type_check
-        def __init__(self,eth_signature: "PackedEthSignature"):
-            
+        def __init__(self, eth_signature: "PackedEthSignature"):
+
             self.eth_signature = eth_signature
-            
 
         def __str__(self):
-            return "ChangePubKeyAuthData.ETH_ECDSA(eth_signature={})".format(self.eth_signature)
+            return "ChangePubKeyAuthData.ETH_ECDSA(eth_signature={})".format(
+                self.eth_signature
+            )
 
         def __eq__(self, other):
             if not other.is_eth_ecdsa():
@@ -5990,14 +7091,14 @@ class ChangePubKeyAuthData:
             if self.eth_signature != other.eth_signature:
                 return False
             return True
+
     class ETH_CREATE2:
-        data: "Create2Data";
+        data: "Create2Data"
 
         @typing.no_type_check
-        def __init__(self,data: "Create2Data"):
-            
+        def __init__(self, data: "Create2Data"):
+
             self.data = data
-            
 
         def __str__(self):
             return "ChangePubKeyAuthData.ETH_CREATE2(data={})".format(self.data)
@@ -6008,26 +7109,46 @@ class ChangePubKeyAuthData:
             if self.data != other.data:
                 return False
             return True
-    
 
     # For each variant, we have an `is_NAME` method for easily checking
     # whether an instance is that variant.
     def is_onchain(self) -> bool:
         return isinstance(self, ChangePubKeyAuthData.ONCHAIN)
+
     def is_eth_ecdsa(self) -> bool:
         return isinstance(self, ChangePubKeyAuthData.ETH_ECDSA)
+
     def is_eth_create2(self) -> bool:
         return isinstance(self, ChangePubKeyAuthData.ETH_CREATE2)
-    
+
 
 # Now, a little trick - we make each nested variant class be a subclass of the main
 # enum class, so that method calls and instance checks etc will work intuitively.
 # We might be able to do this a little more neatly with a metaclass, but this'll do.
-ChangePubKeyAuthData.ONCHAIN = type("ChangePubKeyAuthData.ONCHAIN", (ChangePubKeyAuthData.ONCHAIN, ChangePubKeyAuthData,), {})  # type: ignore
-ChangePubKeyAuthData.ETH_ECDSA = type("ChangePubKeyAuthData.ETH_ECDSA", (ChangePubKeyAuthData.ETH_ECDSA, ChangePubKeyAuthData,), {})  # type: ignore
-ChangePubKeyAuthData.ETH_CREATE2 = type("ChangePubKeyAuthData.ETH_CREATE2", (ChangePubKeyAuthData.ETH_CREATE2, ChangePubKeyAuthData,), {})  # type: ignore
-
-
+ChangePubKeyAuthData.ONCHAIN = type(
+    "ChangePubKeyAuthData.ONCHAIN",
+    (
+        ChangePubKeyAuthData.ONCHAIN,
+        ChangePubKeyAuthData,
+    ),
+    {},
+)  # type: ignore
+ChangePubKeyAuthData.ETH_ECDSA = type(
+    "ChangePubKeyAuthData.ETH_ECDSA",
+    (
+        ChangePubKeyAuthData.ETH_ECDSA,
+        ChangePubKeyAuthData,
+    ),
+    {},
+)  # type: ignore
+ChangePubKeyAuthData.ETH_CREATE2 = type(
+    "ChangePubKeyAuthData.ETH_CREATE2",
+    (
+        ChangePubKeyAuthData.ETH_CREATE2,
+        ChangePubKeyAuthData,
+    ),
+    {},
+)  # type: ignore
 
 
 class _UniffiConverterTypeChangePubKeyAuthData(_UniffiConverterRustBuffer):
@@ -6035,8 +7156,7 @@ class _UniffiConverterTypeChangePubKeyAuthData(_UniffiConverterRustBuffer):
     def read(buf):
         variant = buf.read_i32()
         if variant == 1:
-            return ChangePubKeyAuthData.ONCHAIN(
-            )
+            return ChangePubKeyAuthData.ONCHAIN()
         if variant == 2:
             return ChangePubKeyAuthData.ETH_ECDSA(
                 _UniffiConverterTypePackedEthSignature.read(buf),
@@ -6058,24 +7178,19 @@ class _UniffiConverterTypeChangePubKeyAuthData(_UniffiConverterRustBuffer):
             _UniffiConverterTypeCreate2Data.write(value.data, buf)
 
 
-
-
-
-
-
 class ChangePubKeyAuthRequest:
     def __init__(self):
         raise RuntimeError("ChangePubKeyAuthRequest cannot be instantiated directly")
 
     # Each enum variant is a nested class of the enum itself.
     class ONCHAIN:
-        
 
         @typing.no_type_check
-        def __init__(self,):
-            
+        def __init__(
+            self,
+        ):
+
             pass
-            
 
         def __str__(self):
             return "ChangePubKeyAuthRequest.ONCHAIN()".format()
@@ -6084,14 +7199,15 @@ class ChangePubKeyAuthRequest:
             if not other.is_onchain():
                 return False
             return True
+
     class ETH_ECDSA:
-        
 
         @typing.no_type_check
-        def __init__(self,):
-            
+        def __init__(
+            self,
+        ):
+
             pass
-            
 
         def __str__(self):
             return "ChangePubKeyAuthRequest.ETH_ECDSA()".format()
@@ -6100,14 +7216,14 @@ class ChangePubKeyAuthRequest:
             if not other.is_eth_ecdsa():
                 return False
             return True
+
     class ETH_CREATE2:
-        data: "Create2Data";
+        data: "Create2Data"
 
         @typing.no_type_check
-        def __init__(self,data: "Create2Data"):
-            
+        def __init__(self, data: "Create2Data"):
+
             self.data = data
-            
 
         def __str__(self):
             return "ChangePubKeyAuthRequest.ETH_CREATE2(data={})".format(self.data)
@@ -6118,26 +7234,46 @@ class ChangePubKeyAuthRequest:
             if self.data != other.data:
                 return False
             return True
-    
 
     # For each variant, we have an `is_NAME` method for easily checking
     # whether an instance is that variant.
     def is_onchain(self) -> bool:
         return isinstance(self, ChangePubKeyAuthRequest.ONCHAIN)
+
     def is_eth_ecdsa(self) -> bool:
         return isinstance(self, ChangePubKeyAuthRequest.ETH_ECDSA)
+
     def is_eth_create2(self) -> bool:
         return isinstance(self, ChangePubKeyAuthRequest.ETH_CREATE2)
-    
+
 
 # Now, a little trick - we make each nested variant class be a subclass of the main
 # enum class, so that method calls and instance checks etc will work intuitively.
 # We might be able to do this a little more neatly with a metaclass, but this'll do.
-ChangePubKeyAuthRequest.ONCHAIN = type("ChangePubKeyAuthRequest.ONCHAIN", (ChangePubKeyAuthRequest.ONCHAIN, ChangePubKeyAuthRequest,), {})  # type: ignore
-ChangePubKeyAuthRequest.ETH_ECDSA = type("ChangePubKeyAuthRequest.ETH_ECDSA", (ChangePubKeyAuthRequest.ETH_ECDSA, ChangePubKeyAuthRequest,), {})  # type: ignore
-ChangePubKeyAuthRequest.ETH_CREATE2 = type("ChangePubKeyAuthRequest.ETH_CREATE2", (ChangePubKeyAuthRequest.ETH_CREATE2, ChangePubKeyAuthRequest,), {})  # type: ignore
-
-
+ChangePubKeyAuthRequest.ONCHAIN = type(
+    "ChangePubKeyAuthRequest.ONCHAIN",
+    (
+        ChangePubKeyAuthRequest.ONCHAIN,
+        ChangePubKeyAuthRequest,
+    ),
+    {},
+)  # type: ignore
+ChangePubKeyAuthRequest.ETH_ECDSA = type(
+    "ChangePubKeyAuthRequest.ETH_ECDSA",
+    (
+        ChangePubKeyAuthRequest.ETH_ECDSA,
+        ChangePubKeyAuthRequest,
+    ),
+    {},
+)  # type: ignore
+ChangePubKeyAuthRequest.ETH_CREATE2 = type(
+    "ChangePubKeyAuthRequest.ETH_CREATE2",
+    (
+        ChangePubKeyAuthRequest.ETH_CREATE2,
+        ChangePubKeyAuthRequest,
+    ),
+    {},
+)  # type: ignore
 
 
 class _UniffiConverterTypeChangePubKeyAuthRequest(_UniffiConverterRustBuffer):
@@ -6145,11 +7281,9 @@ class _UniffiConverterTypeChangePubKeyAuthRequest(_UniffiConverterRustBuffer):
     def read(buf):
         variant = buf.read_i32()
         if variant == 1:
-            return ChangePubKeyAuthRequest.ONCHAIN(
-            )
+            return ChangePubKeyAuthRequest.ONCHAIN()
         if variant == 2:
-            return ChangePubKeyAuthRequest.ETH_ECDSA(
-            )
+            return ChangePubKeyAuthRequest.ETH_ECDSA()
         if variant == 3:
             return ChangePubKeyAuthRequest.ETH_CREATE2(
                 _UniffiConverterTypeCreate2Data.read(buf),
@@ -6166,8 +7300,6 @@ class _UniffiConverterTypeChangePubKeyAuthRequest(_UniffiConverterRustBuffer):
             _UniffiConverterTypeCreate2Data.write(value.data, buf)
 
 
-
-
 # EthSignerError
 # We want to define each variant as a nested class that's also a subclass,
 # which is tricky in Python.  To accomplish this we're going to create each
@@ -6177,71 +7309,103 @@ class _UniffiConverterTypeChangePubKeyAuthRequest(_UniffiConverterRustBuffer):
 class EthSignerError(Exception):
     pass
 
+
 _UniffiTempEthSignerError = EthSignerError
+
 
 class EthSignerError:  # type: ignore
     class InvalidEthSigner(_UniffiTempEthSignerError):
         def __repr__(self):
             return "EthSignerError.InvalidEthSigner({})".format(repr(str(self)))
-    _UniffiTempEthSignerError.InvalidEthSigner = InvalidEthSigner # type: ignore
+
+    _UniffiTempEthSignerError.InvalidEthSigner = InvalidEthSigner  # type: ignore
+
     class MissingEthPrivateKey(_UniffiTempEthSignerError):
         def __repr__(self):
             return "EthSignerError.MissingEthPrivateKey({})".format(repr(str(self)))
-    _UniffiTempEthSignerError.MissingEthPrivateKey = MissingEthPrivateKey # type: ignore
+
+    _UniffiTempEthSignerError.MissingEthPrivateKey = MissingEthPrivateKey  # type: ignore
+
     class MissingEthSigner(_UniffiTempEthSignerError):
         def __repr__(self):
             return "EthSignerError.MissingEthSigner({})".format(repr(str(self)))
-    _UniffiTempEthSignerError.MissingEthSigner = MissingEthSigner # type: ignore
+
+    _UniffiTempEthSignerError.MissingEthSigner = MissingEthSigner  # type: ignore
+
     class SigningFailed(_UniffiTempEthSignerError):
         def __repr__(self):
             return "EthSignerError.SigningFailed({})".format(repr(str(self)))
-    _UniffiTempEthSignerError.SigningFailed = SigningFailed # type: ignore
+
+    _UniffiTempEthSignerError.SigningFailed = SigningFailed  # type: ignore
+
     class UnlockingFailed(_UniffiTempEthSignerError):
         def __repr__(self):
             return "EthSignerError.UnlockingFailed({})".format(repr(str(self)))
-    _UniffiTempEthSignerError.UnlockingFailed = UnlockingFailed # type: ignore
+
+    _UniffiTempEthSignerError.UnlockingFailed = UnlockingFailed  # type: ignore
+
     class InvalidRawTx(_UniffiTempEthSignerError):
         def __repr__(self):
             return "EthSignerError.InvalidRawTx({})".format(repr(str(self)))
-    _UniffiTempEthSignerError.InvalidRawTx = InvalidRawTx # type: ignore
+
+    _UniffiTempEthSignerError.InvalidRawTx = InvalidRawTx  # type: ignore
+
     class Eip712Failed(_UniffiTempEthSignerError):
         def __repr__(self):
             return "EthSignerError.Eip712Failed({})".format(repr(str(self)))
-    _UniffiTempEthSignerError.Eip712Failed = Eip712Failed # type: ignore
+
+    _UniffiTempEthSignerError.Eip712Failed = Eip712Failed  # type: ignore
+
     class NoSigningKey(_UniffiTempEthSignerError):
         def __repr__(self):
             return "EthSignerError.NoSigningKey({})".format(repr(str(self)))
-    _UniffiTempEthSignerError.NoSigningKey = NoSigningKey # type: ignore
+
+    _UniffiTempEthSignerError.NoSigningKey = NoSigningKey  # type: ignore
+
     class DefineAddress(_UniffiTempEthSignerError):
         def __repr__(self):
             return "EthSignerError.DefineAddress({})".format(repr(str(self)))
-    _UniffiTempEthSignerError.DefineAddress = DefineAddress # type: ignore
+
+    _UniffiTempEthSignerError.DefineAddress = DefineAddress  # type: ignore
+
     class RecoverAddress(_UniffiTempEthSignerError):
         def __repr__(self):
             return "EthSignerError.RecoverAddress({})".format(repr(str(self)))
-    _UniffiTempEthSignerError.RecoverAddress = RecoverAddress # type: ignore
+
+    _UniffiTempEthSignerError.RecoverAddress = RecoverAddress  # type: ignore
+
     class LengthMismatched(_UniffiTempEthSignerError):
         def __repr__(self):
             return "EthSignerError.LengthMismatched({})".format(repr(str(self)))
-    _UniffiTempEthSignerError.LengthMismatched = LengthMismatched # type: ignore
+
+    _UniffiTempEthSignerError.LengthMismatched = LengthMismatched  # type: ignore
+
     class CryptoError(_UniffiTempEthSignerError):
         def __repr__(self):
             return "EthSignerError.CryptoError({})".format(repr(str(self)))
-    _UniffiTempEthSignerError.CryptoError = CryptoError # type: ignore
+
+    _UniffiTempEthSignerError.CryptoError = CryptoError  # type: ignore
+
     class InvalidSignatureStr(_UniffiTempEthSignerError):
         def __repr__(self):
             return "EthSignerError.InvalidSignatureStr({})".format(repr(str(self)))
-    _UniffiTempEthSignerError.InvalidSignatureStr = InvalidSignatureStr # type: ignore
+
+    _UniffiTempEthSignerError.InvalidSignatureStr = InvalidSignatureStr  # type: ignore
+
     class CustomError(_UniffiTempEthSignerError):
         def __repr__(self):
             return "EthSignerError.CustomError({})".format(repr(str(self)))
-    _UniffiTempEthSignerError.CustomError = CustomError # type: ignore
+
+    _UniffiTempEthSignerError.CustomError = CustomError  # type: ignore
+
     class RpcSignError(_UniffiTempEthSignerError):
         def __repr__(self):
             return "EthSignerError.RpcSignError({})".format(repr(str(self)))
-    _UniffiTempEthSignerError.RpcSignError = RpcSignError # type: ignore
 
-EthSignerError = _UniffiTempEthSignerError # type: ignore
+    _UniffiTempEthSignerError.RpcSignError = RpcSignError  # type: ignore
+
+
+EthSignerError = _UniffiTempEthSignerError  # type: ignore
 del _UniffiTempEthSignerError
 
 
@@ -6345,22 +7509,19 @@ class _UniffiConverterTypeEthSignerError(_UniffiConverterRustBuffer):
             buf.write_i32(15)
 
 
-
-
-
 class L1SignerType:
     def __init__(self):
         raise RuntimeError("L1SignerType cannot be instantiated directly")
 
     # Each enum variant is a nested class of the enum itself.
     class ETH:
-        
 
         @typing.no_type_check
-        def __init__(self,):
-            
+        def __init__(
+            self,
+        ):
+
             pass
-            
 
         def __str__(self):
             return "L1SignerType.ETH()".format()
@@ -6369,18 +7530,21 @@ class L1SignerType:
             if not other.is_eth():
                 return False
             return True
+
     class STARKNET:
-        chain_id: str;address: str;
+        chain_id: str
+        address: str
 
         @typing.no_type_check
-        def __init__(self,chain_id: str, address: str):
-            
+        def __init__(self, chain_id: str, address: str):
+
             self.chain_id = chain_id
             self.address = address
-            
 
         def __str__(self):
-            return "L1SignerType.STARKNET(chain_id={}, address={})".format(self.chain_id, self.address)
+            return "L1SignerType.STARKNET(chain_id={}, address={})".format(
+                self.chain_id, self.address
+            )
 
         def __eq__(self, other):
             if not other.is_starknet():
@@ -6390,23 +7554,35 @@ class L1SignerType:
             if self.address != other.address:
                 return False
             return True
-    
 
     # For each variant, we have an `is_NAME` method for easily checking
     # whether an instance is that variant.
     def is_eth(self) -> bool:
         return isinstance(self, L1SignerType.ETH)
+
     def is_starknet(self) -> bool:
         return isinstance(self, L1SignerType.STARKNET)
-    
+
 
 # Now, a little trick - we make each nested variant class be a subclass of the main
 # enum class, so that method calls and instance checks etc will work intuitively.
 # We might be able to do this a little more neatly with a metaclass, but this'll do.
-L1SignerType.ETH = type("L1SignerType.ETH", (L1SignerType.ETH, L1SignerType,), {})  # type: ignore
-L1SignerType.STARKNET = type("L1SignerType.STARKNET", (L1SignerType.STARKNET, L1SignerType,), {})  # type: ignore
-
-
+L1SignerType.ETH = type(
+    "L1SignerType.ETH",
+    (
+        L1SignerType.ETH,
+        L1SignerType,
+    ),
+    {},
+)  # type: ignore
+L1SignerType.STARKNET = type(
+    "L1SignerType.STARKNET",
+    (
+        L1SignerType.STARKNET,
+        L1SignerType,
+    ),
+    {},
+)  # type: ignore
 
 
 class _UniffiConverterTypeL1SignerType(_UniffiConverterRustBuffer):
@@ -6414,8 +7590,7 @@ class _UniffiConverterTypeL1SignerType(_UniffiConverterRustBuffer):
     def read(buf):
         variant = buf.read_i32()
         if variant == 1:
-            return L1SignerType.ETH(
-            )
+            return L1SignerType.ETH()
         if variant == 2:
             return L1SignerType.STARKNET(
                 _UniffiConverterString.read(buf),
@@ -6432,15 +7607,9 @@ class _UniffiConverterTypeL1SignerType(_UniffiConverterRustBuffer):
             _UniffiConverterString.write(value.address, buf)
 
 
-
-
-
-
-
 class L1Type(enum.Enum):
     ETH = 1
     STARKNET = 2
-    
 
 
 class _UniffiConverterTypeL1Type(_UniffiConverterRustBuffer):
@@ -6460,24 +7629,18 @@ class _UniffiConverterTypeL1Type(_UniffiConverterRustBuffer):
             buf.write_i32(2)
 
 
-
-
-
-
-
 class Parameter:
     def __init__(self):
         raise RuntimeError("Parameter cannot be instantiated directly")
 
     # Each enum variant is a nested class of the enum itself.
     class FEE_ACCOUNT:
-        account_id: "AccountId";
+        account_id: "AccountId"
 
         @typing.no_type_check
-        def __init__(self,account_id: "AccountId"):
-            
+        def __init__(self, account_id: "AccountId"):
+
             self.account_id = account_id
-            
 
         def __str__(self):
             return "Parameter.FEE_ACCOUNT(account_id={})".format(self.account_id)
@@ -6488,17 +7651,19 @@ class Parameter:
             if self.account_id != other.account_id:
                 return False
             return True
+
     class INSURANCE_FUND_ACCOUNT:
-        account_id: "AccountId";
+        account_id: "AccountId"
 
         @typing.no_type_check
-        def __init__(self,account_id: "AccountId"):
-            
+        def __init__(self, account_id: "AccountId"):
+
             self.account_id = account_id
-            
 
         def __str__(self):
-            return "Parameter.INSURANCE_FUND_ACCOUNT(account_id={})".format(self.account_id)
+            return "Parameter.INSURANCE_FUND_ACCOUNT(account_id={})".format(
+                self.account_id
+            )
 
         def __eq__(self, other):
             if not other.is_insurance_fund_account():
@@ -6506,19 +7671,23 @@ class Parameter:
             if self.account_id != other.account_id:
                 return False
             return True
+
     class MARGIN_INFO:
-        margin_id: "MarginId";token_id: "TokenId";ratio: "int";
+        margin_id: "MarginId"
+        token_id: "TokenId"
+        ratio: "int"
 
         @typing.no_type_check
-        def __init__(self,margin_id: "MarginId", token_id: "TokenId", ratio: "int"):
-            
+        def __init__(self, margin_id: "MarginId", token_id: "TokenId", ratio: "int"):
+
             self.margin_id = margin_id
             self.token_id = token_id
             self.ratio = ratio
-            
 
         def __str__(self):
-            return "Parameter.MARGIN_INFO(margin_id={}, token_id={}, ratio={})".format(self.margin_id, self.token_id, self.ratio)
+            return "Parameter.MARGIN_INFO(margin_id={}, token_id={}, ratio={})".format(
+                self.margin_id, self.token_id, self.ratio
+            )
 
         def __eq__(self, other):
             if not other.is_margin_info():
@@ -6530,14 +7699,14 @@ class Parameter:
             if self.ratio != other.ratio:
                 return False
             return True
+
     class FUNDING_INFOS:
-        infos: "typing.List[FundingInfo]";
+        infos: "typing.List[FundingInfo]"
 
         @typing.no_type_check
-        def __init__(self,infos: "typing.List[FundingInfo]"):
-            
+        def __init__(self, infos: "typing.List[FundingInfo]"):
+
             self.infos = infos
-            
 
         def __str__(self):
             return "Parameter.FUNDING_INFOS(infos={})".format(self.infos)
@@ -6548,20 +7717,34 @@ class Parameter:
             if self.infos != other.infos:
                 return False
             return True
+
     class CONTRACT_INFO:
-        pair_id: "PairId";symbol: str;initial_margin_rate: "int";maintenance_margin_rate: "int";
+        pair_id: "PairId"
+        symbol: str
+        initial_margin_rate: "int"
+        maintenance_margin_rate: "int"
 
         @typing.no_type_check
-        def __init__(self,pair_id: "PairId", symbol: str, initial_margin_rate: "int", maintenance_margin_rate: "int"):
-            
+        def __init__(
+            self,
+            pair_id: "PairId",
+            symbol: str,
+            initial_margin_rate: "int",
+            maintenance_margin_rate: "int",
+        ):
+
             self.pair_id = pair_id
             self.symbol = symbol
             self.initial_margin_rate = initial_margin_rate
             self.maintenance_margin_rate = maintenance_margin_rate
-            
 
         def __str__(self):
-            return "Parameter.CONTRACT_INFO(pair_id={}, symbol={}, initial_margin_rate={}, maintenance_margin_rate={})".format(self.pair_id, self.symbol, self.initial_margin_rate, self.maintenance_margin_rate)
+            return "Parameter.CONTRACT_INFO(pair_id={}, symbol={}, initial_margin_rate={}, maintenance_margin_rate={})".format(
+                self.pair_id,
+                self.symbol,
+                self.initial_margin_rate,
+                self.maintenance_margin_rate,
+            )
 
         def __eq__(self, other):
             if not other.is_contract_info():
@@ -6575,32 +7758,68 @@ class Parameter:
             if self.maintenance_margin_rate != other.maintenance_margin_rate:
                 return False
             return True
-    
 
     # For each variant, we have an `is_NAME` method for easily checking
     # whether an instance is that variant.
     def is_fee_account(self) -> bool:
         return isinstance(self, Parameter.FEE_ACCOUNT)
+
     def is_insurance_fund_account(self) -> bool:
         return isinstance(self, Parameter.INSURANCE_FUND_ACCOUNT)
+
     def is_margin_info(self) -> bool:
         return isinstance(self, Parameter.MARGIN_INFO)
+
     def is_funding_infos(self) -> bool:
         return isinstance(self, Parameter.FUNDING_INFOS)
+
     def is_contract_info(self) -> bool:
         return isinstance(self, Parameter.CONTRACT_INFO)
-    
+
 
 # Now, a little trick - we make each nested variant class be a subclass of the main
 # enum class, so that method calls and instance checks etc will work intuitively.
 # We might be able to do this a little more neatly with a metaclass, but this'll do.
-Parameter.FEE_ACCOUNT = type("Parameter.FEE_ACCOUNT", (Parameter.FEE_ACCOUNT, Parameter,), {})  # type: ignore
-Parameter.INSURANCE_FUND_ACCOUNT = type("Parameter.INSURANCE_FUND_ACCOUNT", (Parameter.INSURANCE_FUND_ACCOUNT, Parameter,), {})  # type: ignore
-Parameter.MARGIN_INFO = type("Parameter.MARGIN_INFO", (Parameter.MARGIN_INFO, Parameter,), {})  # type: ignore
-Parameter.FUNDING_INFOS = type("Parameter.FUNDING_INFOS", (Parameter.FUNDING_INFOS, Parameter,), {})  # type: ignore
-Parameter.CONTRACT_INFO = type("Parameter.CONTRACT_INFO", (Parameter.CONTRACT_INFO, Parameter,), {})  # type: ignore
-
-
+Parameter.FEE_ACCOUNT = type(
+    "Parameter.FEE_ACCOUNT",
+    (
+        Parameter.FEE_ACCOUNT,
+        Parameter,
+    ),
+    {},
+)  # type: ignore
+Parameter.INSURANCE_FUND_ACCOUNT = type(
+    "Parameter.INSURANCE_FUND_ACCOUNT",
+    (
+        Parameter.INSURANCE_FUND_ACCOUNT,
+        Parameter,
+    ),
+    {},
+)  # type: ignore
+Parameter.MARGIN_INFO = type(
+    "Parameter.MARGIN_INFO",
+    (
+        Parameter.MARGIN_INFO,
+        Parameter,
+    ),
+    {},
+)  # type: ignore
+Parameter.FUNDING_INFOS = type(
+    "Parameter.FUNDING_INFOS",
+    (
+        Parameter.FUNDING_INFOS,
+        Parameter,
+    ),
+    {},
+)  # type: ignore
+Parameter.CONTRACT_INFO = type(
+    "Parameter.CONTRACT_INFO",
+    (
+        Parameter.CONTRACT_INFO,
+        Parameter,
+    ),
+    {},
+)  # type: ignore
 
 
 class _UniffiConverterTypeParameter(_UniffiConverterRustBuffer):
@@ -6657,8 +7876,6 @@ class _UniffiConverterTypeParameter(_UniffiConverterRustBuffer):
             _UniffiConverterUInt16.write(value.maintenance_margin_rate, buf)
 
 
-
-
 # SignError
 # We want to define each variant as a nested class that's also a subclass,
 # which is tricky in Python.  To accomplish this we're going to create each
@@ -6668,27 +7885,37 @@ class _UniffiConverterTypeParameter(_UniffiConverterRustBuffer):
 class SignError(Exception):
     pass
 
+
 _UniffiTempSignError = SignError
+
 
 class SignError:  # type: ignore
     class EthSigningError(_UniffiTempSignError):
         def __repr__(self):
             return "SignError.EthSigningError({})".format(repr(str(self)))
-    _UniffiTempSignError.EthSigningError = EthSigningError # type: ignore
+
+    _UniffiTempSignError.EthSigningError = EthSigningError  # type: ignore
+
     class ZkSigningError(_UniffiTempSignError):
         def __repr__(self):
             return "SignError.ZkSigningError({})".format(repr(str(self)))
-    _UniffiTempSignError.ZkSigningError = ZkSigningError # type: ignore
+
+    _UniffiTempSignError.ZkSigningError = ZkSigningError  # type: ignore
+
     class StarkSigningError(_UniffiTempSignError):
         def __repr__(self):
             return "SignError.StarkSigningError({})".format(repr(str(self)))
-    _UniffiTempSignError.StarkSigningError = StarkSigningError # type: ignore
+
+    _UniffiTempSignError.StarkSigningError = StarkSigningError  # type: ignore
+
     class IncorrectTx(_UniffiTempSignError):
         def __repr__(self):
             return "SignError.IncorrectTx({})".format(repr(str(self)))
-    _UniffiTempSignError.IncorrectTx = IncorrectTx # type: ignore
 
-SignError = _UniffiTempSignError # type: ignore
+    _UniffiTempSignError.IncorrectTx = IncorrectTx  # type: ignore
+
+
+SignError = _UniffiTempSignError  # type: ignore
 del _UniffiTempSignError
 
 
@@ -6735,31 +7962,43 @@ class _UniffiConverterTypeSignError(_UniffiConverterRustBuffer):
 class StarkSignerError(Exception):
     pass
 
+
 _UniffiTempStarkSignerError = StarkSignerError
+
 
 class StarkSignerError:  # type: ignore
     class InvalidStarknetSigner(_UniffiTempStarkSignerError):
         def __repr__(self):
             return "StarkSignerError.InvalidStarknetSigner({})".format(repr(str(self)))
-    _UniffiTempStarkSignerError.InvalidStarknetSigner = InvalidStarknetSigner # type: ignore
+
+    _UniffiTempStarkSignerError.InvalidStarknetSigner = InvalidStarknetSigner  # type: ignore
+
     class InvalidSignature(_UniffiTempStarkSignerError):
         def __repr__(self):
             return "StarkSignerError.InvalidSignature({})".format(repr(str(self)))
-    _UniffiTempStarkSignerError.InvalidSignature = InvalidSignature # type: ignore
+
+    _UniffiTempStarkSignerError.InvalidSignature = InvalidSignature  # type: ignore
+
     class InvalidPrivKey(_UniffiTempStarkSignerError):
         def __repr__(self):
             return "StarkSignerError.InvalidPrivKey({})".format(repr(str(self)))
-    _UniffiTempStarkSignerError.InvalidPrivKey = InvalidPrivKey # type: ignore
+
+    _UniffiTempStarkSignerError.InvalidPrivKey = InvalidPrivKey  # type: ignore
+
     class SignError(_UniffiTempStarkSignerError):
         def __repr__(self):
             return "StarkSignerError.SignError({})".format(repr(str(self)))
-    _UniffiTempStarkSignerError.SignError = SignError # type: ignore
+
+    _UniffiTempStarkSignerError.SignError = SignError  # type: ignore
+
     class RpcSignError(_UniffiTempStarkSignerError):
         def __repr__(self):
             return "StarkSignerError.RpcSignError({})".format(repr(str(self)))
-    _UniffiTempStarkSignerError.RpcSignError = RpcSignError # type: ignore
 
-StarkSignerError = _UniffiTempStarkSignerError # type: ignore
+    _UniffiTempStarkSignerError.RpcSignError = RpcSignError  # type: ignore
+
+
+StarkSignerError = _UniffiTempStarkSignerError  # type: ignore
 del _UniffiTempStarkSignerError
 
 
@@ -6812,39 +8051,55 @@ class _UniffiConverterTypeStarkSignerError(_UniffiConverterRustBuffer):
 class TypeError(Exception):
     pass
 
+
 _UniffiTempTypeError = TypeError
+
 
 class TypeError:  # type: ignore
     class InvalidAddress(_UniffiTempTypeError):
         def __repr__(self):
             return "TypeError.InvalidAddress({})".format(repr(str(self)))
-    _UniffiTempTypeError.InvalidAddress = InvalidAddress # type: ignore
+
+    _UniffiTempTypeError.InvalidAddress = InvalidAddress  # type: ignore
+
     class InvalidTxHash(_UniffiTempTypeError):
         def __repr__(self):
             return "TypeError.InvalidTxHash({})".format(repr(str(self)))
-    _UniffiTempTypeError.InvalidTxHash = InvalidTxHash # type: ignore
+
+    _UniffiTempTypeError.InvalidTxHash = InvalidTxHash  # type: ignore
+
     class NotStartWithZerox(_UniffiTempTypeError):
         def __repr__(self):
             return "TypeError.NotStartWithZerox({})".format(repr(str(self)))
-    _UniffiTempTypeError.NotStartWithZerox = NotStartWithZerox # type: ignore
+
+    _UniffiTempTypeError.NotStartWithZerox = NotStartWithZerox  # type: ignore
+
     class SizeMismatch(_UniffiTempTypeError):
         def __repr__(self):
             return "TypeError.SizeMismatch({})".format(repr(str(self)))
-    _UniffiTempTypeError.SizeMismatch = SizeMismatch # type: ignore
+
+    _UniffiTempTypeError.SizeMismatch = SizeMismatch  # type: ignore
+
     class DecodeFromHexErr(_UniffiTempTypeError):
         def __repr__(self):
             return "TypeError.DecodeFromHexErr({})".format(repr(str(self)))
-    _UniffiTempTypeError.DecodeFromHexErr = DecodeFromHexErr # type: ignore
+
+    _UniffiTempTypeError.DecodeFromHexErr = DecodeFromHexErr  # type: ignore
+
     class TooBigInteger(_UniffiTempTypeError):
         def __repr__(self):
             return "TypeError.TooBigInteger({})".format(repr(str(self)))
-    _UniffiTempTypeError.TooBigInteger = TooBigInteger # type: ignore
+
+    _UniffiTempTypeError.TooBigInteger = TooBigInteger  # type: ignore
+
     class InvalidBigIntStr(_UniffiTempTypeError):
         def __repr__(self):
             return "TypeError.InvalidBigIntStr({})".format(repr(str(self)))
-    _UniffiTempTypeError.InvalidBigIntStr = InvalidBigIntStr # type: ignore
 
-TypeError = _UniffiTempTypeError # type: ignore
+    _UniffiTempTypeError.InvalidBigIntStr = InvalidBigIntStr  # type: ignore
+
+
+TypeError = _UniffiTempTypeError  # type: ignore
 del _UniffiTempTypeError
 
 
@@ -6900,22 +8155,18 @@ class _UniffiConverterTypeTypeError(_UniffiConverterRustBuffer):
             buf.write_i32(7)
 
 
-
-
-
 class TypedDataMessage:
     def __init__(self):
         raise RuntimeError("TypedDataMessage cannot be instantiated directly")
 
     # Each enum variant is a nested class of the enum itself.
     class CREATE_L2_KEY:
-        message: "Message";
+        message: "Message"
 
         @typing.no_type_check
-        def __init__(self,message: "Message"):
-            
+        def __init__(self, message: "Message"):
+
             self.message = message
-            
 
         def __str__(self):
             return "TypedDataMessage.CREATE_L2_KEY(message={})".format(self.message)
@@ -6926,14 +8177,14 @@ class TypedDataMessage:
             if self.message != other.message:
                 return False
             return True
+
     class TRANSACTION:
-        message: "TxMessage";
+        message: "TxMessage"
 
         @typing.no_type_check
-        def __init__(self,message: "TxMessage"):
-            
+        def __init__(self, message: "TxMessage"):
+
             self.message = message
-            
 
         def __str__(self):
             return "TypedDataMessage.TRANSACTION(message={})".format(self.message)
@@ -6944,23 +8195,35 @@ class TypedDataMessage:
             if self.message != other.message:
                 return False
             return True
-    
 
     # For each variant, we have an `is_NAME` method for easily checking
     # whether an instance is that variant.
     def is_create_l2_key(self) -> bool:
         return isinstance(self, TypedDataMessage.CREATE_L2_KEY)
+
     def is_transaction(self) -> bool:
         return isinstance(self, TypedDataMessage.TRANSACTION)
-    
+
 
 # Now, a little trick - we make each nested variant class be a subclass of the main
 # enum class, so that method calls and instance checks etc will work intuitively.
 # We might be able to do this a little more neatly with a metaclass, but this'll do.
-TypedDataMessage.CREATE_L2_KEY = type("TypedDataMessage.CREATE_L2_KEY", (TypedDataMessage.CREATE_L2_KEY, TypedDataMessage,), {})  # type: ignore
-TypedDataMessage.TRANSACTION = type("TypedDataMessage.TRANSACTION", (TypedDataMessage.TRANSACTION, TypedDataMessage,), {})  # type: ignore
-
-
+TypedDataMessage.CREATE_L2_KEY = type(
+    "TypedDataMessage.CREATE_L2_KEY",
+    (
+        TypedDataMessage.CREATE_L2_KEY,
+        TypedDataMessage,
+    ),
+    {},
+)  # type: ignore
+TypedDataMessage.TRANSACTION = type(
+    "TypedDataMessage.TRANSACTION",
+    (
+        TypedDataMessage.TRANSACTION,
+        TypedDataMessage,
+    ),
+    {},
+)  # type: ignore
 
 
 class _UniffiConverterTypeTypedDataMessage(_UniffiConverterRustBuffer):
@@ -6986,8 +8249,6 @@ class _UniffiConverterTypeTypedDataMessage(_UniffiConverterRustBuffer):
             _UniffiConverterTypeTxMessage.write(value.message, buf)
 
 
-
-
 # ZkSignerError
 # We want to define each variant as a nested class that's also a subclass,
 # which is tricky in Python.  To accomplish this we're going to create each
@@ -6997,43 +8258,61 @@ class _UniffiConverterTypeTypedDataMessage(_UniffiConverterRustBuffer):
 class ZkSignerError(Exception):
     pass
 
+
 _UniffiTempZkSignerError = ZkSignerError
+
 
 class ZkSignerError:  # type: ignore
     class CustomError(_UniffiTempZkSignerError):
         def __repr__(self):
             return "ZkSignerError.CustomError({})".format(repr(str(self)))
-    _UniffiTempZkSignerError.CustomError = CustomError # type: ignore
+
+    _UniffiTempZkSignerError.CustomError = CustomError  # type: ignore
+
     class InvalidSignature(_UniffiTempZkSignerError):
         def __repr__(self):
             return "ZkSignerError.InvalidSignature({})".format(repr(str(self)))
-    _UniffiTempZkSignerError.InvalidSignature = InvalidSignature # type: ignore
+
+    _UniffiTempZkSignerError.InvalidSignature = InvalidSignature  # type: ignore
+
     class InvalidPrivKey(_UniffiTempZkSignerError):
         def __repr__(self):
             return "ZkSignerError.InvalidPrivKey({})".format(repr(str(self)))
-    _UniffiTempZkSignerError.InvalidPrivKey = InvalidPrivKey # type: ignore
+
+    _UniffiTempZkSignerError.InvalidPrivKey = InvalidPrivKey  # type: ignore
+
     class InvalidSeed(_UniffiTempZkSignerError):
         def __repr__(self):
             return "ZkSignerError.InvalidSeed({})".format(repr(str(self)))
-    _UniffiTempZkSignerError.InvalidSeed = InvalidSeed # type: ignore
+
+    _UniffiTempZkSignerError.InvalidSeed = InvalidSeed  # type: ignore
+
     class InvalidPubkey(_UniffiTempZkSignerError):
         def __repr__(self):
             return "ZkSignerError.InvalidPubkey({})".format(repr(str(self)))
-    _UniffiTempZkSignerError.InvalidPubkey = InvalidPubkey # type: ignore
+
+    _UniffiTempZkSignerError.InvalidPubkey = InvalidPubkey  # type: ignore
+
     class InvalidPubkeyHash(_UniffiTempZkSignerError):
         def __repr__(self):
             return "ZkSignerError.InvalidPubkeyHash({})".format(repr(str(self)))
-    _UniffiTempZkSignerError.InvalidPubkeyHash = InvalidPubkeyHash # type: ignore
+
+    _UniffiTempZkSignerError.InvalidPubkeyHash = InvalidPubkeyHash  # type: ignore
+
     class EthSignerError(_UniffiTempZkSignerError):
         def __repr__(self):
             return "ZkSignerError.EthSignerError({})".format(repr(str(self)))
-    _UniffiTempZkSignerError.EthSignerError = EthSignerError # type: ignore
+
+    _UniffiTempZkSignerError.EthSignerError = EthSignerError  # type: ignore
+
     class StarkSignerError(_UniffiTempZkSignerError):
         def __repr__(self):
             return "ZkSignerError.StarkSignerError({})".format(repr(str(self)))
-    _UniffiTempZkSignerError.StarkSignerError = StarkSignerError # type: ignore
 
-ZkSignerError = _UniffiTempZkSignerError # type: ignore
+    _UniffiTempZkSignerError.StarkSignerError = StarkSignerError  # type: ignore
+
+
+ZkSignerError = _UniffiTempZkSignerError  # type: ignore
 del _UniffiTempZkSignerError
 
 
@@ -7095,7 +8374,6 @@ class _UniffiConverterTypeZkSignerError(_UniffiConverterRustBuffer):
             buf.write_i32(8)
 
 
-
 class _UniffiConverterOptionalString(_UniffiConverterRustBuffer):
     @classmethod
     def write(cls, value, buf):
@@ -7115,7 +8393,6 @@ class _UniffiConverterOptionalString(_UniffiConverterRustBuffer):
             return _UniffiConverterString.read(buf)
         else:
             raise InternalError("Unexpected flag byte for optional type")
-
 
 
 class _UniffiConverterOptionalTypeZkLinkSignature(_UniffiConverterRustBuffer):
@@ -7139,7 +8416,6 @@ class _UniffiConverterOptionalTypeZkLinkSignature(_UniffiConverterRustBuffer):
             raise InternalError("Unexpected flag byte for optional type")
 
 
-
 class _UniffiConverterOptionalSequenceUInt8(_UniffiConverterRustBuffer):
     @classmethod
     def write(cls, value, buf):
@@ -7159,7 +8435,6 @@ class _UniffiConverterOptionalSequenceUInt8(_UniffiConverterRustBuffer):
             return _UniffiConverterSequenceUInt8.read(buf)
         else:
             raise InternalError("Unexpected flag byte for optional type")
-
 
 
 class _UniffiConverterOptionalTypeH256(_UniffiConverterRustBuffer):
@@ -7183,7 +8458,6 @@ class _UniffiConverterOptionalTypeH256(_UniffiConverterRustBuffer):
             raise InternalError("Unexpected flag byte for optional type")
 
 
-
 class _UniffiConverterOptionalTypePackedEthSignature(_UniffiConverterRustBuffer):
     @classmethod
     def write(cls, value, buf):
@@ -7203,7 +8477,6 @@ class _UniffiConverterOptionalTypePackedEthSignature(_UniffiConverterRustBuffer)
             return _UniffiConverterTypePackedEthSignature.read(buf)
         else:
             raise InternalError("Unexpected flag byte for optional type")
-
 
 
 class _UniffiConverterOptionalTypeTxLayer1Signature(_UniffiConverterRustBuffer):
@@ -7227,7 +8500,6 @@ class _UniffiConverterOptionalTypeTxLayer1Signature(_UniffiConverterRustBuffer):
             raise InternalError("Unexpected flag byte for optional type")
 
 
-
 class _UniffiConverterSequenceUInt8(_UniffiConverterRustBuffer):
     @classmethod
     def write(cls, value, buf):
@@ -7242,10 +8514,7 @@ class _UniffiConverterSequenceUInt8(_UniffiConverterRustBuffer):
         if count < 0:
             raise InternalError("Unexpected negative sequence length")
 
-        return [
-            _UniffiConverterUInt8.read(buf) for i in range(count)
-        ]
-
+        return [_UniffiConverterUInt8.read(buf) for i in range(count)]
 
 
 class _UniffiConverterSequenceTypeContract(_UniffiConverterRustBuffer):
@@ -7262,10 +8531,7 @@ class _UniffiConverterSequenceTypeContract(_UniffiConverterRustBuffer):
         if count < 0:
             raise InternalError("Unexpected negative sequence length")
 
-        return [
-            _UniffiConverterTypeContract.read(buf) for i in range(count)
-        ]
-
+        return [_UniffiConverterTypeContract.read(buf) for i in range(count)]
 
 
 class _UniffiConverterSequenceTypeContractPrice(_UniffiConverterRustBuffer):
@@ -7282,10 +8548,7 @@ class _UniffiConverterSequenceTypeContractPrice(_UniffiConverterRustBuffer):
         if count < 0:
             raise InternalError("Unexpected negative sequence length")
 
-        return [
-            _UniffiConverterTypeContractPrice.read(buf) for i in range(count)
-        ]
-
+        return [_UniffiConverterTypeContractPrice.read(buf) for i in range(count)]
 
 
 class _UniffiConverterSequenceTypeFundingInfo(_UniffiConverterRustBuffer):
@@ -7302,10 +8565,7 @@ class _UniffiConverterSequenceTypeFundingInfo(_UniffiConverterRustBuffer):
         if count < 0:
             raise InternalError("Unexpected negative sequence length")
 
-        return [
-            _UniffiConverterTypeFundingInfo.read(buf) for i in range(count)
-        ]
-
+        return [_UniffiConverterTypeFundingInfo.read(buf) for i in range(count)]
 
 
 class _UniffiConverterSequenceTypeSpotPriceInfo(_UniffiConverterRustBuffer):
@@ -7322,10 +8582,7 @@ class _UniffiConverterSequenceTypeSpotPriceInfo(_UniffiConverterRustBuffer):
         if count < 0:
             raise InternalError("Unexpected negative sequence length")
 
-        return [
-            _UniffiConverterTypeSpotPriceInfo.read(buf) for i in range(count)
-        ]
-
+        return [_UniffiConverterTypeSpotPriceInfo.read(buf) for i in range(count)]
 
 
 class _UniffiConverterSequenceTypeAccountId(_UniffiConverterRustBuffer):
@@ -7342,13 +8599,12 @@ class _UniffiConverterSequenceTypeAccountId(_UniffiConverterRustBuffer):
         if count < 0:
             raise InternalError("Unexpected negative sequence length")
 
-        return [
-            _UniffiConverterTypeAccountId.read(buf) for i in range(count)
-        ]
+        return [_UniffiConverterTypeAccountId.read(buf) for i in range(count)]
 
 
 # Type alias
 AccountId = int
+
 
 class _UniffiConverterTypeAccountId:
     @staticmethod
@@ -7371,6 +8627,7 @@ class _UniffiConverterTypeAccountId:
 # Type alias
 Address = str
 
+
 class _UniffiConverterTypeAddress:
     @staticmethod
     def write(value, buf):
@@ -7391,6 +8648,7 @@ class _UniffiConverterTypeAddress:
 
 # Type alias
 BigUint = str
+
 
 class _UniffiConverterTypeBigUint:
     @staticmethod
@@ -7413,6 +8671,7 @@ class _UniffiConverterTypeBigUint:
 # Type alias
 BlockNumber = int
 
+
 class _UniffiConverterTypeBlockNumber:
     @staticmethod
     def write(value, buf):
@@ -7433,6 +8692,7 @@ class _UniffiConverterTypeBlockNumber:
 
 # Type alias
 ChainId = int
+
 
 class _UniffiConverterTypeChainId:
     @staticmethod
@@ -7455,6 +8715,7 @@ class _UniffiConverterTypeChainId:
 # Type alias
 EthBlockId = int
 
+
 class _UniffiConverterTypeEthBlockId:
     @staticmethod
     def write(value, buf):
@@ -7475,6 +8736,7 @@ class _UniffiConverterTypeEthBlockId:
 
 # Type alias
 H256 = str
+
 
 class _UniffiConverterTypeH256:
     @staticmethod
@@ -7497,6 +8759,7 @@ class _UniffiConverterTypeH256:
 # Type alias
 MarginId = int
 
+
 class _UniffiConverterTypeMarginId:
     @staticmethod
     def write(value, buf):
@@ -7517,6 +8780,7 @@ class _UniffiConverterTypeMarginId:
 
 # Type alias
 Nonce = int
+
 
 class _UniffiConverterTypeNonce:
     @staticmethod
@@ -7539,6 +8803,7 @@ class _UniffiConverterTypeNonce:
 # Type alias
 PackedEthSignature = str
 
+
 class _UniffiConverterTypePackedEthSignature:
     @staticmethod
     def write(value, buf):
@@ -7559,6 +8824,7 @@ class _UniffiConverterTypePackedEthSignature:
 
 # Type alias
 PackedPublicKey = str
+
 
 class _UniffiConverterTypePackedPublicKey:
     @staticmethod
@@ -7581,6 +8847,7 @@ class _UniffiConverterTypePackedPublicKey:
 # Type alias
 PackedSignature = str
 
+
 class _UniffiConverterTypePackedSignature:
     @staticmethod
     def write(value, buf):
@@ -7601,6 +8868,7 @@ class _UniffiConverterTypePackedSignature:
 
 # Type alias
 PairId = int
+
 
 class _UniffiConverterTypePairId:
     @staticmethod
@@ -7623,6 +8891,7 @@ class _UniffiConverterTypePairId:
 # Type alias
 PriorityOpId = int
 
+
 class _UniffiConverterTypePriorityOpId:
     @staticmethod
     def write(value, buf):
@@ -7643,6 +8912,7 @@ class _UniffiConverterTypePriorityOpId:
 
 # Type alias
 PubKeyHash = str
+
 
 class _UniffiConverterTypePubKeyHash:
     @staticmethod
@@ -7665,6 +8935,7 @@ class _UniffiConverterTypePubKeyHash:
 # Type alias
 SlotId = int
 
+
 class _UniffiConverterTypeSlotId:
     @staticmethod
     def write(value, buf):
@@ -7685,6 +8956,7 @@ class _UniffiConverterTypeSlotId:
 
 # Type alias
 StarkEip712Signature = str
+
 
 class _UniffiConverterTypeStarkEip712Signature:
     @staticmethod
@@ -7707,6 +8979,7 @@ class _UniffiConverterTypeStarkEip712Signature:
 # Type alias
 SubAccountId = int
 
+
 class _UniffiConverterTypeSubAccountId:
     @staticmethod
     def write(value, buf):
@@ -7727,6 +9000,7 @@ class _UniffiConverterTypeSubAccountId:
 
 # Type alias
 TimeStamp = int
+
 
 class _UniffiConverterTypeTimeStamp:
     @staticmethod
@@ -7749,6 +9023,7 @@ class _UniffiConverterTypeTimeStamp:
 # Type alias
 TokenId = int
 
+
 class _UniffiConverterTypeTokenId:
     @staticmethod
     def write(value, buf):
@@ -7769,6 +9044,7 @@ class _UniffiConverterTypeTokenId:
 
 # Type alias
 TxHash = str
+
 
 class _UniffiConverterTypeTxHash:
     @staticmethod
@@ -7791,6 +9067,7 @@ class _UniffiConverterTypeTxHash:
 # Type alias
 TxLayer1Signature = str
 
+
 class _UniffiConverterTypeTxLayer1Signature:
     @staticmethod
     def write(value, buf):
@@ -7811,6 +9088,7 @@ class _UniffiConverterTypeTxLayer1Signature:
 
 # Type alias
 ZkLinkAddress = str
+
 
 class _UniffiConverterTypeZkLinkAddress:
     @staticmethod
@@ -7833,6 +9111,7 @@ class _UniffiConverterTypeZkLinkAddress:
 # Type alias
 ZkLinkTx = str
 
+
 class _UniffiConverterTypeZkLinkTx:
     @staticmethod
     def write(value, buf):
@@ -7850,44 +9129,73 @@ class _UniffiConverterTypeZkLinkTx:
     def lower(value):
         return _UniffiConverterString.lower(value)
 
-def create_signed_change_pubkey(zklink_signer: "ZkLinkSigner",tx: "ChangePubKey",eth_auth_data: "ChangePubKeyAuthData") -> "ChangePubKey":
-    
-    
-    
-    return _UniffiConverterTypeChangePubKey.lift(_rust_call_with_error(_UniffiConverterTypeSignError,_UniffiLib.uniffi_zklink_sdk_fn_func_create_signed_change_pubkey,
-        _UniffiConverterTypeZkLinkSigner.lower(zklink_signer),
-        _UniffiConverterTypeChangePubKey.lower(tx),
-        _UniffiConverterTypeChangePubKeyAuthData.lower(eth_auth_data)))
+
+def create_signed_change_pubkey(
+    zklink_signer: "ZkLinkSigner",
+    tx: "ChangePubKey",
+    eth_auth_data: "ChangePubKeyAuthData",
+) -> "ChangePubKey":
+
+    return _UniffiConverterTypeChangePubKey.lift(
+        _rust_call_with_error(
+            _UniffiConverterTypeSignError,
+            _UniffiLib.uniffi_zklink_sdk_fn_func_create_signed_change_pubkey,
+            _UniffiConverterTypeZkLinkSigner.lower(zklink_signer),
+            _UniffiConverterTypeChangePubKey.lower(tx),
+            _UniffiConverterTypeChangePubKeyAuthData.lower(eth_auth_data),
+        )
+    )
 
 
-def eth_signature_of_change_pubkey(tx: "ChangePubKey",eth_signer: "EthSigner") -> "PackedEthSignature":
-    
-    
-    return _UniffiConverterTypePackedEthSignature.lift(_rust_call_with_error(_UniffiConverterTypeSignError,_UniffiLib.uniffi_zklink_sdk_fn_func_eth_signature_of_change_pubkey,
-        _UniffiConverterTypeChangePubKey.lower(tx),
-        _UniffiConverterTypeEthSigner.lower(eth_signer)))
+def eth_signature_of_change_pubkey(
+    tx: "ChangePubKey", eth_signer: "EthSigner"
+) -> "PackedEthSignature":
+
+    return _UniffiConverterTypePackedEthSignature.lift(
+        _rust_call_with_error(
+            _UniffiConverterTypeSignError,
+            _UniffiLib.uniffi_zklink_sdk_fn_func_eth_signature_of_change_pubkey,
+            _UniffiConverterTypeChangePubKey.lower(tx),
+            _UniffiConverterTypeEthSigner.lower(eth_signer),
+        )
+    )
 
 
 def get_public_key_hash(public_key: "PackedPublicKey") -> "PubKeyHash":
-    
-    return _UniffiConverterTypePubKeyHash.lift(_rust_call(_UniffiLib.uniffi_zklink_sdk_fn_func_get_public_key_hash,
-        _UniffiConverterTypePackedPublicKey.lower(public_key)))
+
+    return _UniffiConverterTypePubKeyHash.lift(
+        _rust_call(
+            _UniffiLib.uniffi_zklink_sdk_fn_func_get_public_key_hash,
+            _UniffiConverterTypePackedPublicKey.lower(public_key),
+        )
+    )
 
 
-def verify_musig(signature: "ZkLinkSignature",msg: "typing.List[int]"):
-    
-    
-    return _UniffiConverterBool.lift(_rust_call(_UniffiLib.uniffi_zklink_sdk_fn_func_verify_musig,
-        _UniffiConverterTypeZkLinkSignature.lower(signature),
-        _UniffiConverterSequenceUInt8.lower(msg)))
+def verify_musig(signature: "ZkLinkSignature", msg: "typing.List[int]"):
+
+    return _UniffiConverterBool.lift(
+        _rust_call(
+            _UniffiLib.uniffi_zklink_sdk_fn_func_verify_musig,
+            _UniffiConverterTypeZkLinkSignature.lower(signature),
+            _UniffiConverterSequenceUInt8.lower(msg),
+        )
+    )
 
 
 def zklink_main_net_url():
-    return _UniffiConverterString.lift(_rust_call(_UniffiLib.uniffi_zklink_sdk_fn_func_zklink_main_net_url,))
+    return _UniffiConverterString.lift(
+        _rust_call(
+            _UniffiLib.uniffi_zklink_sdk_fn_func_zklink_main_net_url,
+        )
+    )
 
 
 def zklink_test_net_url():
-    return _UniffiConverterString.lift(_rust_call(_UniffiLib.uniffi_zklink_sdk_fn_func_zklink_test_net_url,))
+    return _UniffiConverterString.lift(
+        _rust_call(
+            _UniffiLib.uniffi_zklink_sdk_fn_func_zklink_test_net_url,
+        )
+    )
 
 
 __all__ = [
@@ -7951,4 +9259,3 @@ __all__ = [
     "Withdraw",
     "ZkLinkSigner",
 ]
-

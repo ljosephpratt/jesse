@@ -6,8 +6,12 @@ from numba import njit
 from jesse.helpers import get_candle_source, slice_candles
 
 
-def rsx(candles: np.ndarray, period: int = 14, source_type: str = "close", sequential: bool = False) -> Union[
-    float, np.ndarray]:
+def rsx(
+    candles: np.ndarray,
+    period: int = 14,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     Relative Strength Xtra (rsx)
 

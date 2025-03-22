@@ -6,8 +6,9 @@ from numba import guvectorize, njit
 from jesse.helpers import get_candle_source, slice_candles
 
 
-def rma(candles: np.ndarray, length: int = 14, source_type="close", sequential=False) -> \
-        Union[float, np.ndarray]:
+def rma(
+    candles: np.ndarray, length: int = 14, source_type="close", sequential=False
+) -> Union[float, np.ndarray]:
     """
     Moving average used in RSI. It is the exponentially weighted moving average with alpha = 1 / length.
     RETURNS Exponential moving average of x with alpha = 1 / y.
@@ -21,7 +22,7 @@ def rma(candles: np.ndarray, length: int = 14, source_type="close", sequential=F
     """
 
     if length < 1:
-        raise ValueError('Bad parameters.')
+        raise ValueError("Bad parameters.")
 
     # Accept normal array too.
     if len(candles.shape) == 1:

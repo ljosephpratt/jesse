@@ -5,7 +5,9 @@ from jesse.helpers import slice_candles
 from numpy.lib.stride_tricks import sliding_window_view
 
 
-def midprice(candles: np.ndarray, period: int = 14, sequential: bool = False) -> Union[float, np.ndarray]:
+def midprice(
+    candles: np.ndarray, period: int = 14, sequential: bool = False
+) -> Union[float, np.ndarray]:
     """
     MIDPRICE - Midpoint Price over period
 

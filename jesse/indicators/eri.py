@@ -5,11 +5,16 @@ import numpy as np
 from jesse.helpers import get_candle_source, slice_candles
 from jesse.indicators.ma import ma
 
-ERI = namedtuple('ERI', ['bull', 'bear'])
+ERI = namedtuple("ERI", ["bull", "bear"])
 
 
-def eri(candles: np.ndarray, period: int = 13, matype: int = 1, source_type: str = "close",
-        sequential: bool = False) -> ERI:
+def eri(
+    candles: np.ndarray,
+    period: int = 13,
+    matype: int = 1,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> ERI:
     """
     Elder Ray Index (ERI)
 
@@ -26,7 +31,13 @@ def eri(candles: np.ndarray, period: int = 13, matype: int = 1, source_type: str
     source = get_candle_source(candles, source_type=source_type)
 
     if matype == 24 or matype == 29:
-        ema = ma(candles, period=period, matype=matype, source_type=source_type, sequential=True)
+        ema = ma(
+            candles,
+            period=period,
+            matype=matype,
+            source_type=source_type,
+            sequential=True,
+        )
     else:
         ema = ma(source, period=period, matype=matype, sequential=True)
 

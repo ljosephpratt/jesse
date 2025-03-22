@@ -15,12 +15,17 @@ def _dpo(source, period, sma):
     dpo = shifted_source - sma
 
     # First (period-1 + shift) elements will be invalid due to the rolling calculations
-    dpo[:period-1+shift] = np.nan
+    dpo[: period - 1 + shift] = np.nan
 
     return dpo
 
 
-def dpo(candles: np.ndarray, period: int = 5, source_type: str = "close", sequential: bool = False) -> Union[float, np.ndarray]:
+def dpo(
+    candles: np.ndarray,
+    period: int = 5,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     DPO - Detrended Price Oscillator
 

@@ -5,12 +5,20 @@ import numpy as np
 from jesse.helpers import get_candle_source, slice_candles
 from jesse.indicators.ma import ma
 
-MAB = namedtuple('MAB', ['upperband', 'middleband', 'lowerband'])
+MAB = namedtuple("MAB", ["upperband", "middleband", "lowerband"])
 
 
-def mab(candles: np.ndarray, fast_period: int = 10, slow_period: int = 50, devup: float = 1, devdn: float = 1, fast_matype: int = 0, slow_matype: int = 0,
-                    source_type: str = "close",
-                    sequential: bool = False) -> MAB:
+def mab(
+    candles: np.ndarray,
+    fast_period: int = 10,
+    slow_period: int = 50,
+    devup: float = 1,
+    devdn: float = 1,
+    fast_matype: int = 0,
+    slow_matype: int = 0,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> MAB:
     """
     Moving Average Bands
 
@@ -31,18 +39,41 @@ def mab(candles: np.ndarray, fast_period: int = 10, slow_period: int = 50, devup
     source = get_candle_source(candles, source_type=source_type)
 
     if any(matype in (24, 29) for matype in (fast_matype, slow_matype)):
-        fastEma = ma(candles, period=fast_period, matype=fast_matype, source_type=source_type, sequential=True)
-        slowEma = ma(candles, period=slow_period, matype=slow_matype, source_type=source_type, sequential=True)
+        fastEma = ma(
+            candles,
+            period=fast_period,
+            matype=fast_matype,
+            source_type=source_type,
+            sequential=True,
+        )
+        slowEma = ma(
+            candles,
+            period=slow_period,
+            matype=slow_matype,
+            source_type=source_type,
+            sequential=True,
+        )
     else:
-        fastEma = ma(source, period=fast_period, matype=fast_matype, source_type=source_type, sequential=True)
-        slowEma = ma(source, period=slow_period, matype=slow_matype, source_type=source_type, sequential=True)
+        fastEma = ma(
+            source,
+            period=fast_period,
+            matype=fast_matype,
+            source_type=source_type,
+            sequential=True,
+        )
+        slowEma = ma(
+            source,
+            period=slow_period,
+            matype=slow_matype,
+            source_type=source_type,
+            sequential=True,
+        )
     sqAvg = np.sum(np.power(fastEma - slowEma, 2)[-fast_period:]) / fast_period
     dev = np.sqrt(sqAvg)
 
     middlebands = fastEma
     upperbands = slowEma + devup * dev
     lowerbands = slowEma - devdn * dev
-
 
     if sequential:
         return MAB(upperbands, middlebands, lowerbands)

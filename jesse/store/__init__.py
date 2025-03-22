@@ -25,20 +25,20 @@ def install_routes() -> None:
         exchange = r.exchange
         symbol = r.symbol
         count = sum(
-            ro.exchange == exchange and ro.symbol == symbol
-            for ro in router.routes
+            ro.exchange == exchange and ro.symbol == symbol for ro in router.routes
         )
 
         if count != 1:
             raise InvalidRoutes(
-                'each exchange-symbol pair can be traded only once. \nMore info: https://docs.jesse.trade/docs/routes.html#trading-multiple-routes')
+                "each exchange-symbol pair can be traded only once. \nMore info: https://docs.jesse.trade/docs/routes.html#trading-multiple-routes"
+            )
 
     # check to make sure if trading more than one route, they all have the same quote
     # currency because otherwise we cannot calculate the correct performance metrics
     first_routes_quote = jh.quote_asset(router.routes[0].symbol)
     for r in router.routes:
         if jh.quote_asset(r.symbol) != first_routes_quote:
-            raise InvalidRoutes('All trading routes must have the same quote asset.')
+            raise InvalidRoutes("All trading routes must have the same quote asset.")
 
     trading_exchanges = set()
     trading_timeframes = set()
@@ -54,22 +54,22 @@ def install_routes() -> None:
     considering_symbols = trading_symbols.copy()
 
     for e in router.data_candles:
-        considering_candles.add((e['exchange'], e['symbol']))
-        considering_exchanges.add(e['exchange'])
-        considering_symbols.add(e['symbol'])
-        considering_timeframes.add(e['timeframe'])
+        considering_candles.add((e["exchange"], e["symbol"]))
+        considering_exchanges.add(e["exchange"])
+        considering_symbols.add(e["symbol"])
+        considering_timeframes.add(e["timeframe"])
 
     # 1m must be present at all times
-    considering_timeframes.add('1m')
+    considering_timeframes.add("1m")
 
-    config['app']['considering_candles'] = tuple(considering_candles)
-    config['app']['considering_exchanges'] = tuple(considering_exchanges)
+    config["app"]["considering_candles"] = tuple(considering_candles)
+    config["app"]["considering_exchanges"] = tuple(considering_exchanges)
 
-    config['app']['considering_symbols'] = tuple(considering_symbols)
-    config['app']['considering_timeframes'] = tuple(considering_timeframes)
-    config['app']['trading_exchanges'] = tuple(trading_exchanges)
-    config['app']['trading_symbols'] = tuple(trading_symbols)
-    config['app']['trading_timeframes'] = tuple(trading_timeframes)
+    config["app"]["considering_symbols"] = tuple(considering_symbols)
+    config["app"]["considering_timeframes"] = tuple(considering_timeframes)
+    config["app"]["trading_exchanges"] = tuple(trading_exchanges)
+    config["app"]["trading_symbols"] = tuple(trading_symbols)
+    config["app"]["trading_timeframes"] = tuple(trading_timeframes)
 
 
 class StoreClass:
@@ -90,7 +90,7 @@ class StoreClass:
     def reset(self, force_install_routes: bool = False) -> None:
         """
         Resets all the states within the store
-        
+
         Keyword Arguments:
             force_install_routes {bool} -- used for unit_testing (default: {False})
         """

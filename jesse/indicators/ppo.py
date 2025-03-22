@@ -6,8 +6,14 @@ from jesse.helpers import get_candle_source, slice_candles
 from jesse.indicators.ma import ma
 
 
-def ppo(candles: np.ndarray, fast_period: int = 12, slow_period: int = 26, matype: int = 0, source_type: str = "close",
-        sequential: bool = False) -> Union[float, np.ndarray]:
+def ppo(
+    candles: np.ndarray,
+    fast_period: int = 12,
+    slow_period: int = 26,
+    matype: int = 0,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     PPO - Percentage Price Oscillator
 
@@ -25,8 +31,20 @@ def ppo(candles: np.ndarray, fast_period: int = 12, slow_period: int = 26, matyp
     source = get_candle_source(candles, source_type=source_type)
 
     if matype == 24 or matype == 29:
-        fast_ma = ma(candles, period=fast_period, matype=matype, source_type=source_type, sequential=True)
-        slow_ma = ma(candles, period=slow_period, matype=matype, source_type=source_type, sequential=True)
+        fast_ma = ma(
+            candles,
+            period=fast_period,
+            matype=matype,
+            source_type=source_type,
+            sequential=True,
+        )
+        slow_ma = ma(
+            candles,
+            period=slow_period,
+            matype=matype,
+            source_type=source_type,
+            sequential=True,
+        )
     else:
         fast_ma = ma(source, period=fast_period, matype=matype, sequential=True)
         slow_ma = ma(source, period=slow_period, matype=matype, sequential=True)

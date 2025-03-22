@@ -5,11 +5,17 @@ from numba import njit
 
 from jesse.helpers import get_candle_source, slice_candles
 
-VossFilter = namedtuple('VossFilter', ['voss', 'filt'])
+VossFilter = namedtuple("VossFilter", ["voss", "filt"])
 
 
-def voss(candles: np.ndarray, period: int = 20, predict: int = 3, bandwith: float = 0.25, source_type: str = "close",
-         sequential: bool = False) -> VossFilter:
+def voss(
+    candles: np.ndarray,
+    period: int = 20,
+    predict: int = 3,
+    bandwith: float = 0.25,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> VossFilter:
     """
     Voss indicator by John F. Ehlers
 
@@ -48,7 +54,11 @@ def voss_fast(source, period, predict, bandwith):
 
     for i in range(source.shape[0]):
         if i > period and i > 5 and i > order:
-            filt[i] = 0.5 * (1 - s1) * (source[i] - source[i - 2]) + f1 * (1 + s1) * filt[i - 1] - s1 * filt[i - 2]
+            filt[i] = (
+                0.5 * (1 - s1) * (source[i] - source[i - 2])
+                + f1 * (1 + s1) * filt[i - 1]
+                - s1 * filt[i - 2]
+            )
 
     for i in range(source.shape[0]):
         if not (i <= period or i <= 5 or i <= order):

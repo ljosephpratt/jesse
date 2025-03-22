@@ -8,7 +8,7 @@ from jesse.indicators.ma import ma
 from jesse.indicators.mean_ad import mean_ad
 from jesse.indicators.median_ad import median_ad
 
-BollingerBands = namedtuple('BollingerBands', ['upperband', 'middleband', 'lowerband'])
+BollingerBands = namedtuple("BollingerBands", ["upperband", "middleband", "lowerband"])
 
 
 @njit
@@ -31,7 +31,7 @@ def _moving_std_numba(source, period):
         # Guard against possible negative variance from precision issues
         if variance < 0.0:
             variance = 0.0
-        result[i] = variance ** 0.5
+        result[i] = variance**0.5
     return result
 
 
@@ -41,14 +41,14 @@ def moving_std(source, period):
 
 
 def bollinger_bands(
-        candles: np.ndarray,
-        period: int = 20,
-        devup: float = 2,
-        devdn: float = 2,
-        matype: int = 0,
-        devtype: int = 0,
-        source_type: str = "close",
-        sequential: bool = False
+    candles: np.ndarray,
+    period: int = 20,
+    devup: float = 2,
+    devdn: float = 2,
+    matype: int = 0,
+    devtype: int = 0,
+    source_type: str = "close",
+    sequential: bool = False,
 ) -> BollingerBands:
     """
     BBANDS - Bollinger Bands
@@ -80,7 +80,13 @@ def bollinger_bands(
         raise ValueError("devtype not in (0, 1, 2)")
 
     if matype == 24 or matype == 29:
-        middlebands = ma(candles, period=period, matype=matype, source_type=source_type, sequential=True)
+        middlebands = ma(
+            candles,
+            period=period,
+            matype=matype,
+            source_type=source_type,
+            sequential=True,
+        )
     else:
         middlebands = ma(source, period=period, matype=matype, sequential=True)
     upperbands = middlebands + devup * dev

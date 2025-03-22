@@ -7,8 +7,12 @@ from scipy import stats
 from jesse.helpers import get_candle_source, same_length, slice_candles
 
 
-def kurtosis(candles: np.ndarray, period: int = 5, source_type: str = "hl2", sequential: bool = False) -> Union[
-    float, np.ndarray]:
+def kurtosis(
+    candles: np.ndarray,
+    period: int = 5,
+    source_type: str = "hl2",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     Skewness
 

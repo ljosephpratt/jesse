@@ -6,8 +6,12 @@ from numba import njit
 from jesse.helpers import get_candle_source, slice_candles
 
 
-def srwma(candles: np.ndarray, period: int = 14, source_type: str = "close", sequential: bool = False) -> Union[
-    float, np.ndarray]:
+def srwma(
+    candles: np.ndarray,
+    period: int = 14,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     Square Root Weighted Moving Average
 
@@ -39,7 +43,7 @@ def srwma_fast(source, period):
         weightSum = 0.0
         for i in range(period - 1):
             weight = np.power(period - i, 0.5)
-            my_sum += (source[j - i] * weight)
+            my_sum += source[j - i] * weight
             weightSum += weight
         newseries[j] = my_sum / weightSum
     return newseries

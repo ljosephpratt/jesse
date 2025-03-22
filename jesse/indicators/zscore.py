@@ -8,8 +8,15 @@ from jesse.indicators.mean_ad import mean_ad
 from jesse.indicators.median_ad import median_ad
 
 
-def zscore(candles: np.ndarray, period: int = 14, matype: int = 0, nbdev: float = 1, devtype: int = 0, source_type: str = "close",
-           sequential: bool = False) -> Union[float, np.ndarray]:
+def zscore(
+    candles: np.ndarray,
+    period: int = 14,
+    matype: int = 0,
+    nbdev: float = 1,
+    devtype: int = 0,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     zScore
 
@@ -27,7 +34,13 @@ def zscore(candles: np.ndarray, period: int = 14, matype: int = 0, nbdev: float 
 
     source = get_candle_source(candles, source_type=source_type)
     if matype == 24 or matype == 29:
-        means = ma(candles, period=period, matype=matype, source_type=source_type, sequential=True)
+        means = ma(
+            candles,
+            period=period,
+            matype=matype,
+            source_type=source_type,
+            sequential=True,
+        )
     else:
         means = ma(source, period=period, matype=matype, sequential=True)
 
@@ -36,16 +49,18 @@ def zscore(candles: np.ndarray, period: int = 14, matype: int = 0, nbdev: float 
             sigmas = np.full_like(source, np.nan, dtype=np.float64)
         else:
             # Create a sliding window view of the source array
-            rolling_windows = np.lib.stride_tricks.sliding_window_view(source, window_shape=period)
+            rolling_windows = np.lib.stride_tricks.sliding_window_view(
+                source, window_shape=period
+            )
             # Calculate std using population formula (ddof=0)
             std_values = np.std(rolling_windows, axis=1, ddof=0)
             sigmas = np.full(source.shape, np.nan, dtype=np.float64)
-            sigmas[period-1:] = std_values
+            sigmas[period - 1 :] = std_values
         sigmas = sigmas * nbdev
     elif devtype == 1:
-       sigmas = mean_ad(source, period, sequential=True) * nbdev
+        sigmas = mean_ad(source, period, sequential=True) * nbdev
     elif devtype == 2:
-       sigmas = median_ad(source, period, sequential=True) * nbdev
+        sigmas = median_ad(source, period, sequential=True) * nbdev
 
     zScores = (source - means) / sigmas
 

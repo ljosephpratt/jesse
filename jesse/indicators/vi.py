@@ -5,7 +5,7 @@ from numba import njit
 
 from jesse.helpers import slice_candles
 
-VI = namedtuple('VI', ['plus', 'minus'])
+VI = namedtuple("VI", ["plus", "minus"])
 
 
 def vi(candles: np.ndarray, period: int = 14, sequential: bool = False) -> VI:
@@ -49,14 +49,18 @@ def vi_fast(candles, period):
         vp[i] = np.fabs(candles_high[i] - candles_low[i - 1])
         vm[i] = np.fabs(candles_low[i] - candles_high[i - 1])
     for j in range(candles_high.size - period + 1):
-        trd[period - 1 + j] = np.sum(tr[j:j + period])
-        vpd[period - 1 + j] = np.sum(vp[j:j + period])
-        vmd[period - 1 + j] = np.sum(vm[j:j + period])
-    trd = trd[period - 1:]
-    vpd = vpd[period - 1:]
-    vmd = vmd[period - 1:]
+        trd[period - 1 + j] = np.sum(tr[j : j + period])
+        vpd[period - 1 + j] = np.sum(vp[j : j + period])
+        vmd[period - 1 + j] = np.sum(vm[j : j + period])
+    trd = trd[period - 1 :]
+    vpd = vpd[period - 1 :]
+    vmd = vmd[period - 1 :]
     vpn = vpd / trd
     vmn = vmd / trd
-    vpn_with_nan = np.concatenate((np.full((candles.shape[0] - vpn.shape[0]), np.nan), vpn))
-    vmn_with_nan = np.concatenate((np.full((candles.shape[0] - vmn.shape[0]), np.nan), vmn))
+    vpn_with_nan = np.concatenate(
+        (np.full((candles.shape[0] - vpn.shape[0]), np.nan), vpn)
+    )
+    vmn_with_nan = np.concatenate(
+        (np.full((candles.shape[0] - vmn.shape[0]), np.nan), vmn)
+    )
     return vpn_with_nan, vmn_with_nan

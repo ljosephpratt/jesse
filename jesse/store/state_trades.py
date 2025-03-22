@@ -15,7 +15,7 @@ class TradesState:
 
     def init_storage(self) -> None:
         for ar in selectors.get_all_routes():
-            exchange, symbol = ar['exchange'], ar['symbol']
+            exchange, symbol = ar["exchange"], ar["symbol"]
             key = jh.key(exchange, symbol)
             self.storage[key] = DynamicNumpyArray((60, 6), drop_at=120)
             self.temp_storage[key] = DynamicNumpyArray((100, 4))
@@ -30,20 +30,22 @@ class TradesState:
             buy_arr = np.array(list(filter(lambda x: x[3] == 1, arr)))
             sell_arr = np.array(list(filter(lambda x: x[3] == 0, arr)))
 
-            generated = np.array([
-                # timestamp
-                arr[0][0],
-                # price (weighted average)
-                (arr[:][:, 1] * arr[:][:, 2]).sum() / arr[:][:, 2].sum(),
-                # buy_qty
-                0 if not len(buy_arr) else buy_arr[:, 2].sum(),
-                # sell_qty
-                0 if not len(sell_arr) else sell_arr[:, 2].sum(),
-                # buy_count
-                len(buy_arr),
-                # sell_count
-                len(sell_arr)
-            ])
+            generated = np.array(
+                [
+                    # timestamp
+                    arr[0][0],
+                    # price (weighted average)
+                    (arr[:][:, 1] * arr[:][:, 2]).sum() / arr[:][:, 2].sum(),
+                    # buy_qty
+                    0 if not len(buy_arr) else buy_arr[:, 2].sum(),
+                    # sell_qty
+                    0 if not len(sell_arr) else sell_arr[:, 2].sum(),
+                    # buy_count
+                    len(buy_arr),
+                    # sell_count
+                    len(sell_arr),
+                ]
+            )
 
             self.storage[key].append(generated)
 
@@ -58,9 +60,11 @@ class TradesState:
         key = jh.key(exchange, symbol)
         return self.storage[key][-1]
 
-    def get_past_trade(self, exchange: str, symbol: str, number_of_trades_ago: int) -> Trade:
+    def get_past_trade(
+        self, exchange: str, symbol: str, number_of_trades_ago: int
+    ) -> Trade:
         if number_of_trades_ago > 120:
-            raise ValueError('Max accepted value for number_of_trades_ago is 120')
+            raise ValueError("Max accepted value for number_of_trades_ago is 120")
 
         number_of_trades_ago = abs(number_of_trades_ago)
         key = jh.key(exchange, symbol)

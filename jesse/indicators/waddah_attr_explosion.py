@@ -6,13 +6,21 @@ import numpy as np
 from jesse.helpers import get_candle_source, slice_candles
 
 WaddahAttarExplosionTuple = namedtuple(
-    'WaddahAttarExplosionTuple', ['explosion_line', 'trend_power', 'trend_direction']
+    "WaddahAttarExplosionTuple", ["explosion_line", "trend_power", "trend_direction"]
 )
 
 
-def waddah_attar_explosion(candles: np.ndarray, sensitivity: int = 150, fast_length: int = 20, slow_length: int = 40, channel_length: int = 20, mult: float = 2.0, source_type: str = "close") -> WaddahAttarExplosionTuple:
+def waddah_attar_explosion(
+    candles: np.ndarray,
+    sensitivity: int = 150,
+    fast_length: int = 20,
+    slow_length: int = 40,
+    channel_length: int = 20,
+    mult: float = 2.0,
+    source_type: str = "close",
+) -> WaddahAttarExplosionTuple:
     """
-    @author LazyBear 
+    @author LazyBear
     credits: https://www.tradingview.com/v/iu3kKWDI/
 
     WADDAH_ATTAR_EXPLOSION - Waddah Attar Explosion
@@ -33,10 +41,14 @@ def waddah_attar_explosion(candles: np.ndarray, sensitivity: int = 150, fast_len
         candles = slice_candles(candles, False)
         source = get_candle_source(candles, source_type=source_type)
 
-    t1 = (macd(source, fast_period=fast_length, slow_period=slow_length)[0] -
-          macd(source[:-1], fast_period=fast_length, slow_period=slow_length)[0])*sensitivity
+    t1 = (
+        macd(source, fast_period=fast_length, slow_period=slow_length)[0]
+        - macd(source[:-1], fast_period=fast_length, slow_period=slow_length)[0]
+    ) * sensitivity
     trend = 1 if t1 >= 0 else -1
-    e1 = _calc_bb_upper(source, channel_length, mult) - _calc_bb_lower(source, channel_length, mult)
+    e1 = _calc_bb_upper(source, channel_length, mult) - _calc_bb_lower(
+        source, channel_length, mult
+    )
 
     return WaddahAttarExplosionTuple(e1, t1, trend)
 

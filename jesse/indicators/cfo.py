@@ -4,6 +4,7 @@ from numba import njit
 
 from jesse.helpers import get_candle_source, slice_candles
 
+
 @njit(cache=True)
 def _compute_cfo(source: np.ndarray, period: int, scalar: float) -> np.ndarray:
     n = source.shape[0]
@@ -39,7 +40,13 @@ def _compute_cfo(source: np.ndarray, period: int, scalar: float) -> np.ndarray:
     return res
 
 
-def cfo(candles: np.ndarray, period: int = 14, scalar: float = 100, source_type: str = "close", sequential: bool = False) -> Union[float, np.ndarray]:
+def cfo(
+    candles: np.ndarray,
+    period: int = 14,
+    scalar: float = 100,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     CFO - Chande Forcast Oscillator
 
@@ -55,7 +62,7 @@ def cfo(candles: np.ndarray, period: int = 14, scalar: float = 100, source_type:
     source = get_candle_source(candles, source_type=source_type)
 
     res = _compute_cfo(source, period, scalar)
-    
+
     if sequential:
         return res
     else:

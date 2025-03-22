@@ -6,7 +6,12 @@ from numpy.lib.stride_tricks import sliding_window_view
 from jesse.helpers import slice_candles
 
 
-def beta(candles: np.ndarray, benchmark_candles: np.ndarray, period: int = 5, sequential: bool = False) -> Union[float, np.ndarray]:
+def beta(
+    candles: np.ndarray,
+    benchmark_candles: np.ndarray,
+    period: int = 5,
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     BETA - compares the given candles close price to its benchmark (should be in the same time frame)
 
@@ -37,12 +42,12 @@ def beta(candles: np.ndarray, benchmark_candles: np.ndarray, period: int = 5, se
     diff_y = windows_y - mean_y[:, None]
 
     numerator = (diff_x * diff_y).sum(axis=1)
-    denominator = (diff_y ** 2).sum(axis=1)
+    denominator = (diff_y**2).sum(axis=1)
 
-    with np.errstate(divide='ignore', invalid='ignore'):
-         beta_vals = numerator / denominator
+    with np.errstate(divide="ignore", invalid="ignore"):
+        beta_vals = numerator / denominator
 
     out = np.full_like(x, fill_value=np.nan, dtype=float)
-    out[period - 1:] = beta_vals
+    out[period - 1 :] = beta_vals
 
     return out if sequential else out[-1]

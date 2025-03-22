@@ -15,10 +15,10 @@ class BitfinexSpot(CandleExchange):
             name=exchanges.BITFINEX_SPOT,
             count=1440,
             rate_limit_per_second=1,
-            backup_exchange_class=None
+            backup_exchange_class=None,
         )
 
-        self.endpoint = 'https://api-pub.bitfinex.com/v2/candles'
+        self.endpoint = "https://api-pub.bitfinex.com/v2/candles"
         self.max_retries = 5
         self.base_delay = 3  # Base delay in seconds
 
@@ -30,26 +30,28 @@ class BitfinexSpot(CandleExchange):
             except (ConnectionError, RequestException) as e:
                 if attempt == self.max_retries - 1:  # Last attempt
                     raise e
-                
+
                 # Exponential backoff with jitter
-                delay = (self.base_delay * 2 ** attempt) + (jh.random_uniform(0, 1))
+                delay = (self.base_delay * 2**attempt) + (jh.random_uniform(0, 1))
                 time.sleep(delay)
 
     def get_starting_time(self, symbol: str) -> int:
         dashless_symbol = jh.dashless_symbol(symbol)
 
         # hard-code few common symbols
-        if symbol == 'BTC-USD':
-            return jh.date_to_timestamp('2015-08-01')
-        elif symbol == 'ETH-USD':
-            return jh.date_to_timestamp('2016-01-01')
+        if symbol == "BTC-USD":
+            return jh.date_to_timestamp("2015-08-01")
+        elif symbol == "ETH-USD":
+            return jh.date_to_timestamp("2016-01-01")
 
         payload = {
-            'sort': 1,
-            'limit': 5000,
+            "sort": 1,
+            "limit": 5000,
         }
 
-        response = self._make_request(f"{self.endpoint}/trade:1D:t{dashless_symbol}/hist", params=payload)
+        response = self._make_request(
+            f"{self.endpoint}/trade:1D:t{dashless_symbol}/hist", params=payload
+        )
 
         self.validate_response(response)
 
@@ -69,49 +71,55 @@ class BitfinexSpot(CandleExchange):
     def fetch(self, symbol: str, start_timestamp: int, timeframe: str) -> list:
         # since Bitfinex API skips candles with "volume=0", we have to send end_timestamp
         # instead of limit. Therefore, we use limit number to calculate the end_timestamp
-        end_timestamp = start_timestamp + (self.count - 1) * 60000 * jh.timeframe_to_one_minutes(timeframe)
+        end_timestamp = start_timestamp + (
+            self.count - 1
+        ) * 60000 * jh.timeframe_to_one_minutes(timeframe)
         interval = timeframe_to_interval(timeframe)
 
         payload = {
-            'start': start_timestamp,
-            'end': end_timestamp,
-            'limit': self.count,
-            'sort': 1
+            "start": start_timestamp,
+            "end": end_timestamp,
+            "limit": self.count,
+            "sort": 1,
         }
 
         dashless_symbol = jh.dashless_symbol(symbol)
 
         response = self._make_request(
-            f"{self.endpoint}/trade:{interval}:t{dashless_symbol}/hist",
-            params=payload
+            f"{self.endpoint}/trade:{interval}:t{dashless_symbol}/hist", params=payload
         )
 
         self.validate_response(response)
 
         data = response.json()
-        return [{
-            'id': jh.generate_unique_id(),
-            'exchange': self.name,
-            'symbol': symbol,
-            'timeframe': timeframe,
-            'timestamp': d[0],
-            'open': d[1],
-            'close': d[2],
-            'high': d[3],
-            'low': d[4],
-            'volume': d[5]
-        } for d in data]
+        return [
+            {
+                "id": jh.generate_unique_id(),
+                "exchange": self.name,
+                "symbol": symbol,
+                "timeframe": timeframe,
+                "timestamp": d[0],
+                "open": d[1],
+                "close": d[2],
+                "high": d[3],
+                "low": d[4],
+                "volume": d[5],
+            }
+            for d in data
+        ]
 
     def get_available_symbols(self) -> list:
-        response = self._make_request('https://api-pub.bitfinex.com/v2/conf/pub:list:pair:exchange')
+        response = self._make_request(
+            "https://api-pub.bitfinex.com/v2/conf/pub:list:pair:exchange"
+        )
         self.validate_response(response)
         data = response.json()[0]
         arr = []
         for s in data:
             symbol = s
             # if has : like CELO:USD, remove the : and make it CELOUSD
-            if ':' in symbol:
-                symbol = symbol.replace(':', '')
+            if ":" in symbol:
+                symbol = symbol.replace(":", "")
             arr.append(jh.dashy_symbol(symbol))
 
         return arr

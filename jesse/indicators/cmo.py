@@ -4,6 +4,7 @@ from numba import njit
 
 from jesse.helpers import get_candle_source, slice_candles
 
+
 @njit(cache=True)
 def _cmo_numba(source: np.ndarray, period: int) -> np.ndarray:
     n = source.shape[0]
@@ -11,15 +12,15 @@ def _cmo_numba(source: np.ndarray, period: int) -> np.ndarray:
     # Initialize result with NaN values
     for i in range(n):
         result[i] = np.nan
-    
+
     if n <= 1:
         return result
-    
+
     # Compute the differences manually
     diff = np.empty(n - 1, dtype=np.float64)
     for i in range(n - 1):
         diff[i] = source[i + 1] - source[i]
-    
+
     # Only compute CMO if we have enough diff values
     if diff.shape[0] >= period:
         for i in range(period, n):
@@ -40,7 +41,12 @@ def _cmo_numba(source: np.ndarray, period: int) -> np.ndarray:
     return result
 
 
-def cmo(candles: np.ndarray, period: int = 14, source_type: str = "close", sequential: bool = False) -> Union[float, np.ndarray]:
+def cmo(
+    candles: np.ndarray,
+    period: int = 14,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     CMO - Chande Momentum Oscillator
 

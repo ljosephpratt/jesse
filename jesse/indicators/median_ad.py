@@ -7,8 +7,12 @@ from scipy import stats
 from jesse.helpers import get_candle_source, same_length, slice_candles
 
 
-def median_ad(candles: np.ndarray, period: int = 5, source_type: str = "hl2", sequential: bool = False) -> Union[
-    float, np.ndarray]:
+def median_ad(
+    candles: np.ndarray,
+    period: int = 5,
+    source_type: str = "hl2",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     Median Absolute Deviation
 
@@ -21,10 +25,10 @@ def median_ad(candles: np.ndarray, period: int = 5, source_type: str = "hl2", se
     """
 
     if len(candles.shape) == 1:
-      source = candles
+        source = candles
     else:
-      candles = slice_candles(candles, sequential)
-      source = get_candle_source(candles, source_type=source_type)
+        candles = slice_candles(candles, sequential)
+        source = get_candle_source(candles, source_type=source_type)
 
     swv = sliding_window_view(source, window_shape=period)
     median_abs_deviation = stats.median_abs_deviation(swv, axis=-1)

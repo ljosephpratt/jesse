@@ -7,9 +7,14 @@ from .roc import roc
 from .wma import wma
 
 
-def cc(candles: np.ndarray, wma_period: int = 10, roc_short_period: int = 11, roc_long_period: int = 14,
-       source_type: str = "close",
-       sequential: bool = False) -> Union[float, np.ndarray]:
+def cc(
+    candles: np.ndarray,
+    wma_period: int = 10,
+    roc_short_period: int = 11,
+    roc_long_period: int = 14,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     CC - Coppock Curve
 

@@ -10,7 +10,7 @@ class Progressbar:
 
         # validation
         if self.length <= self.index:
-            raise ValueError('length must be greater than 0')
+            raise ValueError("length must be greater than 0")
 
         self._time = time()
         self._execution_times = DynamicNumpyArray((3, 1), 3)
@@ -50,4 +50,3 @@ class Progressbar:
 
     def finish(self):
         self.is_finished = True
-

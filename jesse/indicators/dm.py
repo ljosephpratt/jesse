@@ -4,7 +4,7 @@ import numpy as np
 
 from jesse.helpers import slice_candles
 
-DM = namedtuple('DM', ['plus', 'minus'])
+DM = namedtuple("DM", ["plus", "minus"])
 
 
 def dm(candles: np.ndarray, period: int = 14, sequential: bool = False) -> DM:
@@ -40,13 +40,17 @@ def dm(candles: np.ndarray, period: int = 14, sequential: bool = False) -> DM:
     smoothed_plus = np.full(n, np.nan, dtype=float)
     smoothed_minus = np.full(n, np.nan, dtype=float)
     if n > period:
-        initial_plus = np.nansum(raw_plus[1:period+1])
-        initial_minus = np.nansum(raw_minus[1:period+1])
+        initial_plus = np.nansum(raw_plus[1 : period + 1])
+        initial_minus = np.nansum(raw_minus[1 : period + 1])
         smoothed_plus[period] = initial_plus
         smoothed_minus[period] = initial_minus
-        for i in range(period+1, n):
-            smoothed_plus[i] = smoothed_plus[i-1] - (smoothed_plus[i-1] / period) + raw_plus[i]
-            smoothed_minus[i] = smoothed_minus[i-1] - (smoothed_minus[i-1] / period) + raw_minus[i]
+        for i in range(period + 1, n):
+            smoothed_plus[i] = (
+                smoothed_plus[i - 1] - (smoothed_plus[i - 1] / period) + raw_plus[i]
+            )
+            smoothed_minus[i] = (
+                smoothed_minus[i - 1] - (smoothed_minus[i - 1] / period) + raw_minus[i]
+            )
 
     if sequential:
         return DM(smoothed_plus, smoothed_minus)

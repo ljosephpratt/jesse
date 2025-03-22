@@ -10,16 +10,16 @@ from urllib3.util.retry import Retry
 
 class BinanceMain(CandleExchange):
     def __init__(
-            self,
-            name: str,
-            rest_endpoint: str,
-            backup_exchange_class,
+        self,
+        name: str,
+        rest_endpoint: str,
+        backup_exchange_class,
     ) -> None:
         super().__init__(
             name=name,
             count=1000,
             rate_limit_per_second=2,
-            backup_exchange_class=backup_exchange_class
+            backup_exchange_class=backup_exchange_class,
         )
 
         self.endpoint = rest_endpoint
@@ -30,8 +30,8 @@ class BinanceMain(CandleExchange):
             backoff_factor=1,
             status_forcelist=[500, 502, 503, 504],
         )
-        self.session.mount('http://', HTTPAdapter(max_retries=retries))
-        self.session.mount('https://', HTTPAdapter(max_retries=retries))
+        self.session.mount("http://", HTTPAdapter(max_retries=retries))
+        self.session.mount("https://", HTTPAdapter(max_retries=retries))
 
     def _make_request(self, url: str, params: dict = None) -> requests.Response:
         max_retries = 3
@@ -45,6 +45,7 @@ class BinanceMain(CandleExchange):
                 if "Cannot allocate memory" in str(e):
                     # Force garbage collection and wait
                     import gc
+
                     gc.collect()
                     time.sleep(retry_delay * (attempt + 1))
                     continue
@@ -56,14 +57,13 @@ class BinanceMain(CandleExchange):
         dashless_symbol = jh.dashless_symbol(symbol)
 
         payload = {
-            'interval': '1d',
-            'symbol': dashless_symbol,
-            'limit': 1500,
+            "interval": "1d",
+            "symbol": dashless_symbol,
+            "limit": 1500,
         }
 
         response = self._make_request(
-            self.endpoint + self._prefix_address + 'klines',
-            params=payload
+            self.endpoint + self._prefix_address + "klines", params=payload
         )
 
         self.validate_response(response)
@@ -75,56 +75,64 @@ class BinanceMain(CandleExchange):
         first_timestamp = int(data[0][0])
         return first_timestamp + 60_000 * 1440
 
-    def fetch(self, symbol: str, start_timestamp: int, timeframe: str = '1m') -> Union[list, None]:
-        end_timestamp = start_timestamp + (self.count - 1) * 60000 * jh.timeframe_to_one_minutes(timeframe)
+    def fetch(
+        self, symbol: str, start_timestamp: int, timeframe: str = "1m"
+    ) -> Union[list, None]:
+        end_timestamp = start_timestamp + (
+            self.count - 1
+        ) * 60000 * jh.timeframe_to_one_minutes(timeframe)
         interval = timeframe_to_interval(timeframe)
         dashless_symbol = jh.dashless_symbol(symbol)
 
         payload = {
-            'interval': interval,
-            'symbol': dashless_symbol,
-            'startTime': int(start_timestamp),
-            'endTime': int(end_timestamp),
-            'limit': self.count,
+            "interval": interval,
+            "symbol": dashless_symbol,
+            "startTime": int(start_timestamp),
+            "endTime": int(end_timestamp),
+            "limit": self.count,
         }
 
         response = self._make_request(
-            self.endpoint + self._prefix_address + 'klines',
-            params=payload
+            self.endpoint + self._prefix_address + "klines", params=payload
         )
 
         self.validate_response(response)
 
         data = response.json()
-        return [{
-            'id': jh.generate_unique_id(),
-            'exchange': self.name,
-            'symbol': symbol,
-            'timeframe': timeframe,
-            'timestamp': int(d[0]),
-            'open': float(d[1]),
-            'close': float(d[4]),
-            'high': float(d[2]),
-            'low': float(d[3]),
-            'volume': float(d[5])
-        } for d in data]
+        return [
+            {
+                "id": jh.generate_unique_id(),
+                "exchange": self.name,
+                "symbol": symbol,
+                "timeframe": timeframe,
+                "timestamp": int(d[0]),
+                "open": float(d[1]),
+                "close": float(d[4]),
+                "high": float(d[2]),
+                "low": float(d[3]),
+                "volume": float(d[5]),
+            }
+            for d in data
+        ]
 
     def get_available_symbols(self) -> list:
-        response = self._make_request(self.endpoint + self._prefix_address + 'exchangeInfo')
+        response = self._make_request(
+            self.endpoint + self._prefix_address + "exchangeInfo"
+        )
 
         self.validate_response(response)
 
         data = response.json()
 
-        return [jh.dashy_symbol(d['symbol']) for d in data['symbols']]
+        return [jh.dashy_symbol(d["symbol"]) for d in data["symbols"]]
 
     @property
     def _prefix_address(self):
-        if self.name.startswith('Binance Perpetual Futures'):
-            return '/v1/'
-        return '/v3/'
+        if self.name.startswith("Binance Perpetual Futures"):
+            return "/v1/"
+        return "/v3/"
 
     def __del__(self):
         """Cleanup method to ensure proper session closure"""
-        if hasattr(self, 'session'):
+        if hasattr(self, "session"):
             self.session.close()

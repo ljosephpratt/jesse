@@ -19,7 +19,11 @@ def obv(candles: np.ndarray, sequential: bool = False) -> Union[float, np.ndarra
     close = candles[:, 2]
     volume = candles[:, 5]
     # Compute the change in OBV: add volume if price increases, subtract if decreases, else 0
-    delta = np.where(close[1:] > close[:-1], volume[1:], np.where(close[1:] < close[:-1], -volume[1:], 0))
+    delta = np.where(
+        close[1:] > close[:-1],
+        volume[1:],
+        np.where(close[1:] < close[:-1], -volume[1:], 0),
+    )
     obv_arr = np.empty_like(volume, dtype=np.float64)
     obv_arr[0] = volume[0]
     if len(volume) > 1:

@@ -5,14 +5,20 @@ import numpy as np
 try:
     from numba import njit
 except ImportError:
-    njit = lambda a : a
+
+    def njit(a):
+        return a
+
 
 from jesse.helpers import get_candle_source, slice_candles
 
 
-def supersmoother_3_pole(candles: np.ndarray, period: int = 14, source_type: str = "close", sequential: bool = False) -> \
-        Union[
-            float, np.ndarray]:
+def supersmoother_3_pole(
+    candles: np.ndarray,
+    period: int = 14,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     Super Smoother Filter 3pole Butterworth
     This indicator was described by John F. Ehlers
@@ -41,9 +47,13 @@ def supersmoother_3_pole(candles: np.ndarray, period: int = 14, source_type: str
 def supersmoother_fast(source, period):
     a = np.exp(-np.pi / period)
     b = 2 * a * np.cos(1.738 * np.pi / period)
-    c = a ** 2
+    c = a**2
     newseries = np.copy(source)
     for i in range(3, source.shape[0]):
-        newseries[i] = (1 - c ** 2 - b + b * c) * source[i] \
-                       + (b + c) * newseries[i - 1] + (-c - b * c) * newseries[i - 2] + (c ** 2) * newseries[i - 3]
+        newseries[i] = (
+            (1 - c**2 - b + b * c) * source[i]
+            + (b + c) * newseries[i - 1]
+            + (-c - b * c) * newseries[i - 2]
+            + (c**2) * newseries[i - 3]
+        )
     return newseries

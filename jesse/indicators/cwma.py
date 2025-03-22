@@ -6,8 +6,12 @@ from numba import njit
 from jesse.helpers import get_candle_source, slice_candles
 
 
-def cwma(candles: np.ndarray, period: int = 14, source_type: str = "close", sequential: bool = False) -> Union[
-    float, np.ndarray]:
+def cwma(
+    candles: np.ndarray,
+    period: int = 14,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     Cubed Weighted Moving Average
 
@@ -39,7 +43,7 @@ def vpwma_fast(source, period):
         weightSum = 0.0
         for i in range(period - 1):
             weight = np.power(period - i, 3)
-            my_sum += (source[j - i] * weight)
+            my_sum += source[j - i] * weight
             weightSum += weight
         newseries[j] = my_sum / weightSum
     return newseries

@@ -12,11 +12,16 @@ def weighted_moving_average_custom(source: np.ndarray, period: int) -> np.ndarra
     if len(source) < period:
         return result
     windowed = np.lib.stride_tricks.sliding_window_view(source, period)
-    result[period-1:] = np.dot(windowed, weights) / weight_sum
+    result[period - 1 :] = np.dot(windowed, weights) / weight_sum
     return result
 
 
-def wma(candles: np.ndarray, period: int = 30, source_type: str = "close", sequential: bool = False) -> Union[float, np.ndarray]:
+def wma(
+    candles: np.ndarray,
+    period: int = 30,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     WMA - Weighted Moving Average
 

@@ -4,16 +4,19 @@ import numpy as np
 
 from jesse.helpers import slice_candles
 
-AC = namedtuple('AC', ['osc', 'change'])
+AC = namedtuple("AC", ["osc", "change"])
+
 
 def sma(arr: np.ndarray, period: int) -> np.ndarray:
     if len(arr) < period:
         return np.full_like(arr, np.nan, dtype=float)
-    conv = np.convolve(arr, np.ones(period, dtype=float)/period, mode='valid')
-    return np.concatenate((np.full(period-1, np.nan), conv))
+    conv = np.convolve(arr, np.ones(period, dtype=float) / period, mode="valid")
+    return np.concatenate((np.full(period - 1, np.nan), conv))
+
 
 def mom(arr: np.ndarray, period: int = 1) -> np.ndarray:
     return np.concatenate(([np.nan], np.diff(arr)))
+
 
 def acosc(candles: np.ndarray, sequential: bool = False) -> AC:
     """

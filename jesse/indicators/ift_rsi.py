@@ -5,8 +5,14 @@ import numpy as np
 
 from jesse.helpers import get_candle_source, same_length, slice_candles
 
-def ift_rsi(candles: np.ndarray, rsi_period: int = 5, wma_period: int =9, source_type: str = "close", sequential: bool = False) -> Union[
-    float, np.ndarray]:
+
+def ift_rsi(
+    candles: np.ndarray,
+    rsi_period: int = 5,
+    wma_period: int = 9,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     Modified Inverse Fisher Transform applied on RSI
 
@@ -25,9 +31,6 @@ def ift_rsi(candles: np.ndarray, rsi_period: int = 5, wma_period: int =9, source
     v1 = 0.1 * (rsi(source, rsi_period, sequential=True) - 50)
     v2 = wma(v1, wma_period, sequential=True)
 
-    res = (((2*v2) ** 2 - 1) / ((2*v2) ** 2 + 1))
+    res = ((2 * v2) ** 2 - 1) / ((2 * v2) ** 2 + 1)
 
     return same_length(candles, res) if sequential else res[-1]
-
-
-

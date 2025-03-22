@@ -6,8 +6,12 @@ from numba import njit
 from jesse.helpers import get_candle_source, same_length, slice_candles
 
 
-def efi(candles: np.ndarray, period: int = 13, source_type: str = "close", sequential: bool = False) -> Union[
-    float, np.ndarray]:
+def efi(
+    candles: np.ndarray,
+    period: int = 13,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     EFI - Elders Force Index
 

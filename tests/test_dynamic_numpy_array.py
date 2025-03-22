@@ -127,4 +127,3 @@ def test_drop_at():
     # add 6th item. when it reaches the drop_at limit, it should drop drop_at/2 items
     a.append(np.array([31, 32, 33, 34, 35, 36]))
     assert a[0][0] == 19
-

@@ -4,7 +4,7 @@ import numpy as np
 
 from jesse.helpers import slice_candles
 
-PIVOT = namedtuple('PIVOT', ['r4', 'r3', 'r2', 'r1', 'pp', 's1', 's2', 's3', 's4'])
+PIVOT = namedtuple("PIVOT", ["r4", "r3", "r2", "r1", "pp", "s1", "s2", "s3", "s4"])
 
 
 def pivot(candles: np.ndarray, mode: int = 0, sequential: bool = False) -> PIVOT:
@@ -52,16 +52,33 @@ def pivot(candles: np.ndarray, mode: int = 0, sequential: bool = False) -> PIVOT
         r3 = p + 1 * (high - low)
     # Demark Pivot Points
     elif mode == 2:
-        p = np.where(close < open, (high + 2 * low + close) / 4, np.where(close > open, (2 * high + low + close) / 4,
-                                                                          np.where(close == open,
-                                                                                   (high + low + 2 * close) / 4,
-                                                                                   np.nan)))
-        s1 = np.where(close < open, (high + 2 * low + close) / 2 - high,
-                      np.where(close > open, (2 * high + low + close) / 2 - high,
-                               np.where(close == open, (high + low + 2 * close) / 2 - high, np.nan)))
-        r1 = np.where(close < open, (high + 2 * low + close) / 2 - low,
-                      np.where(close > open, (2 * high + low + close) / 2 - low,
-                               np.where(close == open, (high + low + 2 * close) / 2 - low, np.nan)))
+        p = np.where(
+            close < open,
+            (high + 2 * low + close) / 4,
+            np.where(
+                close > open,
+                (2 * high + low + close) / 4,
+                np.where(close == open, (high + low + 2 * close) / 4, np.nan),
+            ),
+        )
+        s1 = np.where(
+            close < open,
+            (high + 2 * low + close) / 2 - high,
+            np.where(
+                close > open,
+                (2 * high + low + close) / 2 - high,
+                np.where(close == open, (high + low + 2 * close) / 2 - high, np.nan),
+            ),
+        )
+        r1 = np.where(
+            close < open,
+            (high + 2 * low + close) / 2 - low,
+            np.where(
+                close > open,
+                (2 * high + low + close) / 2 - low,
+                np.where(close == open, (high + low + 2 * close) / 2 - low, np.nan),
+            ),
+        )
     elif mode == 3:
         # Camarilla Pivot Points
         p = (high + low + close) / 3
@@ -88,4 +105,6 @@ def pivot(candles: np.ndarray, mode: int = 0, sequential: bool = False) -> PIVOT
     if sequential:
         return PIVOT(r4, r3, r2, r1, p, s1, s2, s3, s4)
     else:
-        return PIVOT(r4[-1], r3[-1], r2[-1], r1[-1], p[-1], s1[-1], s2[-1], s3[-1], s4[-1])
+        return PIVOT(
+            r4[-1], r3[-1], r2[-1], r1[-1], p[-1], s1[-1], s2[-1], s3[-1], s4[-1]
+        )

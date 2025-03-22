@@ -5,8 +5,12 @@ import numpy as np
 from jesse.helpers import get_candle_source, slice_candles
 
 
-def linearreg_slope(candles: np.ndarray, period: int = 14, source_type: str = "close", sequential: bool = False) -> \
-        Union[float, np.ndarray]:
+def linearreg_slope(
+    candles: np.ndarray,
+    period: int = 14,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     LINEARREG_SLOPE - Linear Regression Slope
 
@@ -40,6 +44,6 @@ def linearreg_slope(candles: np.ndarray, period: int = 14, source_type: str = "c
     sum_xy = (windows * X).sum(axis=1)
     slopes = (period * sum_xy - sumX * sum_y) / denom
 
-    result[period-1:] = slopes
-    
+    result[period - 1 :] = slopes
+
     return result if sequential else result[-1]

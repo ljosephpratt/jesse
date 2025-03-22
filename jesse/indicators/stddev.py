@@ -5,8 +5,13 @@ import numpy as np
 from jesse.helpers import get_candle_source, slice_candles
 
 
-def stddev(candles: np.ndarray, period: int = 5, nbdev: float = 1, source_type: str = "close",
-           sequential: bool = False) -> Union[float, np.ndarray]:
+def stddev(
+    candles: np.ndarray,
+    period: int = 5,
+    nbdev: float = 1,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     STDDEV - Standard Deviation
 
@@ -37,7 +42,7 @@ def stddev(candles: np.ndarray, period: int = 5, nbdev: float = 1, source_type: 
         # Compute standard deviation over the rolling windows using population std (ddof=0) and multiply by nbdev
         rolling_std = np.std(windows, axis=1, ddof=0) * nbdev
         # Fill the result array from index 'period - 1' onward with the computed rolling std
-        result[period - 1:] = rolling_std
+        result[period - 1 :] = rolling_std
         output = result
 
     return output if sequential else output[-1]

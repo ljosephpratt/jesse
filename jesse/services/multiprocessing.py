@@ -11,7 +11,7 @@ import os
 import signal
 
 # set multiprocessing process type to spawn
-mp.set_start_method('spawn', force=True)
+mp.set_start_method("spawn", force=True)
 
 
 class Process(mp.Process):
@@ -22,19 +22,19 @@ class Process(mp.Process):
         try:
             mp.Process.run(self)
         except Exception as e:
-            if type(e).__name__ == 'Termination':
-                sync_publish('termination', {})
+            if type(e).__name__ == "Termination":
+                sync_publish("termination", {})
                 jh.terminate_app()
             else:
                 sync_publish(
-                    'exception',
+                    "exception",
                     {
-                        'error': f'{type(e).__name__}: {e}',
-                        'traceback': str(traceback.format_exc()),
+                        "error": f"{type(e).__name__}: {e}",
+                        "traceback": str(traceback.format_exc()),
                     },
                 )
 
-                print('Unhandled exception in the process:')
+                print("Unhandled exception in the process:")
                 print(traceback.format_exc())
 
                 terminate_session()
@@ -46,12 +46,14 @@ class ProcessManager:
         self._pid_to_client_id_map = {}
         self.client_id_to_pid_to_map = {}
         try:
-            port = ENV_VALUES.get('APP_PORT', '9000')
-        except:
-            port = '9000'
-            
+            port = ENV_VALUES.get("APP_PORT", "9000")
+        except KeyError:
+            port = "9000"
+
         self._active_workers_key = f"{port}|active-processes"
-        self._cleanup_thread = threading.Thread(target=self._cleanup_finished_workers, daemon=True)
+        self._cleanup_thread = threading.Thread(
+            target=self._cleanup_finished_workers, daemon=True
+        )
         self._cleanup_thread.start()
 
     def _reset(self):
@@ -78,8 +80,12 @@ class ProcessManager:
         self._workers.append(w)
         w.start()
 
-        self._pid_to_client_id_map[self._prefixed_pid(w.pid)] = self._prefixed_client_id(client_id)
-        self.client_id_to_pid_to_map[self._prefixed_client_id(client_id)] = self._prefixed_pid(w.pid)
+        self._pid_to_client_id_map[self._prefixed_pid(w.pid)] = (
+            self._prefixed_client_id(client_id)
+        )
+        self.client_id_to_pid_to_map[self._prefixed_client_id(client_id)] = (
+            self._prefixed_pid(w.pid)
+        )
         self._add_process(client_id)
 
     def get_client_id(self, pid):
@@ -87,7 +93,7 @@ class ProcessManager:
             client_id: str = self._pid_to_client_id_map[self._prefixed_pid(pid)]
         except KeyError:
             return None
-        return jh.string_after_character(client_id, '|')
+        return jh.string_after_character(client_id, "|")
 
     def get_pid(self, client_id):
         return self.client_id_to_pid_to_map[self._prefixed_client_id(client_id)]
@@ -102,22 +108,24 @@ class ProcessManager:
                 w.terminate()
                 # Give it a moment to terminate gracefully
                 w.join(timeout=3)
-                
+
                 # If still alive, wait a brief moment then force kill
                 if w.is_alive():
                     time.sleep(0.5)  # Give terminate a chance to complete
                     os.kill(w.pid, signal.SIGKILL)
-                    
+
                 w.close()
             except Exception as e:
                 jh.debug(f"Error while terminating process: {str(e)}")
-                
+
         self._reset()
 
     def _cleanup_finished_workers(self):
         while True:
             try:
-                for w in self._workers[:]:  # Create a copy of the list to avoid modification during iteration
+                for w in self._workers[
+                    :
+                ]:  # Create a copy of the list to avoid modification during iteration
                     if not w.is_alive():
                         try:
                             w.join(timeout=1)
@@ -134,7 +142,10 @@ class ProcessManager:
         """
         Returns the set of all the processes client_id as a list of strings
         """
-        return {client_id.decode('utf-8') for client_id in sync_redis.smembers(self._active_workers_key)}
+        return {
+            client_id.decode("utf-8")
+            for client_id in sync_redis.smembers(self._active_workers_key)
+        }
 
 
 process_manager = ProcessManager()

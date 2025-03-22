@@ -46,7 +46,7 @@ def wad(candles: np.ndarray, sequential: bool = False) -> Union[float, np.ndarra
     res = _wad_numba(
         np.ascontiguousarray(candles[:, 3]),
         np.ascontiguousarray(candles[:, 4]),
-        np.ascontiguousarray(candles[:, 1])
+        np.ascontiguousarray(candles[:, 1]),
     )
 
     return same_length(candles, res) if sequential else res[-1]

@@ -13,12 +13,17 @@ def _wma(arr: np.ndarray, period: int) -> np.ndarray:
     wma = np.zeros_like(arr)
 
     for i in range(period - 1, len(arr)):
-        wma[i] = np.sum(arr[i - period + 1:i + 1] * weights) / np.sum(weights)
+        wma[i] = np.sum(arr[i - period + 1 : i + 1] * weights) / np.sum(weights)
 
     return wma
 
 
-def hma(candles: np.ndarray, period: int = 5, source_type: str = "close", sequential: bool = False) -> Union[float, np.ndarray]:
+def hma(
+    candles: np.ndarray,
+    period: int = 5,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     Hull Moving Average
 

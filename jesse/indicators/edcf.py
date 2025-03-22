@@ -6,8 +6,12 @@ from numba import njit
 from jesse.helpers import get_candle_source, slice_candles
 
 
-def edcf(candles: np.ndarray, period: int = 15, source_type: str = "hl2", sequential: bool = False) -> Union[
-    float, np.ndarray]:
+def edcf(
+    candles: np.ndarray,
+    period: int = 15,
+    source_type: str = "hl2",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     Ehlers Distance Coefficient Filter
 

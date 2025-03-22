@@ -25,9 +25,7 @@ class Candle(peewee.Model):
         from jesse.services.db import database
 
         database = database.db
-        indexes = (
-            (('exchange', 'symbol', 'timeframe', 'timestamp'), True),
-        )
+        indexes = ((("exchange", "symbol", "timeframe", "timestamp"), True),)
 
     def __init__(self, attributes: dict = None, **kwargs) -> None:
         peewee.Model.__init__(self, attributes=attributes, **kwargs)

@@ -8,7 +8,9 @@ from jesse.helpers import slice_candles
 
 
 @njit(cache=True)
-def custom_atr(high: np.ndarray, low: np.ndarray, close: np.ndarray, period: int) -> np.ndarray:
+def custom_atr(
+    high: np.ndarray, low: np.ndarray, close: np.ndarray, period: int
+) -> np.ndarray:
     """Compute the Average True Range (ATR) using Wilder's smoothing method."""
     # Compute previous close
     prev_close = np.empty_like(close)
@@ -32,8 +34,13 @@ def custom_atr(high: np.ndarray, low: np.ndarray, close: np.ndarray, period: int
     return atr
 
 
-def chande(candles: np.ndarray, period: int = 22, mult: float = 3.0, direction: str = "long",
-           sequential: bool = False) -> Union[float, np.ndarray]:
+def chande(
+    candles: np.ndarray,
+    period: int = 22,
+    mult: float = 3.0,
+    direction: str = "long",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     Chandelier Exits
 
@@ -53,14 +60,14 @@ def chande(candles: np.ndarray, period: int = 22, mult: float = 3.0, direction: 
 
     atr = custom_atr(candles_high, candles_low, candles_close, period)
 
-    if direction == 'long':
-        maxp = filter1d_same(candles_high, period, 'max')
+    if direction == "long":
+        maxp = filter1d_same(candles_high, period, "max")
         result = maxp - atr * mult
-    elif direction == 'short':
-        maxp = filter1d_same(candles_low, period, 'min')
+    elif direction == "short":
+        maxp = filter1d_same(candles_low, period, "min")
         result = maxp + atr * mult
     else:
-        print('The last parameter must be \'short\' or \'long\'')
+        print("The last parameter must be 'short' or 'long'")
 
     return result if sequential else result[-1]
 
@@ -68,12 +75,12 @@ def chande(candles: np.ndarray, period: int = 22, mult: float = 3.0, direction: 
 def filter1d_same(a: np.ndarray, W: int, max_or_min: str, fillna=np.nan):
     out_dtype = np.full(0, fillna).dtype
     hW = (W - 1) // 2  # Half window size
-    if max_or_min == 'max':
+    if max_or_min == "max":
         out = maximum_filter1d(a, size=W, origin=hW)
     else:
         out = minimum_filter1d(a, size=W, origin=hW)
     if out.dtype is out_dtype:
-        out[:W - 1] = fillna
+        out[: W - 1] = fillna
     else:
-        out = np.concatenate((np.full(W - 1, fillna), out[W - 1:]))
+        out = np.concatenate((np.full(W - 1, fillna), out[W - 1 :]))
     return out

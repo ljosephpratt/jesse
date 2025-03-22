@@ -6,8 +6,12 @@ from numpy.lib.stride_tricks import sliding_window_view
 from jesse.helpers import get_candle_source, same_length, slice_candles
 
 
-def ttm_trend(candles: np.ndarray, period: int = 5, source_type: str = "hl2", sequential: bool = False) -> Union[
-        bool, np.ndarray]:
+def ttm_trend(
+    candles: np.ndarray,
+    period: int = 5,
+    source_type: str = "hl2",
+    sequential: bool = False,
+) -> Union[bool, np.ndarray]:
     """
     TTM Trend
 

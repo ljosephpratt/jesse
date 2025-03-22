@@ -4,7 +4,7 @@ import numpy as np
 
 from jesse.helpers import slice_candles
 
-DI = namedtuple('DI', ['plus', 'minus'])
+DI = namedtuple("DI", ["plus", "minus"])
 
 
 def di(candles: np.ndarray, period: int = 14, sequential: bool = False) -> DI:
@@ -65,14 +65,24 @@ def di(candles: np.ndarray, period: int = 14, sequential: bool = False) -> DI:
     for i in range(period, m):
         atr[i] = (atr[i - 1] * (period - 1) + tr[i]) / period
         plus_smoothed[i] = (plus_smoothed[i - 1] * (period - 1) + plus_dm[i]) / period
-        minus_smoothed[i] = (minus_smoothed[i - 1] * (period - 1) + minus_dm[i]) / period
+        minus_smoothed[i] = (
+            minus_smoothed[i - 1] * (period - 1) + minus_dm[i]
+        ) / period
 
     # Prepare DI arrays: first 'period' candles are not computed (set to NaN)
     plus_DI_arr = np.full(n, np.nan)
     minus_DI_arr = np.full(n, np.nan)
     valid_indices = np.arange(period, n)
-    plus_DI_arr[valid_indices] = np.where(atr[valid_indices - 1] == 0, 0, 100 * plus_smoothed[valid_indices - 1] / atr[valid_indices - 1])
-    minus_DI_arr[valid_indices] = np.where(atr[valid_indices - 1] == 0, 0, 100 * minus_smoothed[valid_indices - 1] / atr[valid_indices - 1])
+    plus_DI_arr[valid_indices] = np.where(
+        atr[valid_indices - 1] == 0,
+        0,
+        100 * plus_smoothed[valid_indices - 1] / atr[valid_indices - 1],
+    )
+    minus_DI_arr[valid_indices] = np.where(
+        atr[valid_indices - 1] == 0,
+        0,
+        100 * minus_smoothed[valid_indices - 1] / atr[valid_indices - 1],
+    )
 
     if sequential:
         return DI(plus_DI_arr, minus_DI_arr)

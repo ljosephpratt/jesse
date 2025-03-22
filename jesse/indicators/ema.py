@@ -26,8 +26,13 @@ def _ema(source: np.ndarray, period: int) -> np.ndarray:
         prev = current
     return result
 
-def ema(candles: np.ndarray, period: int = 5, source_type: str = "close", sequential: bool = False) -> Union[
-    float, np.ndarray]:
+
+def ema(
+    candles: np.ndarray,
+    period: int = 5,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     EMA - Exponential Moving Average using Numba for optimization
 

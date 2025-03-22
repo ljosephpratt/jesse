@@ -8,8 +8,12 @@ from jesse.helpers import get_candle_source, slice_candles
 from .supersmoother import supersmoother_fast
 
 
-def reflex(candles: np.ndarray, period: int = 20, source_type: str = "close", sequential: bool = False) -> Union[
-    float, np.ndarray]:
+def reflex(
+    candles: np.ndarray,
+    period: int = 20,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     Reflex indicator by John F. Ehlers
 
@@ -26,7 +30,6 @@ def reflex(candles: np.ndarray, period: int = 20, source_type: str = "close", se
     else:
         candles = slice_candles(candles, sequential)
         source = get_candle_source(candles, source_type=source_type)
-
 
     ssf = supersmoother_fast(source, period / 2)
     rf = reflex_fast(ssf, period)

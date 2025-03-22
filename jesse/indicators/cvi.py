@@ -9,11 +9,15 @@ from jesse.indicators.ema import ema
 def _calculate_cvi(ema_diff: np.ndarray, period: int) -> np.ndarray:
     # Calculate rate of change
     result = np.zeros_like(ema_diff)
-    result[period:] = ((ema_diff[period:] - ema_diff[:-period]) / ema_diff[:-period]) * 100
+    result[period:] = (
+        (ema_diff[period:] - ema_diff[:-period]) / ema_diff[:-period]
+    ) * 100
     return result
 
 
-def cvi(candles: np.ndarray, period: int = 5, sequential: bool = False) -> Union[float, np.ndarray]:
+def cvi(
+    candles: np.ndarray, period: int = 5, sequential: bool = False
+) -> Union[float, np.ndarray]:
     """
     CVI - Chaikins Volatility
 

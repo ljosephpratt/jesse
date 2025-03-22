@@ -10,7 +10,7 @@ class ExampleStrategy(Strategy):
     def should_short(self) -> bool:
         # For futures trading only
         return False
-        
+
     def go_long(self):
         pass
 

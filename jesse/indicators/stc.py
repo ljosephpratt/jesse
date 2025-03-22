@@ -22,7 +22,7 @@ def stoch(series: np.ndarray, period: int) -> np.ndarray:
         if i < period - 1:
             result[i] = np.nan
         else:
-            window = series[i - period + 1: i + 1]
+            window = series[i - period + 1 : i + 1]
             low = np.min(window)
             high = np.max(window)
             if high == low:
@@ -32,8 +32,16 @@ def stoch(series: np.ndarray, period: int) -> np.ndarray:
     return result
 
 
-def stc(candles: np.ndarray, fast_period: int = 23, slow_period: int = 50, k_period: int = 10, d1_period: int = 3, d2_period: int = 3,
-        source_type: str = "close", sequential: bool = False) -> Union[float, np.ndarray]:
+def stc(
+    candles: np.ndarray,
+    fast_period: int = 23,
+    slow_period: int = 50,
+    k_period: int = 10,
+    d1_period: int = 3,
+    d2_period: int = 3,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     STC - Schaff Trend Cycle (Oscillator)
 
@@ -72,4 +80,3 @@ def stc(candles: np.ndarray, fast_period: int = 23, slow_period: int = 50, k_per
     stc_val = np.clip(stc_val, 0, 100)
 
     return stc_val if sequential else stc_val[-1]
-    

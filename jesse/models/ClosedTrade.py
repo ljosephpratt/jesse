@@ -28,7 +28,7 @@ class ClosedTrade(peewee.Model):
         from jesse.services.db import database
 
         database = database.db
-        indexes = ((('strategy_name', 'exchange', 'symbol'), False),)
+        indexes = ((("strategy_name", "exchange", "symbol"), False),)
 
     def __init__(self, attributes: dict = None, **kwargs) -> None:
         peewee.Model.__init__(self, attributes=attributes, **kwargs)
@@ -68,16 +68,16 @@ class ClosedTrade(peewee.Model):
     @property
     def to_dict(self) -> dict:
         return {
-            'id': self.id,
-            'strategy_name': jh.get_class_name(self.strategy_name),
-            'symbol': self.symbol,
-            'exchange': self.exchange,
-            'type': self.type,
-            'entry_price': self.entry_price,
-            'exit_price': self.exit_price,
-            'qty': self.qty,
-            'opened_at': self.opened_at,
-            'closed_at': self.closed_at,
+            "id": self.id,
+            "strategy_name": jh.get_class_name(self.strategy_name),
+            "symbol": self.symbol,
+            "exchange": self.exchange,
+            "type": self.type,
+            "entry_price": self.entry_price,
+            "exit_price": self.exit_price,
+            "qty": self.qty,
+            "opened_at": self.opened_at,
+            "closed_at": self.closed_at,
             "fee": self.fee,
             "size": self.size,
             "PNL": self.pnl,
@@ -88,12 +88,12 @@ class ClosedTrade(peewee.Model):
     @property
     def to_dict_with_orders(self) -> dict:
         data = self.to_dict
-        data['orders'] = [order.to_dict for order in self.orders]
+        data["orders"] = [order.to_dict for order in self.orders]
         return data
 
     @property
     def fee(self) -> float:
-        trading_fee = jh.get_config(f'env.exchanges.{self.exchange}.fee')
+        trading_fee = jh.get_config(f"env.exchanges.{self.exchange}.fee")
         return trading_fee * self.qty * (self.entry_price + self.exit_price)
 
     @property
@@ -102,10 +102,9 @@ class ClosedTrade(peewee.Model):
 
     @property
     def pnl(self) -> float:
-        fee = config['env']['exchanges'][self.exchange]['fee']
+        fee = config["env"]["exchanges"][self.exchange]["fee"]
         return jh.estimate_PNL(
-            self.qty, self.entry_price, self.exit_price,
-            self.type, fee
+            self.qty, self.entry_price, self.exit_price, self.type, fee
         )
 
     @property

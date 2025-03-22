@@ -7,7 +7,7 @@ import numpy as np
 def test_completed_trade_in_a_simple_strategy():
     assert store.completed_trades.trades == []
 
-    single_route_backtest('CanAddClosedTradeToStore')
+    single_route_backtest("CanAddClosedTradeToStore")
 
     assert len(store.completed_trades.trades) == 1
     assert store.completed_trades.count == 1
@@ -16,16 +16,16 @@ def test_completed_trade_in_a_simple_strategy():
 
     assert t.entry_price == 10
     assert t.exit_price == 15
-    assert t.exchange == 'Sandbox'
-    assert t.symbol == 'BTC-USDT'
-    assert t.type == 'long'
-    assert t.strategy_name == 'CanAddClosedTradeToStore'
+    assert t.exchange == "Sandbox"
+    assert t.symbol == "BTC-USDT"
+    assert t.type == "long"
+    assert t.strategy_name == "CanAddClosedTradeToStore"
     assert t.qty == 1
-    assert t.size == 1*10
+    assert t.size == 1 * 10
     assert t.fee == 0
     assert t.pnl == 5
     assert t.pnl_percentage == 50
-    assert t.holding_period == 60*5
+    assert t.holding_period == 60 * 5
 
 
 def test_completed_trade_in_a_strategy_with_two_trades():
@@ -33,14 +33,16 @@ def test_completed_trade_in_a_strategy_with_two_trades():
 
 
 def test_completed_trade_after_exiting_the_trade():
-    single_route_backtest('TestClosedTradeAfterExitingTrade', leverage=2)
+    single_route_backtest("TestClosedTradeAfterExitingTrade", leverage=2)
 
 
 def test_trade_qty_entry_price_exit_price_size_properties():
     # long trade
-    t1 = ClosedTrade({
-        'type': 'long',
-    })
+    t1 = ClosedTrade(
+        {
+            "type": "long",
+        }
+    )
     # add buy orders
     t1.buy_orders.append(np.array([10, 100]))
     t1.buy_orders.append(np.array([10, 200]))
@@ -51,12 +53,14 @@ def test_trade_qty_entry_price_exit_price_size_properties():
     assert t1.qty == 20
     assert t1.entry_price == 150
     assert t1.exit_price == 350
-    assert t1.size == 20*150
+    assert t1.size == 20 * 150
 
     # short trade
-    t2 = ClosedTrade({
-        'type': 'short',
-    })
+    t2 = ClosedTrade(
+        {
+            "type": "short",
+        }
+    )
     # add sell orders
     t2.sell_orders.append(np.array([10, 300]))
     t2.sell_orders.append(np.array([10, 400]))
@@ -68,4 +72,3 @@ def test_trade_qty_entry_price_exit_price_size_properties():
     assert t2.exit_price == 150
     assert t2.entry_price == 350
     assert t2.size == 20 * 350
-

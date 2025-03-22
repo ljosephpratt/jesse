@@ -5,7 +5,12 @@ from jesse.helpers import slice_candles
 from numba import njit
 
 
-def sar(candles: np.ndarray, acceleration: float = 0.02, maximum: float = 0.2, sequential: bool = False) -> Union[float, np.ndarray]:
+def sar(
+    candles: np.ndarray,
+    acceleration: float = 0.02,
+    maximum: float = 0.2,
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     SAR - Parabolic SAR
 

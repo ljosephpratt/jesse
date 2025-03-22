@@ -28,3 +28,4 @@ PyJWT~=2.8.0
 cryptography~=42.0.5
 ecdsa>=0.16.0
 alpaca-py>=0.8.0
+ipython~=8.2.0

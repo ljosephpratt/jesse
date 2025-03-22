@@ -4,7 +4,12 @@ from jesse.helpers import slice_candles
 from jesse.indicators import ema
 
 
-def kvo(candles: np.ndarray, short_period: int = 34, long_period: int = 55, sequential: bool = False) -> Union[float, np.ndarray]:
+def kvo(
+    candles: np.ndarray,
+    short_period: int = 34,
+    long_period: int = 55,
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     KVO - Klinger Volume Oscillator
 
@@ -33,15 +38,17 @@ def kvo(candles: np.ndarray, short_period: int = 34, long_period: int = 55, sequ
     # Cumulative Measurement
     cm = np.zeros_like(dm)
     for i in range(1, len(trend)):
-        if trend[i] == trend[i-1]:
-            cm[i] = cm[i-1] + dm[i]
+        if trend[i] == trend[i - 1]:
+            cm[i] = cm[i - 1] + dm[i]
         else:
-            cm[i] = dm[i] + dm[i-1]
+            cm[i] = dm[i] + dm[i - 1]
 
     # Volume Force
     volume = candles[:, 5]
-    with np.errstate(divide='ignore', invalid='ignore'):
-        expr = np.abs(np.divide(2 * dm, cm, out=np.zeros_like(dm, dtype=float), where=cm != 0) - 1)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        expr = np.abs(
+            np.divide(2 * dm, cm, out=np.zeros_like(dm, dtype=float), where=cm != 0) - 1
+        )
     vf = 100 * volume * trend * expr
     vf[cm == 0] = 0
 

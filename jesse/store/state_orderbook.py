@@ -13,12 +13,12 @@ class OrderbookState:
 
     def init_storage(self) -> None:
         for ar in selectors.get_all_routes():
-            exchange, symbol = ar['exchange'], ar['symbol']
+            exchange, symbol = ar["exchange"], ar["symbol"]
             key = jh.key(exchange, symbol)
             self.temp_storage[key] = {
-                'last_updated_timestamp': None,
-                'asks': [],
-                'bids': []
+                "last_updated_timestamp": None,
+                "asks": [],
+                "bids": [],
             }
             self.storage[key] = DynamicNumpyArray((60, 2, 50, 2), drop_at=60)
 
@@ -26,28 +26,29 @@ class OrderbookState:
         key = jh.key(exchange, symbol)
 
         # trim prices
-        asks = _trim_orderbook_list(self.temp_storage[key]['asks'], ascending=True)
-        bids = _trim_orderbook_list(self.temp_storage[key]['bids'], ascending=False)
+        asks = _trim_orderbook_list(self.temp_storage[key]["asks"], ascending=True)
+        bids = _trim_orderbook_list(self.temp_storage[key]["bids"], ascending=False)
 
         # fill empty values with NaN
         asks = _fix_array_len(np.array(asks), 50)
         bids = _fix_array_len(np.array(bids), 50)
 
-        return np.array([
-            asks, bids
-        ])
+        return np.array([asks, bids])
 
     def add_orderbook(self, exchange: str, symbol: str, asks: list, bids: list) -> None:
         key = jh.key(exchange, symbol)
-        self.temp_storage[key]['asks'] = asks
-        self.temp_storage[key]['bids'] = bids
+        self.temp_storage[key]["asks"] = asks
+        self.temp_storage[key]["bids"] = bids
 
         # generate new numpy formatted orderbook if it is
         # either the first time, or that it has passed
         # 1000 milliseconds since the last time
-        if self.temp_storage[key]['last_updated_timestamp'] is None or jh.now_to_timestamp() - self.temp_storage[key][
-            'last_updated_timestamp'] >= 1000:
-            self.temp_storage[key]['last_updated_timestamp'] = jh.now_to_timestamp()
+        if (
+            self.temp_storage[key]["last_updated_timestamp"] is None
+            or jh.now_to_timestamp() - self.temp_storage[key]["last_updated_timestamp"]
+            >= 1000
+        ):
+            self.temp_storage[key]["last_updated_timestamp"] = jh.now_to_timestamp()
 
             formatted_orderbook = self.format_orderbook(exchange, symbol)
 
@@ -103,11 +104,11 @@ def _trim_orderbook_list(arr: list, ascending: bool, limit_len: int = 50) -> lis
         if len(trimmed_arr) == limit_len:
             break
 
-        if (ascending and a[0] > trimmed_price) or (not ascending and a[0] < trimmed_price):
+        if (ascending and a[0] > trimmed_price) or (
+            not ascending and a[0] < trimmed_price
+        ):
             # add previous record
-            trimmed_arr.append([
-                trimmed_price, temp_qty
-            ])
+            trimmed_arr.append([trimmed_price, temp_qty])
             # update temp values
             temp_qty = a[1]
             trimmed_price = jh.orderbook_trim_price(a[0], ascending, unit)
@@ -122,7 +123,9 @@ def _fix_array_len(arr: np.ndarray, target_len: int) -> np.ndarray:
     missing_len = target_len - len(arr)
 
     if missing_len < 0:
-        raise ValueError(f"len cannot be smaller than array's length. {target_len} sent, while array has {len(arr)} items")
+        raise ValueError(
+            f"len cannot be smaller than array's length. {target_len} sent, while array has {len(arr)} items"
+        )
 
     if not missing_len:
         return arr

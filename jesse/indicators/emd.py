@@ -5,10 +5,16 @@ from numba import njit
 from jesse.indicators.sma import sma
 from jesse.helpers import slice_candles
 
-EMD = namedtuple('EMD', ['upperband', 'middleband', 'lowerband'])
+EMD = namedtuple("EMD", ["upperband", "middleband", "lowerband"])
 
 
-def emd(candles: np.ndarray, period: int = 20, delta=0.5, fraction=0.1, sequential: bool = False) -> EMD:
+def emd(
+    candles: np.ndarray,
+    period: int = 20,
+    delta=0.5,
+    fraction=0.1,
+    sequential: bool = False,
+) -> EMD:
     """
     Empirical Mode Decomposition by John F. Ehlers and Ric Way
 
@@ -48,7 +54,11 @@ def bp_fast(price, period, delta):
 
     for i in range(price.shape[0]):
         if i > 2:
-            bp[i] = 0.5 * (1 - alpha) * (price[i] - price[i - 2]) + beta * (1 + alpha) * bp[i - 1] - alpha * bp[i - 2]
+            bp[i] = (
+                0.5 * (1 - alpha) * (price[i] - price[i - 2])
+                + beta * (1 + alpha) * bp[i - 1]
+                - alpha * bp[i - 2]
+            )
         else:
             bp[i] = 0.5 * (1 - alpha) * (price[i] - price[i - 2])
     return bp

@@ -4,7 +4,9 @@ from typing import Union
 from jesse.helpers import slice_candles
 
 
-def natr(candles: np.ndarray, period: int = 14, sequential: bool = False) -> Union[float, np.ndarray]:
+def natr(
+    candles: np.ndarray, period: int = 14, sequential: bool = False
+) -> Union[float, np.ndarray]:
     """
     NATR - Normalized Average True Range
 
@@ -31,14 +33,18 @@ def natr(candles: np.ndarray, period: int = 14, sequential: bool = False) -> Uni
 
     # Initialize ATR array
     atr = np.empty(n, dtype=float)
-    atr[:period-1] = np.nan  # not enough data for smoothing
+    atr[: period - 1] = np.nan  # not enough data for smoothing
     base = np.mean(tr[:period])
-    atr[period-1] = base
+    atr[period - 1] = base
 
     # If there's no additional data after the initial period, return the current NATR
     if n == period:
-        result = (base / close[period-1]) * 100
-        return result if not sequential else np.concatenate((np.full(period-1, np.nan), [result]))
+        result = (base / close[period - 1]) * 100
+        return (
+            result
+            if not sequential
+            else np.concatenate((np.full(period - 1, np.nan), [result]))
+        )
 
     # Wilder's smoothing is equivalent to an exponential moving average with alpha = 1/period
     alpha = 1.0 / period
@@ -49,7 +55,7 @@ def natr(candles: np.ndarray, period: int = 14, sequential: bool = False) -> Uni
     x = tr[period:]
     m = len(x)
     weights = alpha * beta ** np.arange(m)
-    conv = np.convolve(x, weights, mode='full')[:m]
+    conv = np.convolve(x, weights, mode="full")[:m]
     base_adjustment = beta ** (np.arange(1, m + 1)) * base
     atr[period:] = base_adjustment + conv
 

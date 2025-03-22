@@ -6,6 +6,7 @@ from jesse.store import store
 def set_up():
     store.reset()
 
+
 # TODO
 # def test_can_log_error_by_firing_event():
 #     set_up()

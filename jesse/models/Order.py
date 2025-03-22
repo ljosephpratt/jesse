@@ -43,7 +43,7 @@ class Order(Model):
         from jesse.services.db import database
 
         database = database.db
-        indexes = ((('trade_id', 'exchange', 'symbol', 'status', 'created_at'), False),)
+        indexes = ((("trade_id", "exchange", "symbol", "status", "created_at"), False),)
 
     def __init__(self, attributes: dict = None, should_silent=False, **kwargs) -> None:
         Model.__init__(self, attributes=attributes, **kwargs)
@@ -59,17 +59,19 @@ class Order(Model):
 
         # if jh.is_live():
         #     from jesse.store import store
-            # self.session_id = store.app.session_id
-            # self.save(force_insert=True)
+        # self.session_id = store.app.session_id
+        # self.save(force_insert=True)
 
         if not should_silent:
             if jh.is_live():
                 self.notify_submission()
 
-            if jh.is_debuggable('order_submission') and (self.is_active or self.is_queued):
+            if jh.is_debuggable("order_submission") and (
+                self.is_active or self.is_queued
+            ):
                 txt = f'{"QUEUED" if self.is_queued else "SUBMITTED"} order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
                 if self.price:
-                    txt += f', ${self.price}'
+                    txt += f", ${self.price}"
                 logger.info(txt)
 
         # handle exchange balance for ordered asset
@@ -77,10 +79,12 @@ class Order(Model):
         e.on_order_submission(self)
 
     def notify_submission(self) -> None:
-        if config['env']['notifications']['events']['submitted_orders'] and (self.is_active or self.is_queued):
+        if config["env"]["notifications"]["events"]["submitted_orders"] and (
+            self.is_active or self.is_queued
+        ):
             txt = f'{"QUEUED" if self.is_queued else "SUBMITTED"} order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
             if self.price:
-                txt += f', ${self.price}'
+                txt += f", ${self.price}"
             notify(txt)
 
     @property
@@ -136,19 +140,19 @@ class Order(Model):
     @property
     def to_dict(self):
         return {
-            'id': self.id,
-            'session_id': self.session_id,
-            'exchange_id': self.exchange_id,
-            'symbol': self.symbol,
-            'side': self.side,
-            'type': self.type,
-            'qty': self.qty,
-            'filled_qty': self.filled_qty,
-            'price': self.price,
-            'status': self.status,
-            'created_at': self.created_at,
-            'canceled_at': self.canceled_at,
-            'executed_at': self.executed_at,
+            "id": self.id,
+            "session_id": self.session_id,
+            "exchange_id": self.exchange_id,
+            "symbol": self.symbol,
+            "side": self.side,
+            "type": self.type,
+            "qty": self.qty,
+            "filled_qty": self.filled_qty,
+            "price": self.price,
+            "status": self.status,
+            "created_at": self.created_at,
+            "canceled_at": self.canceled_at,
+            "executed_at": self.executed_at,
         }
 
     @property
@@ -166,35 +170,39 @@ class Order(Model):
     def queue(self):
         self.status = order_statuses.QUEUED
         self.canceled_at = None
-        if jh.is_debuggable('order_submission'):
-            txt = f'QUEUED order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
+        if jh.is_debuggable("order_submission"):
+            txt = f"QUEUED order: {self.symbol}, {self.type}, {self.side}, {self.qty}"
             if self.price:
-                txt += f', ${round(self.price, 2)}'
+                txt += f", ${round(self.price, 2)}"
                 logger.info(txt)
         self.notify_submission()
 
     def resubmit(self):
         # don't allow resubmission if the order is already active or cancelled
         if not self.is_queued:
-            raise NotSupportedError(f'Cannot resubmit an order that is not queued. Current status: {self.status}')
+            raise NotSupportedError(
+                f"Cannot resubmit an order that is not queued. Current status: {self.status}"
+            )
 
         # regenerate the order id to avoid errors on the exchange's side
         self.id = jh.generate_unique_id()
         self.status = order_statuses.ACTIVE
         self.canceled_at = None
-        if jh.is_debuggable('order_submission'):
-            txt = f'SUBMITTED order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
+        if jh.is_debuggable("order_submission"):
+            txt = (
+                f"SUBMITTED order: {self.symbol}, {self.type}, {self.side}, {self.qty}"
+            )
             if self.price:
-                txt += f', ${self.price}'
+                txt += f", ${self.price}"
                 logger.info(txt)
         self.notify_submission()
 
-    def cancel(self, silent=False, source='') -> None:
+    def cancel(self, silent=False, source="") -> None:
         if self.is_canceled or self.is_executed:
             return
 
         # to fix when the cancelled stream's lag causes cancellation of queued orders
-        if source == 'stream' and self.is_queued:
+        if source == "stream" and self.is_queued:
             return
 
         self.canceled_at = jh.now_to_timestamp()
@@ -204,13 +212,13 @@ class Order(Model):
         #     self.save()
 
         if not silent:
-            txt = f'CANCELED order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
+            txt = f"CANCELED order: {self.symbol}, {self.type}, {self.side}, {self.qty}"
             if self.price:
-                txt += f', ${round(self.price, 2)}'
-            if jh.is_debuggable('order_cancellation'):
+                txt += f", ${round(self.price, 2)}"
+            if jh.is_debuggable("order_cancellation"):
                 logger.info(txt)
             if jh.is_live():
-                if config['env']['notifications']['events']['cancelled_orders']:
+                if config["env"]["notifications"]["events"]["cancelled_orders"]:
                     notify(txt)
 
         # handle exchange balance
@@ -228,19 +236,20 @@ class Order(Model):
         #     self.save()
 
         if not silent:
-            txt = f'EXECUTED order: {self.symbol}, {self.type}, {self.side}, {self.qty}'
+            txt = f"EXECUTED order: {self.symbol}, {self.type}, {self.side}, {self.qty}"
             if self.price:
-                txt += f', ${round(self.price, 2)}'
+                txt += f", ${round(self.price, 2)}"
             # log
-            if jh.is_debuggable('order_execution'):
+            if jh.is_debuggable("order_execution"):
                 logger.info(txt)
             # notify
             if jh.is_live():
-                if config['env']['notifications']['events']['executed_orders']:
+                if config["env"]["notifications"]["events"]["executed_orders"]:
                     notify(txt)
 
         # log the order of the trade for metrics
         from jesse.store import store
+
         store.completed_trades.add_executed_order(self)
 
         # handle exchange balance for ordered asset
@@ -261,15 +270,16 @@ class Order(Model):
         if not silent:
             txt = f"PARTIALLY FILLED: {self.symbol}, {self.type}, {self.side}, filled qty: {self.filled_qty}, remaining qty: {self.remaining_qty}, price: {self.price}"
             # log
-            if jh.is_debuggable('order_execution'):
+            if jh.is_debuggable("order_execution"):
                 logger.info(txt)
             # notify
             if jh.is_live():
-                if config['env']['notifications']['events']['executed_orders']:
+                if config["env"]["notifications"]["events"]["executed_orders"]:
                     notify(txt)
 
         # log the order of the trade for metrics
         from jesse.store import store
+
         store.completed_trades.add_executed_order(self)
 
         p = selectors.get_position(self.exchange, self.symbol)

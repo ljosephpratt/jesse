@@ -6,8 +6,12 @@ from numpy.lib.stride_tricks import sliding_window_view
 from jesse.helpers import get_candle_source, same_length, slice_candles
 
 
-def er(candles: np.ndarray, period: int = 5, source_type: str = "close", sequential: bool = False) -> Union[
-    float, np.ndarray]:
+def er(
+    candles: np.ndarray,
+    period: int = 5,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     ER - The Kaufman Efficiency indicator
 

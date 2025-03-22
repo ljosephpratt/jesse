@@ -5,10 +5,15 @@ from numba import njit
 
 from jesse.helpers import get_candle_source, slice_candles
 
-ITREND = namedtuple('ITREND', ['signal', 'it', 'trigger'])
+ITREND = namedtuple("ITREND", ["signal", "it", "trigger"])
 
 
-def itrend(candles: np.ndarray, alpha: float = 0.07, source_type: str = "hl2", sequential: bool = False) -> ITREND:
+def itrend(
+    candles: np.ndarray,
+    alpha: float = 0.07,
+    source_type: str = "hl2",
+    sequential: bool = False,
+) -> ITREND:
     """
     Instantaneous Trendline
 
@@ -37,10 +42,13 @@ def itrend_fast(source, alpha):
     for i in range(2, 7):
         it[i] = (source[i] + 2 * source[i - 1] + source[i - 2]) / 4
     for i in range(7, source.shape[0]):
-        it[i] = (alpha - alpha ** 2 / 4) * source[i] \
-                + alpha ** 2 / 2 * source[i - 1] \
-                - (alpha - alpha ** 2 * 3 / 4) * source[i - 2] \
-                + 2 * (1 - alpha) * it[i - 1] - (1 - alpha) ** 2 * it[i - 2]
+        it[i] = (
+            (alpha - alpha**2 / 4) * source[i]
+            + alpha**2 / 2 * source[i - 1]
+            - (alpha - alpha**2 * 3 / 4) * source[i - 2]
+            + 2 * (1 - alpha) * it[i - 1]
+            - (1 - alpha) ** 2 * it[i - 2]
+        )
 
     # compute lead 2 trigger & signal
     lag2 = np.roll(it, 20)

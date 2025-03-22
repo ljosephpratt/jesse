@@ -4,7 +4,8 @@ import numpy as np
 from numba import njit
 from jesse.helpers import get_candle_source, slice_candles
 
-MACD = namedtuple('MACD', ['macd', 'signal', 'hist'])
+MACD = namedtuple("MACD", ["macd", "signal", "hist"])
+
 
 @njit
 def ema_numba(source, period):
@@ -15,12 +16,14 @@ def ema_numba(source, period):
         ema_array[i] = alpha * source[i] + (1 - alpha) * ema_array[i - 1]
     return ema_array
 
+
 @njit
 def subtract_arrays(a, b):
     c = np.empty_like(a)
     for i in range(len(a)):
         c[i] = a[i] - b[i]
     return c
+
 
 @njit
 def clean_nan(arr):
@@ -31,9 +34,14 @@ def clean_nan(arr):
     return arr
 
 
-def macd(candles: np.ndarray, fast_period: int = 12, slow_period: int = 26, signal_period: int = 9,
-         source_type: str = "close",
-         sequential: bool = False) -> MACD:
+def macd(
+    candles: np.ndarray,
+    fast_period: int = 12,
+    slow_period: int = 26,
+    signal_period: int = 9,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> MACD:
     """
     MACD - Moving Average Convergence/Divergence using numba for faster computation
 
@@ -63,7 +71,7 @@ def macd(candles: np.ndarray, fast_period: int = 12, slow_period: int = 26, sign
 
     # Compute the signal line as the EMA of the MACD line
     signal_line = ema_numba(macd_line_cleaned, signal_period)
-    
+
     # Calculate histogram as the difference between MACD line and signal line
     hist = subtract_arrays(macd_line, signal_line)
 

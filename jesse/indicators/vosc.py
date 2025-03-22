@@ -3,7 +3,12 @@ from jesse.indicators.sma import sma
 import numpy as np
 
 
-def vosc(candles: np.ndarray, short_period: int = 2, long_period: int = 5, sequential: bool = False) -> Union[float, np.ndarray]:
+def vosc(
+    candles: np.ndarray,
+    short_period: int = 2,
+    long_period: int = 5,
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     VOSC - Volume Oscillator
 

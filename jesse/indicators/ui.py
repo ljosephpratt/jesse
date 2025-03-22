@@ -5,7 +5,13 @@ import numpy as np
 from jesse.helpers import get_candle_source, slice_candles
 
 
-def ui(candles: np.ndarray, period: int = 14, scalar: float = 100, source_type: str = "close",  sequential: bool = False) -> Union[float, np.ndarray]:
+def ui(
+    candles: np.ndarray,
+    period: int = 14,
+    scalar: float = 100,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     Ulcer Index (UI)
 
@@ -26,20 +32,24 @@ def ui(candles: np.ndarray, period: int = 14, scalar: float = 100, source_type: 
         highest_close = np.full_like(source, np.nan)
     else:
         # sliding_window_view creates a rolling window view: shape (n-period+1, period)
-        highest_window = np.lib.stride_tricks.sliding_window_view(source, window_shape=period)
+        highest_window = np.lib.stride_tricks.sliding_window_view(
+            source, window_shape=period
+        )
         highest_max = np.max(highest_window, axis=1)
         highest_close = np.concatenate((np.full(period - 1, np.nan), highest_max))
 
     # Calculate downside percentage
     downside = scalar * (source - highest_close) / highest_close
-    d2 = downside ** 2
+    d2 = downside**2
 
     # Compute rolling sum of squared downside values
     if n < period:
         rolling_d2_sum = np.full_like(d2, np.nan)
     else:
-        rolling_sum_valid = np.convolve(d2, np.ones(period), mode='valid')
-        rolling_d2_sum = np.concatenate((np.full(period - 1, np.nan), rolling_sum_valid))
+        rolling_sum_valid = np.convolve(d2, np.ones(period), mode="valid")
+        rolling_d2_sum = np.concatenate(
+            (np.full(period - 1, np.nan), rolling_sum_valid)
+        )
 
     res = np.sqrt(rolling_d2_sum / period)
 

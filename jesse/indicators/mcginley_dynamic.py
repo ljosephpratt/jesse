@@ -6,9 +6,13 @@ from numba import njit
 from jesse.helpers import get_candle_source, slice_candles
 
 
-def mcginley_dynamic(candles: np.ndarray, period: int = 10, k: float = 0.6, source_type: str = "close",
-                     sequential: bool = False) -> Union[
-    float, np.ndarray]:
+def mcginley_dynamic(
+    candles: np.ndarray,
+    period: int = 10,
+    k: float = 0.6,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     McGinley Dynamic
 
@@ -40,6 +44,9 @@ def md_fast(source, k, period):
         if i == 0:
             mg[i] = source[i]
         else:
-            mg[i] = mg[i - 1] + ((source[i] - mg[i - 1]) / max([(k * period * ((source[i] / mg[i - 1]) ** 4)), 1]))
+            mg[i] = mg[i - 1] + (
+                (source[i] - mg[i - 1])
+                / max([(k * period * ((source[i] / mg[i - 1]) ** 4)), 1])
+            )
 
     return mg

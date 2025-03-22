@@ -7,10 +7,19 @@ from .linearreg import linearreg
 from .stddev import stddev
 import numpy as np
 
-SqueezeMomentum = namedtuple('SqueezeMomentum', ['squeeze', 'momentum', 'momentum_signal'])
+SqueezeMomentum = namedtuple(
+    "SqueezeMomentum", ["squeeze", "momentum", "momentum_signal"]
+)
 
 
-def squeeze_momentum(candles: np.ndarray, length: int = 20, mult: float = 2.0, length_kc: int = 20, mult_kc: float = 1.5, sequential: bool = True) -> SqueezeMomentum:
+def squeeze_momentum(
+    candles: np.ndarray,
+    length: int = 20,
+    mult: float = 2.0,
+    length_kc: int = 20,
+    mult_kc: float = 1.5,
+    sequential: bool = True,
+) -> SqueezeMomentum:
     """
     @author lazyBear
     credits: https://www.tradingview.com/script/nqQ1DT5a-Squeeze-Momentum-Indicator-LazyBear/
@@ -42,7 +51,7 @@ def squeeze_momentum(candles: np.ndarray, length: int = 20, mult: float = 2.0, l
     for i in range(len(lower_bb)):
         sqz_on = (lower_bb[i] > lower_kc[i]) and (upper_bb[i] < upper_kc[i])
         sqz_off = (lower_bb[i] < lower_kc[i]) and (upper_bb[i] > upper_kc[i])
-        noSqz = (sqz_on == False) and (sqz_off == False)
+        noSqz = (sqz_on is False) and (sqz_off is False)
         sqz.append(0 if noSqz else (-1 if sqz_on else 1))
 
     highs = np.nan_to_num(_highest(candles[:, 3], length_kc), 0)
@@ -75,7 +84,7 @@ def _highest(values, length):
     highest_values = np.full(values.shape, np.nan)
     # Compute the highest value for each window
     for i in range(length - 1, len(values)):
-        highest_values[i] = np.max(values[i - length + 1:i + 1])
+        highest_values[i] = np.max(values[i - length + 1 : i + 1])
     return highest_values
 
 
@@ -86,5 +95,5 @@ def _lowest(values, length):
     lowest_values = np.full(values.shape, np.nan)
     # Compute the lowest value for each window
     for i in range(length - 1, len(values)):
-        lowest_values[i] = np.min(values[i - length + 1:i + 1])
+        lowest_values[i] = np.min(values[i - length + 1 : i + 1])
     return lowest_values

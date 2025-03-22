@@ -5,8 +5,12 @@ import numpy as np
 from jesse.helpers import get_candle_source, slice_candles
 
 
-def trima(candles: np.ndarray, period: int = 30, source_type: str = "close", sequential: bool = False) -> Union[
-    float, np.ndarray]:
+def trima(
+    candles: np.ndarray,
+    period: int = 30,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     TRIMA - Triangular Moving Average
 
@@ -36,7 +40,7 @@ def trima(candles: np.ndarray, period: int = 30, source_type: str = "close", seq
     if n < period:
         res = np.full(n, np.nan)
     else:
-        conv = np.convolve(source, weights_norm, mode='valid')
+        conv = np.convolve(source, weights_norm, mode="valid")
         res = np.concatenate((np.full(period - 1, np.nan), conv))
 
     return res if sequential else res[-1]

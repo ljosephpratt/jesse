@@ -6,7 +6,12 @@ from numba import njit
 from jesse.helpers import get_candle_source, slice_candles
 
 
-def nma(candles: np.ndarray, period: int = 40, source_type: str = "close", sequential: bool = False) -> Union[float, np.ndarray]:
+def nma(
+    candles: np.ndarray,
+    period: int = 40,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     Natural Moving Average
 
@@ -28,6 +33,7 @@ def nma(candles: np.ndarray, period: int = 40, source_type: str = "close", seque
     res = nma_fast(source, period)
 
     return res if sequential else res[-1]
+
 
 @njit(cache=True)
 def nma_fast(source, period):

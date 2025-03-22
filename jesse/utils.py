@@ -38,8 +38,12 @@ def anchor_timeframe(timeframe: str) -> str:
     return dic[timeframe]
 
 
-def crossed(series1: np.ndarray, series2: Union[float, int, np.ndarray], direction: str = None,
-            sequential: bool = False) -> bool:
+def crossed(
+    series1: np.ndarray,
+    series2: Union[float, int, np.ndarray],
+    direction: str = None,
+    sequential: bool = False,
+) -> bool:
     """
     Helper for detection of crosses
 
@@ -60,10 +64,14 @@ def crossed(series1: np.ndarray, series2: Union[float, int, np.ndarray], directi
             series2_shifted = series2
 
         if direction is None or direction == "above":
-            cross_above = np.logical_and(series1 > series2, series1_shifted <= series2_shifted)
+            cross_above = np.logical_and(
+                series1 > series2, series1_shifted <= series2_shifted
+            )
 
         if direction is None or direction == "below":
-            cross_below = np.logical_and(series1 < series2, series1_shifted >= series2_shifted)
+            cross_below = np.logical_and(
+                series1 < series2, series1_shifted >= series2_shifted
+            )
 
         if direction is None:
             return np.logical_or(cross_above, cross_below)
@@ -100,7 +108,12 @@ def estimate_risk(entry_price: float, stop_price: float) -> float:
     return abs(entry_price - stop_price)
 
 
-def limit_stop_loss(entry_price: float, stop_price: float, trade_type: str, max_allowed_risk_percentage: int) -> float:
+def limit_stop_loss(
+    entry_price: float,
+    stop_price: float,
+    trade_type: str,
+    max_allowed_risk_percentage: int,
+) -> float:
     """
     Limits the stop-loss price according to the max allowed risk percentage.
     (How many percent you're OK with the price going against your position)
@@ -114,15 +127,22 @@ def limit_stop_loss(entry_price: float, stop_price: float, trade_type: str, max_
     risk = abs(entry_price - stop_price)
     max_allowed_risk = entry_price * (max_allowed_risk_percentage / 100)
     risk = min(risk, max_allowed_risk)
-    return (entry_price - risk) if trade_type == 'long' else (entry_price + risk)
+    return (entry_price - risk) if trade_type == "long" else (entry_price + risk)
 
 
-def numpy_candles_to_dataframe(candles: np.ndarray, name_date: str = "date", name_open: str = "open",
-                               name_high: str = "high",
-                               name_low: str = "low", name_close: str = "close",
-                               name_volume: str = "volume") -> pd.DataFrame:
+def numpy_candles_to_dataframe(
+    candles: np.ndarray,
+    name_date: str = "date",
+    name_open: str = "open",
+    name_high: str = "high",
+    name_low: str = "low",
+    name_close: str = "close",
+    name_volume: str = "volume",
+) -> pd.DataFrame:
     columns = [name_date, name_open, name_close, name_high, name_low, name_volume]
-    df = pd.DataFrame(data=candles, index=pd.to_datetime(candles[:, 0], unit="ms"), columns=columns)
+    df = pd.DataFrame(
+        data=candles, index=pd.to_datetime(candles[:, 0], unit="ms"), columns=columns
+    )
     df[name_date] = pd.to_datetime(df.index, unit="ms")
     return df
 
@@ -142,8 +162,14 @@ def qty_to_size(qty: float, price: float) -> float:
     return qty * price
 
 
-def risk_to_qty(capital: float, risk_per_capital: float, entry_price: float, stop_loss_price: float, precision: int = 8,
-                fee_rate: float = 0) -> float:
+def risk_to_qty(
+    capital: float,
+    risk_per_capital: float,
+    entry_price: float,
+    stop_loss_price: float,
+    precision: int = 8,
+    fee_rate: float = 0,
+) -> float:
     """
     a risk management tool to quickly get the qty based on risk percentage
 
@@ -164,7 +190,9 @@ def risk_to_qty(capital: float, risk_per_capital: float, entry_price: float, sto
     return size_to_qty(size, entry_price, precision=precision, fee_rate=fee_rate)
 
 
-def risk_to_size(capital_size: float, risk_percentage: float, risk_per_qty: float, entry_price: float) -> float:
+def risk_to_size(
+    capital_size: float, risk_percentage: float, risk_per_qty: float, entry_price: float
+) -> float:
     """
     calculates the size of the position based on the amount of risk percentage you're willing to take
     example: round(risk_to_size(10000, 1, 0.7, 8.6)) == 1229
@@ -176,14 +204,16 @@ def risk_to_size(capital_size: float, risk_percentage: float, risk_per_qty: floa
     :return: float
     """
     if risk_per_qty == 0:
-        raise ValueError('risk cannot be zero')
+        raise ValueError("risk cannot be zero")
 
     risk_percentage /= 100
     temp_size = ((risk_percentage * capital_size) / risk_per_qty) * entry_price
     return min(temp_size, capital_size)
 
 
-def size_to_qty(position_size: float, entry_price: float, precision: int = 3, fee_rate: float = 0) -> float:
+def size_to_qty(
+    position_size: float, entry_price: float, precision: int = 3, fee_rate: float = 0
+) -> float:
     """
     converts position-size to quantity
     example: requesting $100 at the entry_price of $50 would return 2
@@ -247,8 +277,11 @@ def streaks(series: np.ndarray, use_diff=True) -> np.ndarray:
         series = np.diff(series)
     pos = np.clip(series, 0, 1).astype(bool).cumsum()
     neg = np.clip(series, -1, 0).astype(bool).cumsum()
-    streak = np.where(series >= 0, pos - np.maximum.accumulate(np.where(series <= 0, pos, 0)),
-                      -neg + np.maximum.accumulate(np.where(series >= 0, neg, 0)))
+    streak = np.where(
+        series >= 0,
+        pos - np.maximum.accumulate(np.where(series <= 0, pos, 0)),
+        -neg + np.maximum.accumulate(np.where(series >= 0, neg, 0)),
+    )
 
     return np.concatenate(
         (np.full((series.shape[0] - streak.shape[0]), np.nan), streak)
@@ -257,6 +290,7 @@ def streaks(series: np.ndarray, use_diff=True) -> np.ndarray:
 
 def signal_line(series: np.ndarray, period: int = 10, matype: int = 0) -> np.ndarray:
     from jesse.indicators.ma import ma
+
     return ma(series, period=period, matype=matype, sequential=True)
 
 
@@ -279,7 +313,9 @@ def z_score(series: np.ndarray) -> np.ndarray:
     return (series - np.mean(series)) / np.std(series)
 
 
-def are_cointegrated(price_returns_1: np.ndarray, price_returns_2: np.ndarray, cutoff=0.05) -> bool:
+def are_cointegrated(
+    price_returns_1: np.ndarray, price_returns_2: np.ndarray, cutoff=0.05
+) -> bool:
     """
     Uses unit-root test on residuals to test for cointegrated relationship
     See Hamilton (1994) 19.2 for more details
@@ -294,8 +330,8 @@ def are_cointegrated(price_returns_1: np.ndarray, price_returns_2: np.ndarray, c
 
 def dd(msg: str) -> None:
     """
-    The dd function dumps the given variables and ends execution of the script. 
-    Used for debugging. 
+    The dd function dumps the given variables and ends execution of the script.
+    Used for debugging.
 
     :param msg: str
     """
@@ -308,6 +344,7 @@ def combinations_without_repeat(a: np.ndarray, n: int = 2) -> np.ndarray:
     Creates an array containing all combinations of the passed arrays individual values without repetitions. Useful for the optimization mode.
     """
     from itertools import permutations
+
     if n <= 1:
         raise ValueError("n must be >= 2")
     return np.array(list(permutations(a, n)))
@@ -327,7 +364,7 @@ def timeframe_to_one_minutes(timeframe: str) -> int:
     Converts a given timeframe to its equivalent in minutes.
 
     :param timeframe: str - The timeframe to convert. Supported timeframes include:
-        - '1m', '3m', '5m', '15m', '30m', '45m', '1h', '2h', '3h', '4h', '6h', '8h', '12h', 
+        - '1m', '3m', '5m', '15m', '30m', '45m', '1h', '2h', '3h', '4h', '6h', '8h', '12h',
           '1d', '3d', '1w', '1M'.
     :return: int - The equivalent number of minutes for the given timeframe.
 

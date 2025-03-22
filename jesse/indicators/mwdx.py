@@ -6,8 +6,12 @@ from numba import njit
 from jesse.helpers import get_candle_source, slice_candles
 
 
-def mwdx(candles: np.ndarray, factor: float = 0.2, source_type: str = "close", sequential: bool = False) -> Union[
-    float, np.ndarray]:
+def mwdx(
+    candles: np.ndarray,
+    factor: float = 0.2,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     MWDX Average
 

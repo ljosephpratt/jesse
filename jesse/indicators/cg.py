@@ -6,8 +6,12 @@ from numba import njit
 from jesse.helpers import get_candle_source, same_length, slice_candles
 
 
-def cg(candles: np.ndarray, period: int = 10, source_type: str = "close", sequential: bool = False) -> Union[
-    float, np.ndarray]:
+def cg(
+    candles: np.ndarray,
+    period: int = 10,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     Center of Gravity (CG)
 
@@ -27,7 +31,9 @@ def cg(candles: np.ndarray, period: int = 10, source_type: str = "close", sequen
 
 
 @njit(cache=True)
-def go_fast(source, period):  # Function is compiled to machine code when called the first time
+def go_fast(
+    source, period
+):  # Function is compiled to machine code when called the first time
     res = np.full_like(source, fill_value=np.nan)
     for i in range(source.size):
         if i > period:

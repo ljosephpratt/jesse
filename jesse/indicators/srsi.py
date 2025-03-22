@@ -5,7 +5,7 @@ from numba import njit
 
 from jesse.helpers import get_candle_source, same_length, slice_candles
 
-StochasticRSI = namedtuple('StochasticRSI', ['k', 'd'])
+StochasticRSI = namedtuple("StochasticRSI", ["k", "d"])
 
 
 @njit(cache=True)
@@ -24,17 +24,19 @@ def _calculate_stoch(data, period_stoch, k_period, d_period):
     rolling_maxs = np.array([np.max(w) for w in _rolling_window(data, period_stoch)])
 
     # Calculate %K
-    k_fast = 100 * (data[period_stoch-1:] - rolling_mins) / (rolling_maxs - rolling_mins)
+    k_fast = (
+        100 * (data[period_stoch - 1 :] - rolling_mins) / (rolling_maxs - rolling_mins)
+    )
 
     # Calculate smoothed %K (which becomes the final %K)
     k = np.zeros_like(k_fast)
-    for i in range(k_period-1, len(k_fast)):
-        k[i] = np.mean(k_fast[i-k_period+1:i+1])
+    for i in range(k_period - 1, len(k_fast)):
+        k[i] = np.mean(k_fast[i - k_period + 1 : i + 1])
 
     # Calculate %D (SMA of %K)
     d = np.zeros_like(k)
-    for i in range(d_period-1, len(k)):
-        d[i] = np.mean(k[i-d_period+1:i+1])
+    for i in range(d_period - 1, len(k)):
+        d[i] = np.mean(k[i - d_period + 1 : i + 1])
 
     return k, d
 
@@ -71,12 +73,19 @@ def _calculate_rsi(source, period):
             rsi[i + 1] = 100.0
         else:
             rsi[i + 1] = 100.0 - 100.0 / (1.0 + avg_gain / avg_loss)
-    
+
     return rsi
 
 
-def srsi(candles: np.ndarray, period: int = 14, period_stoch: int = 14, k: int = 3, d: int = 3,
-         source_type: str = "close", sequential: bool = False) -> StochasticRSI:
+def srsi(
+    candles: np.ndarray,
+    period: int = 14,
+    period_stoch: int = 14,
+    k: int = 3,
+    d: int = 3,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> StochasticRSI:
     """
     Stochastic RSI
 

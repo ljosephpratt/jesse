@@ -6,8 +6,13 @@ from numba import njit
 from jesse.helpers import slice_candles
 
 
-def frama(candles: np.ndarray, window: int = 10, FC: int = 1, SC: int = 300, sequential: bool = False) -> Union[
-    float, np.ndarray]:
+def frama(
+    candles: np.ndarray,
+    window: int = 10,
+    FC: int = 1,
+    SC: int = 300,
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     Fractal Adaptive Moving Average (FRAMA)
 
@@ -47,10 +52,10 @@ def frame_fast(candles, n, SC, FC):
     alphas[:n] = np.NaN
 
     for i in range(n, candles.shape[0]):
-        per = candles[i - n:i]
+        per = candles[i - n : i]
 
-        v1 = per[per.shape[0] // 2:]
-        v2 = per[:per.shape[0] // 2]
+        v1 = per[per.shape[0] // 2 :]
+        v2 = per[: per.shape[0] // 2]
 
         N1 = (max(v1[:, 3]) - min(v1[:, 4])) / (n / 2)
         N2 = (max(v2[:, 3]) - min(v2[:, 4])) / (n / 2)
@@ -78,8 +83,10 @@ def frame_fast(candles, n, SC, FC):
 
     frama_val = np.zeros(candles.shape[0])
     frama_val[n - 1] = np.mean(candles[:, 2][:n])
-    frama_val[:n - 1] = np.NaN
+    frama_val[: n - 1] = np.NaN
 
     for i in range(n, frama_val.shape[0]):
-        frama_val[i] = (alphas[i] * candles[:, 2][i]) + (1 - alphas[i]) * frama_val[i - 1]
+        frama_val[i] = (alphas[i] * candles[:, 2][i]) + (1 - alphas[i]) * frama_val[
+            i - 1
+        ]
     return frama_val

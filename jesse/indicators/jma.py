@@ -6,8 +6,14 @@ from numba import njit
 from jesse.helpers import get_candle_source, slice_candles
 
 
-def jma(candles: np.ndarray, period:int=7, phase:float=50, power:int=2, source_type:str='close', sequential:bool=False) -> Union[
-  float, np.ndarray]:
+def jma(
+    candles: np.ndarray,
+    period: int = 7,
+    phase: float = 50,
+    power: int = 2,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     Jurik Moving Average
     Port of: https://tradingview.com/script/nZuBWW9j-Jurik-Moving-Average/
@@ -37,9 +43,11 @@ def jma_helper(src, phaseRatio, beta, alpha):
     e2 = np.full_like(src, 0)
 
     for i in range(1, src.shape[0]):
-      e0[i] = (1 - alpha) * src[i] + alpha * e0[i-1]
-      e1[i] = (src[i] - e0[i]) * (1 - beta) + beta * e1[i-1]
-      e2[i] = (e0[i] + phaseRatio * e1[i] - jma_val[i - 1]) * pow(1 - alpha, 2) + pow(alpha, 2) * e2[i - 1]
-      jma_val[i] = e2[i] + jma_val[i - 1]
+        e0[i] = (1 - alpha) * src[i] + alpha * e0[i - 1]
+        e1[i] = (src[i] - e0[i]) * (1 - beta) + beta * e1[i - 1]
+        e2[i] = (e0[i] + phaseRatio * e1[i] - jma_val[i - 1]) * pow(1 - alpha, 2) + pow(
+            alpha, 2
+        ) * e2[i - 1]
+        jma_val[i] = e2[i] + jma_val[i - 1]
 
     return jma_val

@@ -5,7 +5,10 @@ from jesse.helpers import get_candle_source, slice_candles
 
 
 def vwap(
-        candles: np.ndarray, source_type: str = "hlc3", anchor: str = "D", sequential: bool = False
+    candles: np.ndarray,
+    source_type: str = "hlc3",
+    anchor: str = "D",
+    sequential: bool = False,
 ) -> Union[float, np.ndarray]:
     """
     VWAP
@@ -19,15 +22,15 @@ def vwap(
     """
     candles = slice_candles(candles, sequential)
     source = get_candle_source(candles, source_type=source_type)
-    
+
     # Convert timestamps to period indices
-    timestamps = candles[:, 0].astype('datetime64[ms]').astype(f'datetime64[{anchor}]')
+    timestamps = candles[:, 0].astype("datetime64[ms]").astype(f"datetime64[{anchor}]")
     group_indices = np.zeros(len(timestamps), dtype=np.int64)
-    
+
     # Mark the start of each new period
     group_indices[1:] = (timestamps[1:] != timestamps[:-1]).astype(np.int64)
     group_indices = np.cumsum(group_indices)
-    
+
     vwap_values = _calculate_vwap(source, candles[:, 5], group_indices)
 
     if sequential:
@@ -37,7 +40,9 @@ def vwap(
 
 
 @njit
-def _calculate_vwap(source: np.ndarray, volume: np.ndarray, group_indices: np.ndarray) -> np.ndarray:
+def _calculate_vwap(
+    source: np.ndarray, volume: np.ndarray, group_indices: np.ndarray
+) -> np.ndarray:
     """
     Calculate VWAP values using Numba for optimization
     """
@@ -45,17 +50,17 @@ def _calculate_vwap(source: np.ndarray, volume: np.ndarray, group_indices: np.nd
     cum_vol = 0.0
     cum_vol_price = 0.0
     current_group = group_indices[0]
-    
+
     for i in range(len(source)):
         if group_indices[i] != current_group:
             cum_vol = 0.0
             cum_vol_price = 0.0
             current_group = group_indices[i]
-            
+
         vol_price = volume[i] * source[i]
         cum_vol_price += vol_price
         cum_vol += volume[i]
-        
+
         vwap_values[i] = cum_vol_price / cum_vol if cum_vol != 0 else np.nan
-        
+
     return vwap_values

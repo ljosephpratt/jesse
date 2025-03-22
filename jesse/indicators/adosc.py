@@ -6,7 +6,9 @@ from jesse.helpers import slice_candles
 
 
 @njit(cache=True)
-def compute_multiplier(high: np.ndarray, low: np.ndarray, close: np.ndarray) -> np.ndarray:
+def compute_multiplier(
+    high: np.ndarray, low: np.ndarray, close: np.ndarray
+) -> np.ndarray:
     n = high.shape[0]
     out = np.empty(n, dtype=high.dtype)
     for i in range(n):
@@ -58,7 +60,12 @@ def subtract_arrays(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     return out
 
 
-def adosc(candles: np.ndarray, fast_period: int = 3, slow_period: int = 10, sequential: bool = False) -> Union[float, np.ndarray]:
+def adosc(
+    candles: np.ndarray,
+    fast_period: int = 3,
+    slow_period: int = 10,
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     ADOSC - Chaikin A/D Oscillator (Numba accelerated version)
 

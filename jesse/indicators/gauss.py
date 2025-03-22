@@ -6,8 +6,13 @@ from numba import njit
 from jesse.helpers import get_candle_source, slice_candles
 
 
-def gauss(candles: np.ndarray, period: int = 14, poles: int = 4, source_type: str = "close",
-          sequential: bool = False) -> Union[float, np.ndarray]:
+def gauss(
+    candles: np.ndarray,
+    period: int = 14,
+    poles: int = 4,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     Gaussian Filter
 
@@ -49,11 +54,21 @@ def gauss_fast(source, period, poles):
     if poles == 1:
         coeff = np.array([alpha, (1 - alpha)])
     elif poles == 2:
-        coeff = np.array([alpha ** 2, 2 * (1 - alpha), -(1 - alpha) ** 2])
+        coeff = np.array([alpha**2, 2 * (1 - alpha), -((1 - alpha) ** 2)])
     elif poles == 3:
-        coeff = np.array([alpha ** 3, 3 * (1 - alpha), -3 * (1 - alpha) ** 2, (1 - alpha) ** 3])
+        coeff = np.array(
+            [alpha**3, 3 * (1 - alpha), -3 * (1 - alpha) ** 2, (1 - alpha) ** 3]
+        )
     elif poles == 4:
-        coeff = np.array([alpha ** 4, 4 * (1 - alpha), -6 * (1 - alpha) ** 2, 4 * (1 - alpha) ** 3, -(1 - alpha) ** 4])
+        coeff = np.array(
+            [
+                alpha**4,
+                4 * (1 - alpha),
+                -6 * (1 - alpha) ** 2,
+                4 * (1 - alpha) ** 3,
+                -((1 - alpha) ** 4),
+            ]
+        )
 
     for i in range(source.size):
         if poles == 1:
@@ -63,7 +78,9 @@ def gauss_fast(source, period, poles):
         elif poles == 3:
             val = np.array([source[i].item(), fil[2 + i], fil[1 + i], fil[i]])
         elif poles == 4:
-            val = np.array([source[i].item(), fil[3 + i], fil[2 + i], fil[1 + i], fil[i]])
+            val = np.array(
+                [source[i].item(), fil[3 + i], fil[2 + i], fil[1 + i], fil[i]]
+            )
 
         fil[poles + i] = np.dot(coeff, val)
 

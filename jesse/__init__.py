@@ -8,9 +8,11 @@ import click
 # Handle newer Python versions (3.10+) that may not have pkg_resources
 try:
     import pkg_resources
-    JESSE_DIR = pkg_resources.resource_filename(__name__, '')
+
+    JESSE_DIR = pkg_resources.resource_filename(__name__, "")
 except ImportError:
     import importlib.resources
+
     JESSE_DIR = str(importlib.resources.files(__name__))
 
 from fastapi import BackgroundTasks, Query, Header
@@ -20,19 +22,35 @@ from fastapi.staticfiles import StaticFiles
 from jesse.services import auth as authenticator
 from jesse.services.multiprocessing import process_manager
 from jesse.services.redis import async_redis, async_publish, sync_publish
-from jesse.services.web import fastapi_app, BacktestRequestJson, ImportCandlesRequestJson, CancelRequestJson, \
-    LoginRequestJson, ConfigRequestJson, LoginJesseTradeRequestJson, NewStrategyRequestJson, FeedbackRequestJson, \
-    ReportExceptionRequestJson, OptimizationRequestJson, StoreExchangeApiKeyRequestJson, \
-    DeleteExchangeApiKeyRequestJson, StoreNotificationApiKeyRequestJson, DeleteNotificationApiKeyRequestJson, \
-    ExchangeSupportedSymbolsRequestJson, SaveStrategyRequestJson, GetStrategyRequestJson, DeleteStrategyRequestJson, \
-    DeleteCandlesRequestJson
+from jesse.services.web import (
+    fastapi_app,
+    BacktestRequestJson,
+    ImportCandlesRequestJson,
+    CancelRequestJson,
+    LoginRequestJson,
+    ConfigRequestJson,
+    LoginJesseTradeRequestJson,
+    NewStrategyRequestJson,
+    FeedbackRequestJson,
+    ReportExceptionRequestJson,
+    OptimizationRequestJson,
+    StoreExchangeApiKeyRequestJson,
+    DeleteExchangeApiKeyRequestJson,
+    StoreNotificationApiKeyRequestJson,
+    DeleteNotificationApiKeyRequestJson,
+    ExchangeSupportedSymbolsRequestJson,
+    SaveStrategyRequestJson,
+    GetStrategyRequestJson,
+    DeleteStrategyRequestJson,
+    DeleteCandlesRequestJson,
+)
 import uvicorn
 from asyncio import Queue
 import jesse.helpers as jh
 import time
 
 # to silent stupid pandas warnings
-warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter(action="ignore", category=FutureWarning)
 
 # variable to know if the live trade plugin is installed
 HAS_LIVE_TRADE_PLUGIN = True
@@ -49,8 +67,8 @@ def validate_cwd() -> None:
     if not jh.is_jesse_project():
         print(
             jh.color(
-                'Current directory is not a Jesse project. You must run commands from the root of a Jesse project. Read this page for more info: https://docs.jesse.trade/docs/getting-started/#create-a-new-jesse-project',
-                'red'
+                "Current directory is not a Jesse project. You must run commands from the root of a Jesse project. Read this page for more info: https://docs.jesse.trade/docs/getting-started/#create-a-new-jesse-project",
+                "red",
             )
         )
         os._exit(1)
@@ -68,16 +86,18 @@ async def terminate_all(authorization: Optional[str] = Header(None)):
         return authenticator.unauthorized_response()
 
     process_manager.flush()
-    return JSONResponse({'message': 'terminating all tasks...'})
+    return JSONResponse({"message": "terminating all tasks..."})
 
 
 @fastapi_app.post("/shutdown")
-async def shutdown(background_tasks: BackgroundTasks, authorization: Optional[str] = Header(None)):
+async def shutdown(
+    background_tasks: BackgroundTasks, authorization: Optional[str] = Header(None)
+):
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
     background_tasks.add_task(jh.terminate_app)
-    return JSONResponse({'message': 'Shutting down...'})
+    return JSONResponse({"message": "Shutting down..."})
 
 
 @fastapi_app.post("/auth")
@@ -86,30 +106,39 @@ def auth(json_request: LoginRequestJson):
 
 
 @fastapi_app.post("/make-strategy")
-def make_strategy(json_request: NewStrategyRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+def make_strategy(
+    json_request: NewStrategyRequestJson, authorization: Optional[str] = Header(None)
+) -> JSONResponse:
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
     from jesse.services import strategy_handler
+
     return strategy_handler.generate(json_request.name)
 
 
 @fastapi_app.post("/feedback")
-def feedback(json_request: FeedbackRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+def feedback(
+    json_request: FeedbackRequestJson, authorization: Optional[str] = Header(None)
+) -> JSONResponse:
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
     from jesse.services import jesse_trade
+
     return jesse_trade.feedback(json_request.description, json_request.email)
 
 
 @fastapi_app.post("/report-exception")
-def report_exception(json_request: ReportExceptionRequestJson,
-                     authorization: Optional[str] = Header(None)) -> JSONResponse:
+def report_exception(
+    json_request: ReportExceptionRequestJson,
+    authorization: Optional[str] = Header(None),
+) -> JSONResponse:
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
     from jesse.services import jesse_trade
+
     return jesse_trade.report_exception(
         json_request.description,
         json_request.traceback,
@@ -117,24 +146,29 @@ def report_exception(json_request: ReportExceptionRequestJson,
         json_request.attach_logs,
         json_request.session_id,
         json_request.email,
-        has_live=HAS_LIVE_TRADE_PLUGIN
+        has_live=HAS_LIVE_TRADE_PLUGIN,
     )
 
 
 @fastapi_app.post("/get-config")
-def get_config(json_request: ConfigRequestJson, authorization: Optional[str] = Header(None)):
+def get_config(
+    json_request: ConfigRequestJson, authorization: Optional[str] = Header(None)
+):
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
     from jesse.modes.data_provider import get_config as gc
 
-    return JSONResponse({
-        'data': gc(json_request.current_config, has_live=HAS_LIVE_TRADE_PLUGIN)
-    }, status_code=200)
+    return JSONResponse(
+        {"data": gc(json_request.current_config, has_live=HAS_LIVE_TRADE_PLUGIN)},
+        status_code=200,
+    )
 
 
 @fastapi_app.post("/update-config")
-def update_config(json_request: ConfigRequestJson, authorization: Optional[str] = Header(None)):
+def update_config(
+    json_request: ConfigRequestJson, authorization: Optional[str] = Header(None)
+):
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
@@ -142,7 +176,9 @@ def update_config(json_request: ConfigRequestJson, authorization: Optional[str] 
 
     uc(json_request.current_config)
 
-    return JSONResponse({'message': 'Updated configurations successfully'}, status_code=200)
+    return JSONResponse(
+        {"message": "Updated configurations successfully"}, status_code=200
+    )
 
 
 @fastapi_app.post("/clear-candles-database-cache")
@@ -151,12 +187,16 @@ def clear_candles_database_cache(authorization: Optional[str] = Header(None)):
         return authenticator.unauthorized_response()
 
     from jesse.services.cache import cache
+
     cache.flush()
 
-    return JSONResponse({
-        'status': 'success',
-        'message': 'Candles database cache cleared successfully',
-    }, status_code=200)
+    return JSONResponse(
+        {
+            "status": "success",
+            "message": "Candles database cache cleared successfully",
+        },
+        status_code=200,
+    )
 
 
 @fastapi_app.websocket("/ws")
@@ -169,20 +209,20 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
     await websocket.accept()
 
     queue = Queue()
-    ch, = await async_redis.psubscribe(f"{ENV_VALUES['APP_PORT']}:channel:*")
+    (ch,) = await async_redis.psubscribe(f"{ENV_VALUES['APP_PORT']}:channel:*")
 
     async def echo(q):
         try:
             while True:
                 msg = await q.get()
                 msg = json.loads(msg)
-                msg['id'] = process_manager.get_client_id(msg['id'])
+                msg["id"] = process_manager.get_client_id(msg["id"])
                 await websocket.send_json(msg)
         except WebSocketDisconnect:
             await async_redis.punsubscribe(f"{ENV_VALUES['APP_PORT']}:channel:*")
-            print(jh.color('WebSocket disconnected', 'yellow'))
+            print(jh.color("WebSocket disconnected", "yellow"))
         except Exception as e:
-            print(jh.color(str(e), 'red'))
+            print(jh.color(str(e), "red"))
 
     async def reader(channel, q):
         async for ch, message in channel.iter():
@@ -196,24 +236,28 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
             await websocket.receive_text()
     except WebSocketDisconnect:
         await async_redis.punsubscribe(f"{ENV_VALUES['APP_PORT']}:channel:*")
-        print(jh.color('WebSocket disconnected', 'yellow'))
+        print(jh.color("WebSocket disconnected", "yellow"))
+
 
 # create a Click group
 @click.group()
-@click.version_option(None, '--version', '-v', message='%(version)s')
+@click.version_option(None, "--version", "-v", message="%(version)s")
 def cli() -> None:
     from jesse.version import __version__
+
     click.echo(f"Jesse {__version__}")
     pass
 
 
 @cli.command()
 @click.option(
-    '--strict/--no-strict', default=True,
-    help='Default is the strict mode which will raise an exception if the values for license is not set.'
+    "--strict/--no-strict",
+    default=True,
+    help="Default is the strict mode which will raise an exception if the values for license is not set.",
 )
 def install_live(strict: bool) -> None:
     from jesse.services.installer import install
+
     install(HAS_LIVE_TRADE_PLUGIN, strict)
 
 
@@ -224,23 +268,27 @@ def run() -> None:
     # run all the db migrations
     from jesse.services.migrator import run as run_migrations
     import peewee
+
     try:
         run_migrations()
     except peewee.OperationalError:
         sleep_seconds = 10
-        print(f"Database wasn't ready. Sleep for {sleep_seconds} seconds and try again.")
+        print(
+            f"Database wasn't ready. Sleep for {sleep_seconds} seconds and try again."
+        )
         time.sleep(sleep_seconds)
         run_migrations()
 
     # read port from .env file, if not found, use default
     from jesse.services.env import ENV_VALUES
-    if 'APP_PORT' in ENV_VALUES:
-        port = int(ENV_VALUES['APP_PORT'])
+
+    if "APP_PORT" in ENV_VALUES:
+        port = int(ENV_VALUES["APP_PORT"])
     else:
         port = 9000
 
-    if 'APP_HOST' in ENV_VALUES:
-        host = ENV_VALUES['APP_HOST']
+    if "APP_HOST" in ENV_VALUES:
+        host = ENV_VALUES["APP_HOST"]
     else:
         host = "0.0.0.0"
 
@@ -249,7 +297,7 @@ def run() -> None:
     uvicorn.run(fastapi_app, host=host, port=port, log_level="info")
 
 
-@fastapi_app.post('/general-info')
+@fastapi_app.post("/general-info")
 def general_info(authorization: Optional[str] = Header(None)) -> JSONResponse:
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
@@ -260,27 +308,28 @@ def general_info(authorization: Optional[str] = Header(None)) -> JSONResponse:
         data = get_general_info(has_live=HAS_LIVE_TRADE_PLUGIN)
     except Exception as e:
         jh.error(str(e))
-        return JSONResponse({
-            'error': str(e)
-        }, status_code=500)
+        return JSONResponse({"error": str(e)}, status_code=500)
 
-    return JSONResponse(
-        data,
-        status_code=200
-    )
+    return JSONResponse(data, status_code=200)
 
 
-@fastapi_app.post('/exchange-supported-symbols')
-def exchange_supported_symbols(request_json: ExchangeSupportedSymbolsRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+@fastapi_app.post("/exchange-supported-symbols")
+def exchange_supported_symbols(
+    request_json: ExchangeSupportedSymbolsRequestJson,
+    authorization: Optional[str] = Header(None),
+) -> JSONResponse:
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
     from jesse.controllers.exchange_info import get_exchange_supported_symbols
+
     return get_exchange_supported_symbols(request_json.exchange)
 
 
-@fastapi_app.post('/import-candles')
-def import_candles(request_json: ImportCandlesRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+@fastapi_app.post("/import-candles")
+def import_candles(
+    request_json: ImportCandlesRequestJson, authorization: Optional[str] = Header(None)
+) -> JSONResponse:
     validate_cwd()
 
     if not authenticator.is_valid_token(authorization):
@@ -289,26 +338,37 @@ def import_candles(request_json: ImportCandlesRequestJson, authorization: Option
     from jesse.modes import import_candles_mode
 
     process_manager.add_task(
-        import_candles_mode.run, request_json.id, request_json.exchange, request_json.symbol,
-        request_json.start_date
+        import_candles_mode.run,
+        request_json.id,
+        request_json.exchange,
+        request_json.symbol,
+        request_json.start_date,
     )
 
-    return JSONResponse({'message': 'Started importing candles...'}, status_code=202)
+    return JSONResponse({"message": "Started importing candles..."}, status_code=202)
 
 
 @fastapi_app.post("/cancel-import-candles")
-def cancel_import_candles(request_json: CancelRequestJson, authorization: Optional[str] = Header(None)):
+def cancel_import_candles(
+    request_json: CancelRequestJson, authorization: Optional[str] = Header(None)
+):
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
     process_manager.cancel_process(request_json.id)
 
-    return JSONResponse({'message': f'Candles process with ID of {request_json.id} was requested for termination'},
-                        status_code=202)
+    return JSONResponse(
+        {
+            "message": f"Candles process with ID of {request_json.id} was requested for termination"
+        },
+        status_code=202,
+    )
 
 
 @fastapi_app.post("/backtest")
-def backtest(request_json: BacktestRequestJson, authorization: Optional[str] = Header(None)):
+def backtest(
+    request_json: BacktestRequestJson, authorization: Optional[str] = Header(None)
+):
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
@@ -332,14 +392,16 @@ def backtest(request_json: BacktestRequestJson, authorization: Optional[str] = H
         request_json.export_csv,
         request_json.export_json,
         request_json.fast_mode,
-        request_json.benchmark
+        request_json.benchmark,
     )
 
-    return JSONResponse({'message': 'Started backtesting...'}, status_code=202)
+    return JSONResponse({"message": "Started backtesting..."}, status_code=202)
 
 
 @fastapi_app.post("/optimization")
-async def optimization(request_json: OptimizationRequestJson, authorization: Optional[str] = Header(None)):
+async def optimization(
+    request_json: OptimizationRequestJson, authorization: Optional[str] = Header(None)
+):
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
@@ -363,18 +425,24 @@ async def optimization(request_json: OptimizationRequestJson, authorization: Opt
         request_json.fast_mode,
     )
 
-    return JSONResponse({'message': 'Started optimization...'}, status_code=202)
+    return JSONResponse({"message": "Started optimization..."}, status_code=202)
 
 
 @fastapi_app.post("/cancel-optimization")
-def cancel_optimization(request_json: CancelRequestJson, authorization: Optional[str] = Header(None)):
+def cancel_optimization(
+    request_json: CancelRequestJson, authorization: Optional[str] = Header(None)
+):
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
     process_manager.cancel_process(request_json.id)
 
-    return JSONResponse({'message': f'Optimization process with ID of {request_json.id} was requested for termination'},
-                        status_code=202)
+    return JSONResponse(
+        {
+            "message": f"Optimization process with ID of {request_json.id} was requested for termination"
+        },
+        status_code=202,
+    )
 
 
 @fastapi_app.get("/download/{mode}/{file_type}/{session_id}")
@@ -400,23 +468,30 @@ def download_optimization_log(token: str = Query(...)):
 
     from jesse.modes import data_provider
 
-    return data_provider.download_file('optimize', 'log')
+    return data_provider.download_file("optimize", "log")
 
 
 @fastapi_app.post("/cancel-backtest")
-def cancel_backtest(request_json: CancelRequestJson, authorization: Optional[str] = Header(None)):
+def cancel_backtest(
+    request_json: CancelRequestJson, authorization: Optional[str] = Header(None)
+):
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
     process_manager.cancel_process(request_json.id)
 
-    return JSONResponse({'message': f'Backtest process with ID of {request_json.id} was requested for termination'},
-                        status_code=202)
+    return JSONResponse(
+        {
+            "message": f"Backtest process with ID of {request_json.id} was requested for termination"
+        },
+        status_code=202,
+    )
 
 
 @fastapi_app.on_event("shutdown")
 def shutdown_event():
     from jesse.services.db import database
+
     database.close_connection()
 
 
@@ -425,12 +500,10 @@ def active_workers(authorization: Optional[str] = Header(None)):
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
-    return JSONResponse({
-        'data': list(process_manager.active_workers)
-    }, status_code=200)
+    return JSONResponse({"data": list(process_manager.active_workers)}, status_code=200)
 
 
-@fastapi_app.get('/exchange-api-keys')
+@fastapi_app.get("/exchange-api-keys")
 def get_exchange_api_keys(authorization: Optional[str] = Header(None)) -> JSONResponse:
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
@@ -440,23 +513,32 @@ def get_exchange_api_keys(authorization: Optional[str] = Header(None)) -> JSONRe
     return get_exchange_api_keys()
 
 
-@fastapi_app.post('/exchange-api-keys/store')
-def store_exchange_api_keys(json_request: StoreExchangeApiKeyRequestJson,
-                            authorization: Optional[str] = Header(None)) -> JSONResponse:
+@fastapi_app.post("/exchange-api-keys/store")
+def store_exchange_api_keys(
+    json_request: StoreExchangeApiKeyRequestJson,
+    authorization: Optional[str] = Header(None),
+) -> JSONResponse:
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
     from jesse.modes.exchange_api_keys import store_exchange_api_keys
 
     return store_exchange_api_keys(
-        json_request.exchange, json_request.name, json_request.api_key, json_request.api_secret,
-        json_request.additional_fields, json_request.general_notifications_id, json_request.error_notifications_id
+        json_request.exchange,
+        json_request.name,
+        json_request.api_key,
+        json_request.api_secret,
+        json_request.additional_fields,
+        json_request.general_notifications_id,
+        json_request.error_notifications_id,
     )
 
 
-@fastapi_app.post('/exchange-api-keys/delete')
-def delete_exchange_api_keys(json_request: DeleteExchangeApiKeyRequestJson,
-                             authorization: Optional[str] = Header(None)) -> JSONResponse:
+@fastapi_app.post("/exchange-api-keys/delete")
+def delete_exchange_api_keys(
+    json_request: DeleteExchangeApiKeyRequestJson,
+    authorization: Optional[str] = Header(None),
+) -> JSONResponse:
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
@@ -465,8 +547,10 @@ def delete_exchange_api_keys(json_request: DeleteExchangeApiKeyRequestJson,
     return delete_exchange_api_keys(json_request.id)
 
 
-@fastapi_app.get('/notification-api-keys')
-def get_notification_api_keys(authorization: Optional[str] = Header(None)) -> JSONResponse:
+@fastapi_app.get("/notification-api-keys")
+def get_notification_api_keys(
+    authorization: Optional[str] = Header(None),
+) -> JSONResponse:
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
@@ -475,10 +559,10 @@ def get_notification_api_keys(authorization: Optional[str] = Header(None)) -> JS
     return get_notification_api_keys()
 
 
-@fastapi_app.post('/notification-api-keys/store')
+@fastapi_app.post("/notification-api-keys/store")
 def store_notification_api_keys(
-        json_request: StoreNotificationApiKeyRequestJson,
-        authorization: Optional[str] = Header(None)
+    json_request: StoreNotificationApiKeyRequestJson,
+    authorization: Optional[str] = Header(None),
 ) -> JSONResponse:
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
@@ -490,10 +574,10 @@ def store_notification_api_keys(
     )
 
 
-@fastapi_app.post('/notification-api-keys/delete')
+@fastapi_app.post("/notification-api-keys/delete")
 def delete_notification_api_keys(
-        json_request: DeleteNotificationApiKeyRequestJson,
-        authorization: Optional[str] = Header(None)
+    json_request: DeleteNotificationApiKeyRequestJson,
+    authorization: Optional[str] = Header(None),
 ) -> JSONResponse:
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
@@ -503,48 +587,49 @@ def delete_notification_api_keys(
     return delete_notification_api_keys(json_request.id)
 
 
-@fastapi_app.get('/get-strategies')
+@fastapi_app.get("/get-strategies")
 def get_strategies(authorization: Optional[str] = Header(None)) -> JSONResponse:
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
     from jesse.services import strategy_handler
+
     return strategy_handler.get_strategies()
 
 
-@fastapi_app.post('/get-strategy')
+@fastapi_app.post("/get-strategy")
 def get_strategy(
-        json_request: GetStrategyRequestJson,
-        authorization: Optional[str] = Header(None)
+    json_request: GetStrategyRequestJson, authorization: Optional[str] = Header(None)
 ) -> JSONResponse:
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
     from jesse.services import strategy_handler
+
     return strategy_handler.get_strategy(json_request.name)
 
 
-@fastapi_app.post('/save-strategy')
+@fastapi_app.post("/save-strategy")
 def save_strategy(
-        json_request: SaveStrategyRequestJson,
-        authorization: Optional[str] = Header(None)
+    json_request: SaveStrategyRequestJson, authorization: Optional[str] = Header(None)
 ) -> JSONResponse:
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
     from jesse.services import strategy_handler
+
     return strategy_handler.save_strategy(json_request.name, json_request.content)
 
 
-@fastapi_app.post('/delete-strategy')
+@fastapi_app.post("/delete-strategy")
 def delete_strategy(
-        json_request: DeleteStrategyRequestJson,
-        authorization: Optional[str] = Header(None)
+    json_request: DeleteStrategyRequestJson, authorization: Optional[str] = Header(None)
 ) -> JSONResponse:
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
     from jesse.services import strategy_handler
+
     return strategy_handler.delete_strategy(json_request.name)
 
 
@@ -552,21 +637,30 @@ def delete_strategy(
 # Live Plugin Endpoints
 # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 if HAS_LIVE_TRADE_PLUGIN:
-    from jesse.services.web import fastapi_app, LiveRequestJson, LiveCancelRequestJson, GetCandlesRequestJson, \
-        GetLogsRequestJson, GetOrdersRequestJson
+    from jesse.services.web import (
+        fastapi_app,
+        LiveRequestJson,
+        LiveCancelRequestJson,
+        GetCandlesRequestJson,
+        GetLogsRequestJson,
+        GetOrdersRequestJson,
+    )
     from jesse.services import auth as authenticator
 
     @fastapi_app.post("/live")
-    def live(request_json: LiveRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+    def live(
+        request_json: LiveRequestJson, authorization: Optional[str] = Header(None)
+    ) -> JSONResponse:
         if not authenticator.is_valid_token(authorization):
             return authenticator.unauthorized_response()
 
         validate_cwd()
 
-        trading_mode = 'livetrade' if request_json.paper_mode is False else 'papertrade'
+        trading_mode = "livetrade" if request_json.paper_mode is False else "papertrade"
 
         # execute live session
         from jesse_live import live_mode
+
         process_manager.add_task(
             live_mode.run,
             request_json.id,
@@ -580,20 +674,27 @@ if HAS_LIVE_TRADE_PLUGIN:
             trading_mode,
         )
 
-        mode = 'live' if request_json.paper_mode is False else 'paper'
-        return JSONResponse({'message': f"Started {mode} trading..."}, status_code=202)
+        mode = "live" if request_json.paper_mode is False else "paper"
+        return JSONResponse({"message": f"Started {mode} trading..."}, status_code=202)
 
     @fastapi_app.post("/cancel-live")
-    def cancel_live(request_json: LiveCancelRequestJson, authorization: Optional[str] = Header(None)):
+    def cancel_live(
+        request_json: LiveCancelRequestJson, authorization: Optional[str] = Header(None)
+    ):
         if not authenticator.is_valid_token(authorization):
             return authenticator.unauthorized_response()
 
         process_manager.cancel_process(request_json.id)
 
-        return JSONResponse({'message': f'Live process with ID of {request_json.id} terminated.'}, status_code=200)
+        return JSONResponse(
+            {"message": f"Live process with ID of {request_json.id} terminated."},
+            status_code=200,
+        )
 
-    @fastapi_app.post('/get-candles')
-    def get_candles(json_request: GetCandlesRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+    @fastapi_app.post("/get-candles")
+    def get_candles(
+        json_request: GetCandlesRequestJson, authorization: Optional[str] = Header(None)
+    ) -> JSONResponse:
         if not authenticator.is_valid_token(authorization):
             return authenticator.unauthorized_response()
 
@@ -605,13 +706,12 @@ if HAS_LIVE_TRADE_PLUGIN:
 
         arr = gc(json_request.exchange, json_request.symbol, json_request.timeframe)
 
-        return JSONResponse({
-            'id': json_request.id,
-            'data': arr
-        }, status_code=200)
+        return JSONResponse({"id": json_request.id, "data": arr}, status_code=200)
 
-    @fastapi_app.post('/get-logs')
-    def get_logs(json_request: GetLogsRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+    @fastapi_app.post("/get-logs")
+    def get_logs(
+        json_request: GetLogsRequestJson, authorization: Optional[str] = Header(None)
+    ) -> JSONResponse:
         if not authenticator.is_valid_token(authorization):
             return authenticator.unauthorized_response()
 
@@ -619,13 +719,12 @@ if HAS_LIVE_TRADE_PLUGIN:
 
         arr = gl(json_request.id, json_request.type, json_request.start_time)
 
-        return JSONResponse({
-            'id': json_request.id,
-            'data': arr
-        }, status_code=200)
+        return JSONResponse({"id": json_request.id, "data": arr}, status_code=200)
 
-    @fastapi_app.post('/get-orders')
-    def get_orders(json_request: GetOrdersRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+    @fastapi_app.post("/get-orders")
+    def get_orders(
+        json_request: GetOrdersRequestJson, authorization: Optional[str] = Header(None)
+    ) -> JSONResponse:
         if not authenticator.is_valid_token(authorization):
             return authenticator.unauthorized_response()
 
@@ -633,10 +732,8 @@ if HAS_LIVE_TRADE_PLUGIN:
 
         arr = go(json_request.session_id)
 
-        return JSONResponse({
-            'id': json_request.id,
-            'data': arr
-        }, status_code=200)
+        return JSONResponse({"id": json_request.id, "data": arr}, status_code=200)
+
 
 @fastapi_app.post("/existing-candles")
 def get_existing_candles(authorization: Optional[str] = Header(None)) -> JSONResponse:
@@ -644,25 +741,30 @@ def get_existing_candles(authorization: Optional[str] = Header(None)) -> JSONRes
         return authenticator.unauthorized_response()
 
     from jesse.services.candle import get_existing_candles
-    
+
     try:
         data = get_existing_candles()
-        return JSONResponse({'data': data}, status_code=200)
+        return JSONResponse({"data": data}, status_code=200)
     except Exception as e:
-        return JSONResponse({'error': str(e)}, status_code=500)
+        return JSONResponse({"error": str(e)}, status_code=500)
+
 
 @fastapi_app.post("/delete-candles")
-def delete_candles(json_request: DeleteCandlesRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+def delete_candles(
+    json_request: DeleteCandlesRequestJson, authorization: Optional[str] = Header(None)
+) -> JSONResponse:
     if not authenticator.is_valid_token(authorization):
         return authenticator.unauthorized_response()
 
     from jesse.services.candle import delete_candles
-    
+
     try:
         delete_candles(json_request.exchange, json_request.symbol)
-        return JSONResponse({'message': 'Candles deleted successfully'}, status_code=200)
+        return JSONResponse(
+            {"message": "Candles deleted successfully"}, status_code=200
+        )
     except Exception as e:
-        return JSONResponse({'error': str(e)}, status_code=500)
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 
 @fastapi_app.get("/logs/backtest/{session_id}")
@@ -675,14 +777,15 @@ def get_logs(session_id: str, token: str = Query(...)):
 
     try:
         from jesse.modes.data_provider import get_backtest_logs
+
         content = get_backtest_logs(session_id)
 
         if content is None:
-            return JSONResponse({'error': 'Log file not found'}, status_code=404)
+            return JSONResponse({"error": "Log file not found"}, status_code=404)
 
-        return JSONResponse({'content': content}, status_code=200)
+        return JSONResponse({"content": content}, status_code=200)
     except Exception as e:
-        return JSONResponse({'error': str(e)}, status_code=500)
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 
 @fastapi_app.get("/download/backtest/log/{session_id}")
@@ -695,9 +798,10 @@ def download_backtest_log(session_id: str, token: str = Query(...)):
 
     try:
         from jesse.modes.data_provider import download_backtest_log
+
         return download_backtest_log(session_id)
     except Exception as e:
-        return JSONResponse({'error': str(e)}, status_code=500)
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 
 # Mount static files.Must be loaded at the end to prevent overlapping with API endpoints

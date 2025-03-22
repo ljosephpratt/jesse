@@ -18,7 +18,12 @@ def linear_regression_line(x, y):
     return slope * x + intercept
 
 
-def fosc(candles: np.ndarray, period: int = 5, source_type: str = "close", sequential: bool = False) -> Union[float, np.ndarray]:
+def fosc(
+    candles: np.ndarray,
+    period: int = 5,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     FOSC - Forecast Oscillator
 
@@ -37,12 +42,12 @@ def fosc(candles: np.ndarray, period: int = 5, source_type: str = "close", seque
 
     # Calculate FOSC for each window
     for i in range(period - 1, len(source)):
-        window = source[i - period + 1:i + 1]
+        window = source[i - period + 1 : i + 1]
         x = np.arange(period)
         predicted = linear_regression_line(x, window)
         res[i] = 100 * (window[-1] - predicted[-1]) / window[-1]
 
     # Replace initial NaN values with 0
-    res[:period - 1] = 0
+    res[: period - 1] = 0
 
     return same_length(candles, res) if sequential else res[-1]

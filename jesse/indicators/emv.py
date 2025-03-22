@@ -6,7 +6,9 @@ from jesse.indicators import sma
 
 
 @njit
-def _emv(high: np.ndarray, low: np.ndarray, volume: np.ndarray, length, div) -> np.ndarray:
+def _emv(
+    high: np.ndarray, low: np.ndarray, volume: np.ndarray, length, div
+) -> np.ndarray:
     hl2 = (high + low) / 2
 
     hl2_change = np.zeros_like(hl2)
@@ -17,12 +19,14 @@ def _emv(high: np.ndarray, low: np.ndarray, volume: np.ndarray, length, div) -> 
     # Calculate SMA of EMV
     result = np.zeros_like(emv_raw)
     for i in range(length - 1, len(emv_raw)):
-        result[i] = np.mean(emv_raw[i - length + 1:i + 1])
+        result[i] = np.mean(emv_raw[i - length + 1 : i + 1])
 
     return result
 
 
-def emv(candles: np.ndarray, length: int = 14, div: int = 10000, sequential: bool = False) -> Union[float, np.ndarray]:
+def emv(
+    candles: np.ndarray, length: int = 14, div: int = 10000, sequential: bool = False
+) -> Union[float, np.ndarray]:
     """
     EMV - Ease of Movement
 

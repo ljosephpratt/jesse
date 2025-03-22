@@ -5,10 +5,16 @@ import numpy as np
 from jesse.helpers import slice_candles
 from jesse.indicators.ma import ma
 
-StochasticFast = namedtuple('StochasticFast', ['k', 'd'])
+StochasticFast = namedtuple("StochasticFast", ["k", "d"])
 
-def stochf(candles: np.ndarray, fastk_period: int = 5, fastd_period: int = 3, fastd_matype: int = 0,
-           sequential: bool = False) -> StochasticFast:
+
+def stochf(
+    candles: np.ndarray,
+    fastk_period: int = 5,
+    fastd_period: int = 3,
+    fastd_matype: int = 0,
+    sequential: bool = False,
+) -> StochasticFast:
     """
     Stochastic Fast
 
@@ -21,7 +27,9 @@ def stochf(candles: np.ndarray, fastk_period: int = 5, fastd_period: int = 3, fa
     :return: StochasticFast(k, d)
     """
     if fastd_matype == 24 or fastd_matype == 29:
-        raise ValueError("VWMA (matype 24) and VWAP (matype 29) cannot be used in stochf indicator.")
+        raise ValueError(
+            "VWMA (matype 24) and VWAP (matype 29) cannot be used in stochf indicator."
+        )
 
     candles = slice_candles(candles, sequential)
 
@@ -40,16 +48,18 @@ def stochf(candles: np.ndarray, fastk_period: int = 5, fastd_period: int = 3, fa
     else:
         return StochasticFast(k[-1], d[-1])
 
+
 def _rolling_min(arr: np.ndarray, window: int) -> np.ndarray:
     n = arr.shape[0]
     if n < window:
         return np.minimum.accumulate(arr)
     out = np.empty_like(arr)
     if window > 1:
-        out[:window-1] = np.minimum.accumulate(arr[:window-1])
+        out[: window - 1] = np.minimum.accumulate(arr[: window - 1])
     view = np.lib.stride_tricks.sliding_window_view(arr, window_shape=window)
-    out[window-1:] = np.min(view, axis=-1)
+    out[window - 1 :] = np.min(view, axis=-1)
     return out
+
 
 def _rolling_max(arr: np.ndarray, window: int) -> np.ndarray:
     n = arr.shape[0]
@@ -57,7 +67,7 @@ def _rolling_max(arr: np.ndarray, window: int) -> np.ndarray:
         return np.maximum.accumulate(arr)
     out = np.empty_like(arr)
     if window > 1:
-        out[:window-1] = np.maximum.accumulate(arr[:window-1])
+        out[: window - 1] = np.maximum.accumulate(arr[: window - 1])
     view = np.lib.stride_tricks.sliding_window_view(arr, window_shape=window)
-    out[window-1:] = np.max(view, axis=-1)
+    out[window - 1 :] = np.max(view, axis=-1)
     return out

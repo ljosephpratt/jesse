@@ -17,8 +17,12 @@ def _ema(x: np.ndarray, period: int) -> np.ndarray:
     return ema
 
 
-def dema(candles: np.ndarray, period: int = 30, source_type: str = "close", sequential: bool = False) -> Union[
-    float, np.ndarray]:
+def dema(
+    candles: np.ndarray,
+    period: int = 30,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     DEMA - Double Exponential Moving Average
 

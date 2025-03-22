@@ -6,8 +6,12 @@ from numpy.lib.stride_tricks import sliding_window_view
 from jesse.helpers import get_candle_source, same_length, slice_candles
 
 
-def mean_ad(candles: np.ndarray, period: int = 5, source_type: str = "hl2", sequential: bool = False) -> Union[
-    float, np.ndarray]:
+def mean_ad(
+    candles: np.ndarray,
+    period: int = 5,
+    source_type: str = "hl2",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     Mean Absolute Deviation
 
@@ -19,10 +23,10 @@ def mean_ad(candles: np.ndarray, period: int = 5, source_type: str = "hl2", sequ
     :return: float | np.ndarray
     """
     if len(candles.shape) == 1:
-      source = candles
+        source = candles
     else:
-      candles = slice_candles(candles, sequential)
-      source = get_candle_source(candles, source_type=source_type)
+        candles = slice_candles(candles, sequential)
+        source = get_candle_source(candles, source_type=source_type)
 
     swv = sliding_window_view(source, window_shape=period)
     abs_diff = np.absolute(source - same_length(source, np.mean(swv, -1)))
@@ -31,4 +35,3 @@ def mean_ad(candles: np.ndarray, period: int = 5, source_type: str = "hl2", sequ
     res = same_length(source, mean_abs_deviation)
 
     return res if sequential else res[-1]
-

@@ -9,37 +9,41 @@ from typing import List, Dict
 
 
 def generate_candle_from_one_minutes(
-        timeframe: str,
-        candles: np.ndarray,
-        accept_forming_candles: bool = False
+    timeframe: str, candles: np.ndarray, accept_forming_candles: bool = False
 ) -> np.ndarray:
     if len(candles) == 0:
-        raise ValueError('No candles were passed')
+        raise ValueError("No candles were passed")
 
-    if not accept_forming_candles and len(candles) != jh.timeframe_to_one_minutes(timeframe):
+    if not accept_forming_candles and len(candles) != jh.timeframe_to_one_minutes(
+        timeframe
+    ):
         raise ValueError(
             f'Sent only {len(candles)} candles but {jh.timeframe_to_one_minutes(timeframe)} is required to create a "{timeframe}" candle.'
         )
 
-    return np.array([
-        candles[0][0],
-        candles[0][1],
-        candles[-1][2],
-        candles[:, 3].max(),
-        candles[:, 4].min(),
-        candles[:, 5].sum(),
-    ])
+    return np.array(
+        [
+            candles[0][0],
+            candles[0][1],
+            candles[-1][2],
+            candles[:, 3].max(),
+            candles[:, 4].min(),
+            candles[:, 5].sum(),
+        ]
+    )
 
 
 def candle_dict_to_np_array(candle: dict) -> np.ndarray:
-    return np.array([
-        candle['timestamp'],
-        candle['open'],
-        candle['close'],
-        candle['high'],
-        candle['low'],
-        candle['volume']
-    ])
+    return np.array(
+        [
+            candle["timestamp"],
+            candle["open"],
+            candle["close"],
+            candle["high"],
+            candle["low"],
+            candle["volume"],
+        ]
+    )
 
 
 def print_candle(candle: np.ndarray, is_partial: bool, symbol: str) -> None:
@@ -53,8 +57,8 @@ def print_candle(candle: np.ndarray, is_partial: bool, symbol: str) -> None:
     if jh.should_execute_silently():
         return
 
-    candle_form = '  ==' if is_partial else '===='
-    candle_info = f' {symbol} | {str(arrow.get(candle[0] / 1000))[:-9]} | {candle[1]} | {candle[2]} | {candle[3]} | {candle[4]} | {round(candle[5], 2)}'
+    candle_form = "  ==" if is_partial else "===="
+    candle_info = f" {symbol} | {str(arrow.get(candle[0] / 1000))[:-9]} | {candle[1]} | {candle[2]} | {candle[3]} | {candle[4]} | {round(candle[5], 2)}"
     msg = candle_form + candle_info
 
     # store it in the log file
@@ -90,105 +94,86 @@ def split_candle(candle: np.ndarray, price: float) -> tuple:
     v = candle[5]
 
     if is_bullish(candle) and l < price < o:
-        return np.array([
-            timestamp, o, price, o, price, v
-        ]), np.array([
-            timestamp, price, c, h, l, v
-        ])
+        return np.array([timestamp, o, price, o, price, v]), np.array(
+            [timestamp, price, c, h, l, v]
+        )
     elif price == o:
         return candle, candle
     elif is_bearish(candle) and o < price < h:
-        return np.array([
-            timestamp, o, price, price, o, v
-        ]), np.array([
-            timestamp, price, c, h, l, v
-        ])
+        return np.array([timestamp, o, price, price, o, v]), np.array(
+            [timestamp, price, c, h, l, v]
+        )
     elif is_bearish(candle) and l < price < c:
-        return np.array([
-            timestamp, o, price, h, price, v
-        ]), np.array([
-            timestamp, price, c, c, l, v
-        ])
+        return np.array([timestamp, o, price, h, price, v]), np.array(
+            [timestamp, price, c, c, l, v]
+        )
     elif is_bullish(candle) and c < price < h:
-        return np.array([
-            timestamp, o, price, price, l, v
-        ]), np.array([
-            timestamp, price, c, h, c, v
-        ]),
+        return (
+            np.array([timestamp, o, price, price, l, v]),
+            np.array([timestamp, price, c, h, c, v]),
+        )
     elif is_bearish(candle) and price == c:
-        return np.array([
-            timestamp, o, c, h, c, v
-        ]), np.array([
-            timestamp, price, price, price, l, v
-        ])
+        return np.array([timestamp, o, c, h, c, v]), np.array(
+            [timestamp, price, price, price, l, v]
+        )
     elif is_bullish(candle) and price == c:
-        return np.array([
-            timestamp, o, c, c, l, v
-        ]), np.array([
-            timestamp, price, price, h, price, v
-        ])
+        return np.array([timestamp, o, c, c, l, v]), np.array(
+            [timestamp, price, price, h, price, v]
+        )
     elif is_bearish(candle) and price == h:
-        return np.array([
-            timestamp, o, h, h, o, v
-        ]), np.array([
-            timestamp, h, c, h, l, v
-        ])
+        return np.array([timestamp, o, h, h, o, v]), np.array(
+            [timestamp, h, c, h, l, v]
+        )
     elif is_bullish(candle) and price == l:
-        return np.array([
-            timestamp, o, l, o, l, v
-        ]), np.array([
-            timestamp, l, c, h, l, v
-        ])
+        return np.array([timestamp, o, l, o, l, v]), np.array(
+            [timestamp, l, c, h, l, v]
+        )
     elif is_bearish(candle) and price == l:
-        return np.array([
-            timestamp, o, l, h, l, v
-        ]), np.array([
-            timestamp, l, c, c, l, v
-        ])
+        return np.array([timestamp, o, l, h, l, v]), np.array(
+            [timestamp, l, c, c, l, v]
+        )
     elif is_bullish(candle) and price == h:
-        return np.array([
-            timestamp, o, h, h, l, v
-        ]), np.array([
-            timestamp, h, c, h, c, v
-        ])
+        return np.array([timestamp, o, h, h, l, v]), np.array(
+            [timestamp, h, c, h, c, v]
+        )
     elif is_bearish(candle) and c < price < o:
-        return np.array([
-            timestamp, o, price, h, price, v
-        ]), np.array([
-            timestamp, price, c, price, l, v
-        ])
+        return np.array([timestamp, o, price, h, price, v]), np.array(
+            [timestamp, price, c, price, l, v]
+        )
     elif is_bullish(candle) and o < price < c:
-        return np.array([
-            timestamp, o, price, price, l, v
-        ]), np.array([
-            timestamp, price, c, h, price, v
-        ])
+        return np.array([timestamp, o, price, price, l, v]), np.array(
+            [timestamp, price, c, h, price, v]
+        )
 
 
-def inject_warmup_candles_to_store(candles: np.ndarray, exchange: str, symbol: str) -> None:
+def inject_warmup_candles_to_store(
+    candles: np.ndarray, exchange: str, symbol: str
+) -> None:
     if candles is None or candles.size == 0:
-        raise ValueError(f'Could not inject warmup candles because the passed candles are empty. Have you imported enough warmup candles for {exchange}/{symbol}?')
+        raise ValueError(
+            f"Could not inject warmup candles because the passed candles are empty. Have you imported enough warmup candles for {exchange}/{symbol}?"
+        )
 
     from jesse.config import config
     from jesse.store import store
 
     # batch add 1m candles:
-    store.candles.batch_add_candle(candles, exchange, symbol, '1m', with_generation=False)
+    store.candles.batch_add_candle(
+        candles, exchange, symbol, "1m", with_generation=False
+    )
 
     # loop to generate, and add candles (without execution)
     for i in range(len(candles)):
-        for timeframe in config['app']['considering_timeframes']:
+        for timeframe in config["app"]["considering_timeframes"]:
             # skip 1m. already added
-            if timeframe == '1m':
+            if timeframe == "1m":
                 continue
 
             num = jh.timeframe_to_one_minutes(timeframe)
 
             if (i + 1) % num == 0:
                 generated_candle = generate_candle_from_one_minutes(
-                    timeframe,
-                    candles[(i - (num - 1)):(i + 1)],
-                    True
+                    timeframe, candles[(i - (num - 1)) : (i + 1)], True
                 )
 
                 store.candles.add_candle(
@@ -197,46 +182,59 @@ def inject_warmup_candles_to_store(candles: np.ndarray, exchange: str, symbol: s
                     symbol,
                     timeframe,
                     with_execution=False,
-                    with_generation=False
+                    with_generation=False,
                 )
 
 
 def get_candles(
-        exchange: str,
-        symbol: str,
-        timeframe: str,
-        start_date_timestamp: int,
-        finish_date_timestamp: int,
-        warmup_candles_num: int = 0,
-        caching: bool = False,
-        is_for_jesse: bool = False
+    exchange: str,
+    symbol: str,
+    timeframe: str,
+    start_date_timestamp: int,
+    finish_date_timestamp: int,
+    warmup_candles_num: int = 0,
+    caching: bool = False,
+    is_for_jesse: bool = False,
 ) -> Tuple[np.ndarray, np.ndarray]:
     symbol = symbol.upper()
 
     # convert start_date and finish_date to timestamps
-    trading_start_date_timestamp = jh.timestamp_to_arrow(start_date_timestamp).floor(
-        'day').int_timestamp * 1000
-    trading_finish_date_timestamp = (jh.timestamp_to_arrow(finish_date_timestamp).floor(
-        'day').int_timestamp * 1000) - 60_000
+    trading_start_date_timestamp = (
+        jh.timestamp_to_arrow(start_date_timestamp).floor("day").int_timestamp * 1000
+    )
+    trading_finish_date_timestamp = (
+        jh.timestamp_to_arrow(finish_date_timestamp).floor("day").int_timestamp * 1000
+    ) - 60_000
 
     # if warmup_candles is set, calculate the warmup start and finish timestamps
     if warmup_candles_num > 0:
         warmup_finish_timestamp = trading_start_date_timestamp
         warmup_start_timestamp = warmup_finish_timestamp - (
-                warmup_candles_num * jh.timeframe_to_one_minutes(timeframe) * 60_000)
+            warmup_candles_num * jh.timeframe_to_one_minutes(timeframe) * 60_000
+        )
         warmup_finish_timestamp -= 60_000
-        warmup_candles = _get_candles_from_db(exchange, symbol, warmup_start_timestamp, warmup_finish_timestamp,
-                                              caching=caching)
+        warmup_candles = _get_candles_from_db(
+            exchange,
+            symbol,
+            warmup_start_timestamp,
+            warmup_finish_timestamp,
+            caching=caching,
+        )
     else:
         warmup_candles = None
 
     # fetch trading candles from database
-    trading_candles = _get_candles_from_db(exchange, symbol, trading_start_date_timestamp,
-                                           trading_finish_date_timestamp, caching=caching)
+    trading_candles = _get_candles_from_db(
+        exchange,
+        symbol,
+        trading_start_date_timestamp,
+        trading_finish_date_timestamp,
+        caching=caching,
+    )
 
     # if timeframe is 1m or is_for_jesse is True, return the candles as is because they
     # are already 1m candles which is the accepted format for practicing with Jesse.
-    if timeframe == '1m' or is_for_jesse:
+    if timeframe == "1m" or is_for_jesse:
         return warmup_candles, trading_candles
 
     # if the timeframe is not 1m, generate the candles for the requested timeframe
@@ -250,7 +248,7 @@ def get_candles(
 
 
 def _get_candles_from_db(
-        exchange, symbol, start_date_timestamp, finish_date_timestamp, caching: bool = False
+    exchange, symbol, start_date_timestamp, finish_date_timestamp, caching: bool = False
 ) -> np.ndarray:
     from jesse.models import Candle
     from jesse.services.cache import cache
@@ -263,23 +261,36 @@ def _get_candles_from_db(
             return np.array(cached_value)
 
     # Always materialize the database results immediately
-    candles_tuple = list(Candle.select(
-        Candle.timestamp, Candle.open, Candle.close, Candle.high, Candle.low,
-        Candle.volume
-    ).where(
-        Candle.exchange == exchange,
-        Candle.symbol == symbol,
-        Candle.timeframe == '1m' or Candle.timeframe.is_null(),
-        Candle.timestamp.between(start_date_timestamp, finish_date_timestamp)
-    ).order_by(Candle.timestamp.asc()).tuples())
+    candles_tuple = list(
+        Candle.select(
+            Candle.timestamp,
+            Candle.open,
+            Candle.close,
+            Candle.high,
+            Candle.low,
+            Candle.volume,
+        )
+        .where(
+            Candle.exchange == exchange,
+            Candle.symbol == symbol,
+            Candle.timeframe == "1m" or Candle.timeframe.is_null(),
+            Candle.timestamp.between(start_date_timestamp, finish_date_timestamp),
+        )
+        .order_by(Candle.timestamp.asc())
+        .tuples()
+    )
 
     # validate the dates
     if start_date_timestamp == finish_date_timestamp:
-        raise CandleNotFoundInDatabase('start_date and finish_date cannot be the same.')
+        raise CandleNotFoundInDatabase("start_date and finish_date cannot be the same.")
     if start_date_timestamp > finish_date_timestamp:
-        raise CandleNotFoundInDatabase(f'start_date ({jh.timestamp_to_date(start_date_timestamp)}) is greater than finish_date ({jh.timestamp_to_date(finish_date_timestamp)}).')
+        raise CandleNotFoundInDatabase(
+            f"start_date ({jh.timestamp_to_date(start_date_timestamp)}) is greater than finish_date ({jh.timestamp_to_date(finish_date_timestamp)})."
+        )
     if start_date_timestamp > arrow.utcnow().int_timestamp * 1000:
-        raise CandleNotFoundInDatabase(f'Can\'t backtest the future! start_date ({jh.timestamp_to_date(start_date_timestamp)}) is greater than the current time ({jh.timestamp_to_date(arrow.utcnow().int_timestamp * 1000)}).')
+        raise CandleNotFoundInDatabase(
+            f"Can't backtest the future! start_date ({jh.timestamp_to_date(start_date_timestamp)}) is greater than the current time ({jh.timestamp_to_date(arrow.utcnow().int_timestamp * 1000)})."
+        )
 
     if caching:
         # cache for 1 week it for near future calls
@@ -297,9 +308,7 @@ def _get_generated_candles(timeframe, trading_candles) -> np.ndarray:
         if (i + 1) % num == 0:
             generated_candles.append(
                 generate_candle_from_one_minutes(
-                    timeframe,
-                    trading_candles[(i - (num - 1)):(i + 1)],
-                    True
+                    timeframe, trading_candles[(i - (num - 1)) : (i + 1)], True
                 )
             )
 
@@ -311,48 +320,45 @@ def get_existing_candles() -> List[Dict]:
     Returns a list of all existing candles grouped by exchange and symbol
     """
     results = []
-    
+
     # Get unique exchange-symbol combinations
-    pairs = Candle.select(
-        Candle.exchange, 
-        Candle.symbol
-    ).distinct().tuples()
+    pairs = Candle.select(Candle.exchange, Candle.symbol).distinct().tuples()
 
     for exchange, symbol in pairs:
         # Get first and last candle for this pair
-        first = Candle.select(
-            Candle.timestamp
-        ).where(
-            Candle.exchange == exchange,
-            Candle.symbol == symbol
-        ).order_by(
-            Candle.timestamp.asc()
-        ).first()
+        first = (
+            Candle.select(Candle.timestamp)
+            .where(Candle.exchange == exchange, Candle.symbol == symbol)
+            .order_by(Candle.timestamp.asc())
+            .first()
+        )
 
-        last = Candle.select(
-            Candle.timestamp
-        ).where(
-            Candle.exchange == exchange,
-            Candle.symbol == symbol
-        ).order_by(
-            Candle.timestamp.desc()
-        ).first()
+        last = (
+            Candle.select(Candle.timestamp)
+            .where(Candle.exchange == exchange, Candle.symbol == symbol)
+            .order_by(Candle.timestamp.desc())
+            .first()
+        )
 
         if first and last:
-            results.append({
-                'exchange': exchange,
-                'symbol': symbol,
-                'start_date': arrow.get(first.timestamp / 1000).format('YYYY-MM-DD'),
-                'end_date': arrow.get(last.timestamp / 1000).format('YYYY-MM-DD')
-            })
+            results.append(
+                {
+                    "exchange": exchange,
+                    "symbol": symbol,
+                    "start_date": arrow.get(first.timestamp / 1000).format(
+                        "YYYY-MM-DD"
+                    ),
+                    "end_date": arrow.get(last.timestamp / 1000).format("YYYY-MM-DD"),
+                }
+            )
 
     return results
+
 
 def delete_candles(exchange: str, symbol: str) -> None:
     """
     Deletes all candles for the given exchange and symbol
     """
     Candle.delete().where(
-        Candle.exchange == exchange,
-        Candle.symbol == symbol
+        Candle.exchange == exchange, Candle.symbol == symbol
     ).execute()

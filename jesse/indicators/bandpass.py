@@ -7,10 +7,16 @@ from jesse.helpers import get_candle_source, slice_candles
 
 from .high_pass import high_pass_fast
 
-BandPass = namedtuple('BandPass', ['bp', 'bp_normalized', 'signal', 'trigger'])
+BandPass = namedtuple("BandPass", ["bp", "bp_normalized", "signal", "trigger"])
 
 
-def bandpass(candles: np.ndarray, period: int = 20, bandwidth: float = 0.3,  source_type: str = "close",  sequential: bool = False) -> BandPass:
+def bandpass(
+    candles: np.ndarray,
+    period: int = 20,
+    bandwidth: float = 0.3,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> BandPass:
     """
     BandPass Filter
 
@@ -30,7 +36,7 @@ def bandpass(candles: np.ndarray, period: int = 20, bandwidth: float = 0.3,  sou
 
     beta = np.cos(2 * np.pi / period)
     gamma = np.cos(2 * np.pi * bandwidth / period)
-    alpha = 1 / gamma - np.sqrt(1 / gamma ** 2 - 1)
+    alpha = 1 / gamma - np.sqrt(1 / gamma**2 - 1)
 
     bp, peak = bp_fast(source, hp, alpha, beta)
 
@@ -46,19 +52,26 @@ def bandpass(candles: np.ndarray, period: int = 20, bandwidth: float = 0.3,  sou
 
 
 @njit(cache=True)
-def bp_fast(source, hp, alpha, beta):  # Function is compiled to machine code when called the first time
+def bp_fast(
+    source, hp, alpha, beta
+):  # Function is compiled to machine code when called the first time
 
     bp = np.copy(hp)
     for i in range(2, source.shape[0]):
-      bp[i] = 0.5 * (1 - alpha) * hp[i] - (1 - alpha) * 0.5 * hp[i - 2]  + beta * (1 + alpha) * bp[i - 1] - alpha * bp[i - 2]
+        bp[i] = (
+            0.5 * (1 - alpha) * hp[i]
+            - (1 - alpha) * 0.5 * hp[i - 2]
+            + beta * (1 + alpha) * bp[i - 1]
+            - alpha * bp[i - 2]
+        )
 
     # fast attack-slow decay AGC
     K = 0.991
     peak = np.copy(bp)
     for i in range(source.shape[0]):
-      if i > 0:
-        peak[i] = peak[i - 1] * K
-      if np.abs(bp[i]) > peak[i]:
-        peak[i] = np.abs(bp[i])
+        if i > 0:
+            peak[i] = peak[i - 1] * K
+        if np.abs(bp[i]) > peak[i]:
+            peak[i] = np.abs(bp[i])
 
     return bp, peak

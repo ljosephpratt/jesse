@@ -35,16 +35,16 @@ class Database:
             "keepalives": 1,
             "keepalives_idle": 60,
             "keepalives_interval": 10,
-            "keepalives_count": 5
+            "keepalives_count": 5,
         }
 
         self.db = PostgresqlExtDatabase(
-            ENV_VALUES['POSTGRES_NAME'],
-            user=ENV_VALUES['POSTGRES_USERNAME'],
-            password=ENV_VALUES['POSTGRES_PASSWORD'],
-            host=ENV_VALUES['POSTGRES_HOST'],
-            port=int(ENV_VALUES['POSTGRES_PORT']),
-            sslmode=ENV_VALUES.get('POSTGRES_SSLMODE', 'disable'),
+            ENV_VALUES["POSTGRES_NAME"],
+            user=ENV_VALUES["POSTGRES_USERNAME"],
+            password=ENV_VALUES["POSTGRES_PASSWORD"],
+            host=ENV_VALUES["POSTGRES_HOST"],
+            port=int(ENV_VALUES["POSTGRES_PORT"]),
+            sslmode=ENV_VALUES.get("POSTGRES_SSLMODE", "disable"),
             **options
         )
 

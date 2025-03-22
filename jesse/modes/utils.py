@@ -23,11 +23,11 @@ def save_daily_portfolio_balance(is_initial=False) -> None:
     total_balances = 0
     # select the first item in store.exchanges.storage.items()
     try:
-        e, = store.exchanges.storage.values()
+        (e,) = store.exchanges.storage.values()
     except ValueError:
-        raise ValueError('Multiple exchange support is not supported at the moment')
-    
-    if e.type == 'futures':
+        raise ValueError("Multiple exchange support is not supported at the moment")
+
+    if e.type == "futures":
         # For futures, add wallet balance and sum of all PNLs
         total_balances = e.assets[jh.app_currency()]
         for key, pos in store.positions.storage.items():
@@ -43,7 +43,7 @@ def save_daily_portfolio_balance(is_initial=False) -> None:
     store.app.daily_balance.append(total_balances)
 
     if not jh.is_livetrading():
-        logger.info(f'Saved daily portfolio balance: {round(total_balances, 2)}')
+        logger.info(f"Saved daily portfolio balance: {round(total_balances, 2)}")
 
 
 def get_exchange_type(exchange_name: str) -> str:
@@ -52,7 +52,7 @@ def get_exchange_type(exchange_name: str) -> str:
     """
     # in live trading, exchange type is not configurable, hence we hardcode it
     if jh.is_live():
-        return exchange_info[exchange_name]['type']
+        return exchange_info[exchange_name]["type"]
 
     # for other trading modes, we can get the exchange type from the config file
-    return jh.get_config(f'env.exchanges.{exchange_name}.type')
+    return jh.get_config(f"env.exchanges.{exchange_name}.type")

@@ -5,7 +5,14 @@ from scipy import signal
 from jesse.helpers import get_candle_source, slice_candles
 
 
-def hurst_exponent(candles: np.ndarray, min_chunksize: int = 8, max_chunksize: int = 200, num_chunksize:int=5, method:int=1, source_type: str = "close") -> float:
+def hurst_exponent(
+    candles: np.ndarray,
+    min_chunksize: int = 8,
+    max_chunksize: int = 200,
+    num_chunksize: int = 5,
+    method: int = 1,
+    source_type: str = "close",
+) -> float:
     """
     Hurst Exponent
 
@@ -20,10 +27,10 @@ def hurst_exponent(candles: np.ndarray, min_chunksize: int = 8, max_chunksize: i
     """
 
     if len(candles.shape) == 1:
-      source = candles
+        source = candles
     else:
-      candles = slice_candles(candles, False)
-      source = get_candle_source(candles, source_type=source_type)
+        candles = slice_candles(candles, False)
+        source = get_candle_source(candles, source_type=source_type)
 
     if method == 0:
         h = hurst_rs(np.diff(source), min_chunksize, max_chunksize, num_chunksize)
@@ -32,7 +39,7 @@ def hurst_exponent(candles: np.ndarray, min_chunksize: int = 8, max_chunksize: i
     elif method == 2:
         h = hurst_dsod(source)
     else:
-        raise NotImplementedError('The method choose is not implemented.')
+        raise NotImplementedError("The method choose is not implemented.")
 
     return None if np.isnan(h) else h
 
@@ -75,8 +82,9 @@ def hurst_rs(x, min_chunksize, max_chunksize, num_chunksize):
     N = len(x)
     max_chunksize += 1
     rs_tmp = np.empty(N, dtype=np.float64)
-    chunk_size_list = np.linspace(min_chunksize, max_chunksize, num_chunksize) \
-        .astype(np.int64)
+    chunk_size_list = np.linspace(min_chunksize, max_chunksize, num_chunksize).astype(
+        np.int64
+    )
     rs_values_list = np.empty(num_chunksize, dtype=np.float64)
 
     # 1. The series is divided into chunks of chunk_size_list size
@@ -96,20 +104,20 @@ def hurst_rs(x, min_chunksize, max_chunksize, num_chunksize):
             # 2.1 Calculate the RS (chunk_size)
             z = np.cumsum(chunk - np.mean(chunk))
             rs_tmp[idx] = np.divide(
-                np.max(z) - np.min(z),  # range
-                np.nanstd(chunk)  # standar deviation
+                np.max(z) - np.min(z), np.nanstd(chunk)  # range  # standar deviation
             )
 
         # 3. Average of RS(chunk_size)
-        rs_values_list[i] = np.nanmean(rs_tmp[:idx + 1])
+        rs_values_list[i] = np.nanmean(rs_tmp[: idx + 1])
 
     # 4. calculate the Hurst exponent.
     H, c = np.linalg.lstsq(
         a=np.vstack((np.log(chunk_size_list), np.ones(num_chunksize))).T,
-        b=np.log(rs_values_list)
+        b=np.log(rs_values_list),
     )[0]
 
     return H
+
 
 def hurst_dma(prices, min_chunksize=8, max_chunksize=200, num_chunksize=5):
     """Estimate the Hurst exponent using R/S method.
@@ -154,7 +162,8 @@ def hurst_dma(prices, min_chunksize=8, max_chunksize=200, num_chunksize=5):
 
     H, const = np.linalg.lstsq(
         a=np.vstack([np.log10(n_list), np.ones(len(n_list))]).T,
-        b=np.log10(dma_list), rcond=None
+        b=np.log10(dma_list),
+        rcond=None,
     )[0]
     return H
 
@@ -193,14 +202,14 @@ def hurst_dsod(x):
     # second order derivative
     b1 = [1, -2, 1]
     y1 = signal.lfilter(b1, 1, y, axis=0)
-    y1 = y1[len(b1) - 1:]  # first values contain filter artifacts
+    y1 = y1[len(b1) - 1 :]  # first values contain filter artifacts
 
     # wider second order derivative
-    b2 = [1,  0, -2, 0, 1]
+    b2 = [1, 0, -2, 0, 1]
     y2 = signal.lfilter(b2, 1, y, axis=0)
-    y2 = y2[len(b2) - 1:]  # first values contain filter artifacts
+    y2 = y2[len(b2) - 1 :]  # first values contain filter artifacts
 
-    s1 = np.mean(y1 ** 2, axis=0)
-    s2 = np.mean(y2 ** 2, axis=0)
+    s1 = np.mean(y1**2, axis=0)
+    s2 = np.mean(y2**2, axis=0)
 
     return 0.5 * np.log2(s2 / s1)

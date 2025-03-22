@@ -5,8 +5,13 @@ import numpy as np
 from jesse.helpers import get_candle_source, slice_candles
 
 
-def ma(candles: np.ndarray, period: int = 30, matype: int = 0,  source_type: str = "close", sequential: bool = False) -> Union[
-    float, np.ndarray]:
+def ma(
+    candles: np.ndarray,
+    period: int = 30,
+    matype: int = 0,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     MA - (nearly) All Moving Averages of Jesse
 
@@ -63,119 +68,160 @@ def ma(candles: np.ndarray, period: int = 30, matype: int = 0,  source_type: str
 
     if matype == 0:
         from . import sma
+
         res = sma(candles, period, source_type=source_type, sequential=True)
     elif matype == 1:
         from . import ema
+
         res = ema(candles, period, source_type=source_type, sequential=True)
     elif matype == 2:
         from . import wma
+
         res = wma(candles, period, source_type=source_type, sequential=True)
     elif matype == 3:
         from . import dema
+
         res = dema(candles, period, source_type=source_type, sequential=True)
     elif matype == 4:
         from . import tema
+
         res = tema(candles, period, source_type=source_type, sequential=True)
     elif matype == 5:
         from . import trima
+
         res = trima(candles, period, source_type=source_type, sequential=True)
     elif matype == 6:
         from . import kama
+
         res = kama(candles, period, source_type=source_type, sequential=True)
     elif matype == 9:
         from . import fwma
+
         res = fwma(candles, period, source_type=source_type, sequential=True)
     elif matype == 10:
         from . import hma
-        res = hma(candles, period, source_type=source_type,  sequential=True)
+
+        res = hma(candles, period, source_type=source_type, sequential=True)
     elif matype == 11:
         from . import linearreg
+
         res = linearreg(candles, period, source_type=source_type, sequential=True)
     elif matype == 12:
         from . import wilders
-        res = wilders(candles, period, source_type=source_type,  sequential=True)
+
+        res = wilders(candles, period, source_type=source_type, sequential=True)
     elif matype == 13:
         from . import sinwma
-        res = sinwma(candles, period, source_type=source_type,  sequential=True)
+
+        res = sinwma(candles, period, source_type=source_type, sequential=True)
     elif matype == 14:
         from . import supersmoother
-        res = supersmoother(candles, period, source_type=source_type,  sequential=True)
+
+        res = supersmoother(candles, period, source_type=source_type, sequential=True)
     elif matype == 15:
         from . import supersmoother_3_pole
-        res = supersmoother_3_pole(candles, period, source_type=source_type,  sequential=True)
+
+        res = supersmoother_3_pole(
+            candles, period, source_type=source_type, sequential=True
+        )
     elif matype == 16:
         from . import gauss
-        res = gauss(candles, period, source_type=source_type,  sequential=True)
+
+        res = gauss(candles, period, source_type=source_type, sequential=True)
     elif matype == 17:
         from . import high_pass
-        res = high_pass(candles, period, source_type=source_type,  sequential=True)
+
+        res = high_pass(candles, period, source_type=source_type, sequential=True)
     elif matype == 18:
         from . import high_pass_2_pole
-        res = high_pass_2_pole(candles, period, source_type=source_type,  sequential=True)
+
+        res = high_pass_2_pole(
+            candles, period, source_type=source_type, sequential=True
+        )
     elif matype == 20:
         from . import jma
-        res = jma(candles, period, source_type=source_type,  sequential=True)
+
+        res = jma(candles, period, source_type=source_type, sequential=True)
     elif matype == 21:
         from . import reflex
-        res = reflex(candles, period, source_type=source_type,  sequential=True)
+
+        res = reflex(candles, period, source_type=source_type, sequential=True)
     elif matype == 22:
         from . import trendflex
-        res = trendflex(candles, period, source_type=source_type,  sequential=True)
+
+        res = trendflex(candles, period, source_type=source_type, sequential=True)
     elif matype == 23:
         from . import smma
-        res = smma(candles, period, source_type=source_type,  sequential=True)
+
+        res = smma(candles, period, source_type=source_type, sequential=True)
     elif matype == 24:
         if len(candles.shape) == 1:
-          raise ValueError("vwma only works with normal candles.")
+            raise ValueError("vwma only works with normal candles.")
         from . import vwma
-        res = vwma(candles, period, source_type=source_type,  sequential=True)
+
+        res = vwma(candles, period, source_type=source_type, sequential=True)
     elif matype == 25:
         from . import pwma
-        res = pwma(candles, period, source_type=source_type,  sequential=True)
+
+        res = pwma(candles, period, source_type=source_type, sequential=True)
     elif matype == 26:
         from . import swma
-        res = swma(candles, period, source_type=source_type,  sequential=True)
+
+        res = swma(candles, period, source_type=source_type, sequential=True)
     elif matype == 27:
         from . import alma
-        res = alma(candles, period, source_type=source_type,  sequential=True)
+
+        res = alma(candles, period, source_type=source_type, sequential=True)
     elif matype == 28:
         from . import hwma
-        res = hwma(candles, source_type=source_type,  sequential=True)
+
+        res = hwma(candles, source_type=source_type, sequential=True)
     elif matype == 29:
         from . import vwap
+
         if len(candles.shape) == 1:
-          raise ValueError("vwap only works with normal candles.")
-        res = vwap(candles, source_type=source_type,  sequential=True)
+            raise ValueError("vwap only works with normal candles.")
+        res = vwap(candles, source_type=source_type, sequential=True)
     elif matype == 30:
         from . import nma
-        res = nma(candles, period, source_type=source_type,  sequential=True)
+
+        res = nma(candles, period, source_type=source_type, sequential=True)
     elif matype == 31:
         from . import edcf
-        res = edcf(candles, period, source_type=source_type,  sequential=True)
+
+        res = edcf(candles, period, source_type=source_type, sequential=True)
     elif matype == 32:
         from . import mwdx
-        res = mwdx(candles, source_type=source_type,  sequential=True)
+
+        res = mwdx(candles, source_type=source_type, sequential=True)
     elif matype == 33:
         from . import maaq
-        res = maaq(candles, period, source_type=source_type,  sequential=True)
+
+        res = maaq(candles, period, source_type=source_type, sequential=True)
     elif matype == 34:
         from . import srwma
-        res = srwma(candles, period, source_type=source_type,  sequential=True)
+
+        res = srwma(candles, period, source_type=source_type, sequential=True)
     elif matype == 35:
         from . import sqwma
-        res = sqwma(candles, period, source_type=source_type,  sequential=True)
+
+        res = sqwma(candles, period, source_type=source_type, sequential=True)
     elif matype == 36:
         from . import vpwma
-        res = vpwma(candles, period, source_type=source_type,  sequential=True)
+
+        res = vpwma(candles, period, source_type=source_type, sequential=True)
     elif matype == 37:
         from . import cwma
-        res = cwma(candles, period, source_type=source_type,  sequential=True)
+
+        res = cwma(candles, period, source_type=source_type, sequential=True)
     elif matype == 38:
         from . import jsa
-        res = jsa(candles, period, source_type=source_type,  sequential=True)
+
+        res = jsa(candles, period, source_type=source_type, sequential=True)
     elif matype == 39:
         from . import epma
-        res = epma(candles, period, source_type=source_type,  sequential=True)
+
+        res = epma(candles, period, source_type=source_type, sequential=True)
     elif matype == 7 or matype == 8 or matype == 19:
         raise ValueError("Invalid matype value.")
 

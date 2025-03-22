@@ -3,10 +3,18 @@ from collections import namedtuple
 import numpy as np
 from .ema import ema
 
-SupportResistanceWithBreaks = namedtuple('SupportResistanceWithBreaks', ['support', 'resistance', 'red_break', 'green_break', 'bear_wick', 'bull_wick'])
+SupportResistanceWithBreaks = namedtuple(
+    "SupportResistanceWithBreaks",
+    ["support", "resistance", "red_break", "green_break", "bear_wick", "bull_wick"],
+)
 
 
-def support_resistance_with_breaks(candles: np.ndarray, left_bars: int = 15, right_bars: int = 15, vol_threshold: int = 20) -> SupportResistanceWithBreaks:
+def support_resistance_with_breaks(
+    candles: np.ndarray,
+    left_bars: int = 15,
+    right_bars: int = 15,
+    vol_threshold: int = 20,
+) -> SupportResistanceWithBreaks:
     """
     support_resistance_with_breaks
 
@@ -28,15 +36,41 @@ def support_resistance_with_breaks(candles: np.ndarray, left_bars: int = 15, rig
 
     last_candles = candles[0]
 
-    red_break = True if last_candles[2] < support and not abs(
-        last_candles[1] - last_candles[2]) < abs(last_candles[1] - last_candles[3]) and osc > vol_threshold else False
-    green_break = True if last_candles[2] > resistance and abs(
-        last_candles[1] - last_candles[4]) > abs(last_candles[1] - last_candles[2]) and osc > vol_threshold else False
+    red_break = (
+        True
+        if last_candles[2] < support
+        and not abs(last_candles[1] - last_candles[2])
+        < abs(last_candles[1] - last_candles[3])
+        and osc > vol_threshold
+        else False
+    )
+    green_break = (
+        True
+        if last_candles[2] > resistance
+        and abs(last_candles[1] - last_candles[4])
+        > abs(last_candles[1] - last_candles[2])
+        and osc > vol_threshold
+        else False
+    )
 
-    bull_wick = True if last_candles[2] > resistance and abs(last_candles[1] - last_candles[4]) > abs(last_candles[1] - last_candles[2]) else False
-    bear_wick = True if last_candles[2] < support and abs(last_candles[1] - last_candles[2]) < abs(last_candles[1] - last_candles[3]) else False
+    bull_wick = (
+        True
+        if last_candles[2] > resistance
+        and abs(last_candles[1] - last_candles[4])
+        > abs(last_candles[1] - last_candles[2])
+        else False
+    )
+    bear_wick = (
+        True
+        if last_candles[2] < support
+        and abs(last_candles[1] - last_candles[2])
+        < abs(last_candles[1] - last_candles[3])
+        else False
+    )
 
-    return SupportResistanceWithBreaks(support, resistance, red_break, green_break, bear_wick, bull_wick)
+    return SupportResistanceWithBreaks(
+        support, resistance, red_break, green_break, bear_wick, bull_wick
+    )
 
 
 def _resistance(source, left_bars, right_bars):
@@ -72,8 +106,12 @@ def _resistance(source, left_bars, right_bars):
             next_valid = pivot_highs[i]
             first_value = i if first_value is None else first_value
 
-    pivot_highs[:first_value - 1] = [pivot_highs[first_value]] * len(pivot_highs[:first_value - 1])
-    pivot_highs[-right_bars:] = [pivot_highs[-right_bars - 1]] * len(pivot_highs[-right_bars:])
+    pivot_highs[: first_value - 1] = [pivot_highs[first_value]] * len(
+        pivot_highs[: first_value - 1]
+    )
+    pivot_highs[-right_bars:] = [pivot_highs[-right_bars - 1]] * len(
+        pivot_highs[-right_bars:]
+    )
 
     return pivot_highs[-1]
 
@@ -111,7 +149,11 @@ def _support(source, left_bars, right_bars):
             next_valid = pivot_lows[i]
             first_value = i if first_value is None else first_value
 
-    pivot_lows[:first_value - 1] = [pivot_lows[first_value]] * len(pivot_lows[:first_value - 1])
-    pivot_lows[-right_bars:] = [pivot_lows[-right_bars - 1]] * len(pivot_lows[-right_bars:])
+    pivot_lows[: first_value - 1] = [pivot_lows[first_value]] * len(
+        pivot_lows[: first_value - 1]
+    )
+    pivot_lows[-right_bars:] = [pivot_lows[-right_bars - 1]] * len(
+        pivot_lows[-right_bars:]
+    )
 
     return pivot_lows[-1]

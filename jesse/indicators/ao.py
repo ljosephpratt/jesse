@@ -5,13 +5,15 @@ import numpy as np
 from jesse.helpers import slice_candles
 from .sma import sma
 
-AO = namedtuple('AO', ['osc', 'change'])
+AO = namedtuple("AO", ["osc", "change"])
+
 
 def momentum(arr):
     ret = np.full(arr.shape, np.nan)
     if len(arr) > 1:
         ret[1:] = arr[1:] - arr[:-1]
     return ret
+
 
 def ao(candles: np.ndarray, sequential: bool = False) -> AO:
     """

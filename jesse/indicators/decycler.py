@@ -7,8 +7,12 @@ from jesse.helpers import get_candle_source, slice_candles
 from .high_pass_2_pole import high_pass_2_pole_fast
 
 
-def decycler(candles: np.ndarray, hp_period: int = 125, source_type: str = "close", sequential: bool = False) -> Union[
-    float, np.ndarray]:
+def decycler(
+    candles: np.ndarray,
+    hp_period: int = 125,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     Ehlers Simple Decycler
 

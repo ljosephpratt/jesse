@@ -5,7 +5,9 @@ from jesse.helpers import get_candle_source, same_length, slice_candles
 
 
 @njit
-def vidya_numba(source: np.ndarray, length: int, fix_cmo: bool, select: bool) -> np.ndarray:
+def vidya_numba(
+    source: np.ndarray, length: int, fix_cmo: bool, select: bool
+) -> np.ndarray:
     alpha = 2 / (length + 1)
     momm = np.zeros_like(source)
     momm[1:] = source[1:] - source[:-1]
@@ -22,8 +24,8 @@ def vidya_numba(source: np.ndarray, length: int, fix_cmo: bool, select: bool) ->
 
     for i in range(len(source)):
         start_idx = max(0, i - cmo_length + 1)
-        sm1[i] = np.sum(m1[start_idx:i+1])
-        sm2[i] = np.sum(m2[start_idx:i+1])
+        sm1[i] = np.sum(m1[start_idx : i + 1])
+        sm2[i] = np.sum(m2[start_idx : i + 1])
 
     # Calculate Chande Momentum
     total_sum = sm1 + sm2
@@ -36,18 +38,25 @@ def vidya_numba(source: np.ndarray, length: int, fix_cmo: bool, select: bool) ->
         k = np.zeros_like(source)
         for i in range(len(source)):
             start_idx = max(0, i - length + 1)
-            k[i] = np.std(source[start_idx:i+1])
+            k[i] = np.std(source[start_idx : i + 1])
 
     # Calculate VIDYA
     vidya = np.zeros_like(source)
     vidya[0] = source[0]
     for i in range(1, len(source)):
-        vidya[i] = alpha * k[i] * source[i] + (1 - alpha * k[i]) * vidya[i-1]
+        vidya[i] = alpha * k[i] * source[i] + (1 - alpha * k[i]) * vidya[i - 1]
 
     return vidya
 
 
-def vidya(candles: np.ndarray, length: int = 9, fix_cmo: bool = True, select: bool = True, source_type: str = "close", sequential: bool = False) -> Union[float, np.ndarray]:
+def vidya(
+    candles: np.ndarray,
+    length: int = 9,
+    fix_cmo: bool = True,
+    select: bool = True,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     VIDYA - Variable Index Dynamic Average
 

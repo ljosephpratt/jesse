@@ -17,7 +17,7 @@ def _rsi(p: np.ndarray, period: int) -> np.ndarray:
     # Calculate differences between consecutive prices.
     diff = np.empty(n - 1)
     for i in range(n - 1):
-        diff[i] = p[i+1] - p[i]
+        diff[i] = p[i + 1] - p[i]
 
     # Compute initial average gain and loss over the first 'period' differences.
     sum_gain = 0.0
@@ -46,14 +46,19 @@ def _rsi(p: np.ndarray, period: int) -> np.ndarray:
         avg_gain = (avg_gain * (period - 1) + gain) / period
         avg_loss = (avg_loss * (period - 1) + loss) / period
         if avg_loss == 0:
-            rsi_arr[i+1] = 100.0
+            rsi_arr[i + 1] = 100.0
         else:
             rs = avg_gain / avg_loss
-            rsi_arr[i+1] = 100 - (100 / (1 + rs))
+            rsi_arr[i + 1] = 100 - (100 / (1 + rs))
     return rsi_arr
 
 
-def rsi(candles: np.ndarray, period: int = 14, source_type: str = "close", sequential: bool = False) -> Union[float, np.ndarray]:
+def rsi(
+    candles: np.ndarray,
+    period: int = 14,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     RSI - Relative Strength Index using Numba for optimization
 

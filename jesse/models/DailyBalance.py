@@ -19,8 +19,8 @@ class DailyBalance(peewee.Model):
 
         database = database.db
         indexes = (
-            (('identifier', 'exchange', 'asset', 'timestamp'), True),
-            (('identifier', 'exchange'), False),
+            (("identifier", "exchange", "asset", "timestamp"), True),
+            (("identifier", "exchange"), False),
         )
 
     def __init__(self, attributes: dict = None, **kwargs) -> None:

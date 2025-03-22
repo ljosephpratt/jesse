@@ -17,7 +17,7 @@ def test_candle_includes_price():
 def test_generate_candle_from_one_minutes():
     candles = range_candles(5)
 
-    five_minutes_candle = generate_candle_from_one_minutes('5m', candles)
+    five_minutes_candle = generate_candle_from_one_minutes("5m", candles)
 
     assert five_minutes_candle[0] == candles[0][0]
     assert five_minutes_candle[1] == candles[0][1]
@@ -50,7 +50,7 @@ def test_split_candle():
         (
             np.array([1111, 10, 7, 10, 7, 2222]),
             np.array([1111, 7, 20, 25, 5, 2222]),
-        )
+        ),
     )
     # bearish candle, open < price < high
     np.testing.assert_equal(
@@ -58,19 +58,13 @@ def test_split_candle():
         (
             np.array([1111, 20, 23, 23, 20, 2222]),
             np.array([1111, 23, 10, 25, 5, 2222]),
-        )
+        ),
     )
 
     # bullish candle, price == open
-    np.testing.assert_equal(
-        split_candle(bull, bull[1]),
-        (bull, bull)
-    )
+    np.testing.assert_equal(split_candle(bull, bull[1]), (bull, bull))
     # bearish candle, price == open
-    np.testing.assert_equal(
-        split_candle(bear, bear[1]),
-        (bear, bear)
-    )
+    np.testing.assert_equal(split_candle(bear, bear[1]), (bear, bear))
 
     # bearish candle,  low < price < close
     np.testing.assert_equal(
@@ -78,7 +72,7 @@ def test_split_candle():
         (
             np.array([1111, 20, 7, 25, 7, 2222]),
             np.array([1111, 7, 10, 10, 5, 2222]),
-        )
+        ),
     )
     # bullish candle,  close < price < high
     np.testing.assert_equal(
@@ -86,7 +80,7 @@ def test_split_candle():
         (
             np.array([1111, 10, 23, 23, 5, 2222]),
             np.array([1111, 23, 20, 25, 20, 2222]),
-        )
+        ),
     )
 
     # bearish candle,  price == close
@@ -95,7 +89,7 @@ def test_split_candle():
         (
             np.array([1111, 20, 10, 25, 10, 2222]),
             np.array([1111, 10, 10, 10, 5, 2222]),
-        )
+        ),
     )
     # bullish candle,  close < price < high
     np.testing.assert_equal(
@@ -103,7 +97,7 @@ def test_split_candle():
         (
             np.array([1111, 10, 20, 20, 5, 2222]),
             np.array([1111, 20, 20, 25, 20, 2222]),
-        )
+        ),
     )
 
     # bearish candle,  price == high
@@ -112,7 +106,7 @@ def test_split_candle():
         (
             np.array([1111, 20, 25, 25, 20, 2222]),
             np.array([1111, 25, 10, 25, 5, 2222]),
-        )
+        ),
     )
     # bullish candle,  price == low
     np.testing.assert_equal(
@@ -120,7 +114,7 @@ def test_split_candle():
         (
             np.array([1111, 10, 5, 10, 5, 2222]),
             np.array([1111, 5, 20, 25, 5, 2222]),
-        )
+        ),
     )
 
     # bearish candle,  price == low
@@ -129,7 +123,7 @@ def test_split_candle():
         (
             np.array([1111, 20, 5, 25, 5, 2222]),
             np.array([1111, 5, 10, 10, 5, 2222]),
-        )
+        ),
     )
     # bullish candle,  price == high
     np.testing.assert_equal(
@@ -137,7 +131,7 @@ def test_split_candle():
         (
             np.array([1111, 10, 25, 25, 5, 2222]),
             np.array([1111, 25, 20, 25, 20, 2222]),
-        )
+        ),
     )
 
     # bearish candle, close < price < open
@@ -146,7 +140,7 @@ def test_split_candle():
         (
             np.array([1111, 20, 15, 25, 15, 2222]),
             np.array([1111, 15, 10, 15, 5, 2222]),
-        )
+        ),
     )
     # bullish candle, open < price < close
     np.testing.assert_equal(
@@ -154,24 +148,22 @@ def test_split_candle():
         (
             np.array([1111, 10, 15, 15, 5, 2222]),
             np.array([1111, 15, 20, 25, 15, 2222]),
-        )
+        ),
     )
 
 
 def test_candle_dict_to_np_array():
     candle_dict = {
-        'close': 3,
-        'exchange': 'Bybit USDT Perpetual Testnet',
-        'high': 4,
-        'id': 'd2d139a7-13f6-446a-b2ea-f16152aeac5c',
-        'low': 1,
-        'open': 2,
-        'symbol': 'ETH-USDT',
-        'timestamp': 1660369080000,
-        'volume': 10
+        "close": 3,
+        "exchange": "Bybit USDT Perpetual Testnet",
+        "high": 4,
+        "id": "d2d139a7-13f6-446a-b2ea-f16152aeac5c",
+        "low": 1,
+        "open": 2,
+        "symbol": "ETH-USDT",
+        "timestamp": 1660369080000,
+        "volume": 10,
     }
     np.testing.assert_equal(
-        candle_dict_to_np_array(candle_dict),
-        np.array([1660369080000, 2, 3, 4, 1, 10])
+        candle_dict_to_np_array(candle_dict), np.array([1660369080000, 2, 3, 4, 1, 10])
     )
-

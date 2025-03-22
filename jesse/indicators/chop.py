@@ -6,7 +6,13 @@ from numba import njit
 from jesse.helpers import slice_candles
 
 
-def chop(candles: np.ndarray, period: int = 14, scalar: float = 100, drift: int = 1, sequential: bool = False) -> Union[float, np.ndarray]:
+def chop(
+    candles: np.ndarray,
+    period: int = 14,
+    scalar: float = 100,
+    drift: int = 1,
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     Choppiness Index (CHOP)
 
@@ -123,9 +129,16 @@ def _chop_numba(candles, period, scalar, drift):
         res[i] = np.nan
     log_period = np.log10(period)
     for i in range(period - 1, n):
-        if np.isnan(atr_sum[i]) or np.isnan(hh[i]) or np.isnan(ll[i]) or (hh[i] - ll[i]) <= 0:
+        if (
+            np.isnan(atr_sum[i])
+            or np.isnan(hh[i])
+            or np.isnan(ll[i])
+            or (hh[i] - ll[i]) <= 0
+        ):
             res[i] = np.nan
         else:
-            res[i] = (scalar * (np.log10(atr_sum[i]) - np.log10(hh[i] - ll[i]))) / log_period
+            res[i] = (
+                scalar * (np.log10(atr_sum[i]) - np.log10(hh[i] - ll[i]))
+            ) / log_period
 
     return res

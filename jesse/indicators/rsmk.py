@@ -4,11 +4,18 @@ import numpy as np
 
 from jesse.helpers import get_candle_source
 
-RSMK = namedtuple('RSMK', ['indicator', 'signal'])
+RSMK = namedtuple("RSMK", ["indicator", "signal"])
 
 
-def rsmk(candles: np.ndarray, candles_compare: np.ndarray, lookback: int = 90, period: int = 3, signal_period: int = 20,
-        source_type: str = "close", sequential: bool = False) -> RSMK:
+def rsmk(
+    candles: np.ndarray,
+    candles_compare: np.ndarray,
+    lookback: int = 90,
+    period: int = 3,
+    signal_period: int = 20,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> RSMK:
     """
     RSMK - Relative Strength
 
@@ -58,7 +65,9 @@ def rsmk(candles: np.ndarray, candles_compare: np.ndarray, lookback: int = 90, p
 
         # Compute weights:
         # For t >= i, if i == 0 then weight = (1 - alpha)^(t - i), else weight = alpha * (1 - alpha)^(t - i)
-        weights = np.where(lag < 0, 0, np.where(i == 0, (1 - alpha)**lag, alpha * (1 - alpha)**lag))
+        weights = np.where(
+            lag < 0, 0, np.where(i == 0, (1 - alpha) ** lag, alpha * (1 - alpha) ** lag)
+        )
 
         ema_segment = np.sum(weights * segment.reshape(1, -1), axis=1)
         out[start_idx:] = ema_segment

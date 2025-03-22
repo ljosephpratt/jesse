@@ -25,6 +25,7 @@ import struct
 import contextlib
 import datetime
 import threading
+from pathlib import Path
 
 # Used for default argument values
 DEFAULT = object()
@@ -43,16 +44,16 @@ class RustBuffer(ctypes.Structure):
 
     @staticmethod
     def reserve(rbuf, additional):
-        return rust_call(_UniFFILib.ffi_zklink_sdk_f180_rustbuffer_reserve, rbuf, additional)
+        return rust_call(
+            _UniFFILib.ffi_zklink_sdk_f180_rustbuffer_reserve, rbuf, additional
+        )
 
     def free(self):
         return rust_call(_UniFFILib.ffi_zklink_sdk_f180_rustbuffer_free, self)
 
     def __str__(self):
         return "RustBuffer(capacity={}, len={}, data={})".format(
-            self.capacity,
-            self.len,
-            self.data[0:self.len]
+            self.capacity, self.len, self.data[0 : self.len]
         )
 
     @contextlib.contextmanager
@@ -65,7 +66,7 @@ class RustBuffer(ctypes.Structure):
         builder = RustBufferBuilder()
         try:
             yield builder
-        except:
+        except Exception:
             builder.discard()
             raise
 
@@ -92,7 +93,7 @@ class ForeignBytes(ctypes.Structure):
     ]
 
     def __str__(self):
-        return "ForeignBytes(len={}, data={})".format(self.len, self.data[0:self.len])
+        return "ForeignBytes(len={}, data={})".format(self.len, self.data[0 : self.len])
 
 
 class RustBufferStream(object):
@@ -110,14 +111,16 @@ class RustBufferStream(object):
     def _unpack_from(self, size, format):
         if self.offset + size > self.rbuf.len:
             raise InternalError("read past end of rust buffer")
-        value = struct.unpack(format, self.rbuf.data[self.offset:self.offset+size])[0]
+        value = struct.unpack(format, self.rbuf.data[self.offset : self.offset + size])[
+            0
+        ]
         self.offset += size
         return value
 
     def read(self, size):
         if self.offset + size > self.rbuf.len:
             raise InternalError("read past end of rust buffer")
-        data = self.rbuf.data[self.offset:self.offset+size]
+        data = self.rbuf.data[self.offset : self.offset + size]
         self.offset += size
         return data
 
@@ -219,16 +222,21 @@ class RustBufferBuilder(object):
 
     def writeDouble(self, v):
         self._pack_into(8, ">d", v)
+
+
 # A handful of classes and functions to support the generated data structures.
 # This would be a good candidate for isolating in its own ffi-support lib.
 
+
 class InternalError(Exception):
     pass
+
 
 class RustCallStatus(ctypes.Structure):
     """
     Error runtime.
     """
+
     _fields_ = [
         ("code", ctypes.c_int8),
         ("error_buf", RustBuffer),
@@ -249,16 +257,20 @@ class RustCallStatus(ctypes.Structure):
         else:
             return "RustCallStatus(<invalid code>)"
 
+
 def rust_call(fn, *args):
     # Call a rust function
     return rust_call_with_error(None, fn, *args)
+
 
 def rust_call_with_error(error_ffi_converter, fn, *args):
     # Call a rust function and handle any errors
     #
     # This function is used for rust calls that return Result<> and therefore can set the CALL_ERROR status code.
     # error_ffi_converter must be set to the FfiConverter for the error class that corresponds to the result.
-    call_status = RustCallStatus(code=RustCallStatus.CALL_SUCCESS, error_buf=RustBuffer(0, 0, None))
+    call_status = RustCallStatus(
+        code=RustCallStatus.CALL_SUCCESS, error_buf=RustBuffer(0, 0, None)
+    )
 
     args_with_error = args + (ctypes.byref(call_status),)
     result = fn(*args_with_error)
@@ -267,7 +279,9 @@ def rust_call_with_error(error_ffi_converter, fn, *args):
     elif call_status.code == RustCallStatus.CALL_ERROR:
         if error_ffi_converter is None:
             call_status.error_buf.free()
-            raise InternalError("rust_call_with_error: CALL_ERROR, but error_ffi_converter is None")
+            raise InternalError(
+                "rust_call_with_error: CALL_ERROR, but error_ffi_converter is None"
+            )
         else:
             raise error_ffi_converter.lift(call_status.error_buf)
     elif call_status.code == RustCallStatus.CALL_PANIC:
@@ -280,12 +294,20 @@ def rust_call_with_error(error_ffi_converter, fn, *args):
             msg = "Unknown rust panic"
         raise InternalError(msg)
     else:
-        raise InternalError("Invalid RustCallStatus code: {}".format(
-            call_status.code))
+        raise InternalError("Invalid RustCallStatus code: {}".format(call_status.code))
+
 
 # A function pointer for a callback as defined by UniFFI.
 # Rust definition `fn(handle: u64, method: u32, args: RustBuffer, buf_ptr: *mut RustBuffer) -> int`
-FOREIGN_CALLBACK_T = ctypes.CFUNCTYPE(ctypes.c_int, ctypes.c_ulonglong, ctypes.c_ulong, RustBuffer, ctypes.POINTER(RustBuffer))
+FOREIGN_CALLBACK_T = ctypes.CFUNCTYPE(
+    ctypes.c_int,
+    ctypes.c_ulonglong,
+    ctypes.c_ulong,
+    RustBuffer,
+    ctypes.POINTER(RustBuffer),
+)
+
+
 # Types conforming to `FfiConverterPrimitive` pass themselves directly over the FFI.
 class FfiConverterPrimitive:
     @classmethod
@@ -295,6 +317,7 @@ class FfiConverterPrimitive:
     @classmethod
     def lower(cls, value):
         return value
+
 
 # Helper class for wrapper types that will always go through a RustBuffer.
 # Classes should inherit from this and implement the `read` and `write` static methods.
@@ -310,6 +333,7 @@ class FfiConverterRustBuffer:
             cls.write(value, builder)
             return builder.finalize()
 
+
 # Contains loading, initialization code,
 # and the FFI Function declarations in a com.sun.jna.Library.
 # This is how we find and load the dynamic library provided by the component.
@@ -318,8 +342,6 @@ class FfiConverterRustBuffer:
 # XXX TODO: This will probably grow some magic for resolving megazording in future.
 # E.g. we might start by looking for the named component in `libuniffi.so` and if
 # that fails, fall back to loading it separately from `lib${componentName}.so`.
-
-from pathlib import Path
 
 def loadIndirect():
     if sys.platform == "darwin":
@@ -340,6 +362,7 @@ def loadIndirect():
     lib = libname.format("zklink_sdk")
     path = str(Path(__file__).parent / lib)
     return ctypes.cdll.LoadLibrary(path)
+
 
 # A ctypes library to expose the extern-C FFI definitions.
 # This is an implementation detail which will be called internally by the public API.
@@ -1063,9 +1086,7 @@ _UniFFILib.ffi_zklink_sdk_f180_StarkSigner_object_free.argtypes = (
     ctypes.POINTER(RustCallStatus),
 )
 _UniFFILib.ffi_zklink_sdk_f180_StarkSigner_object_free.restype = None
-_UniFFILib.zklink_sdk_f180_StarkSigner_new.argtypes = (
-    ctypes.POINTER(RustCallStatus),
-)
+_UniFFILib.zklink_sdk_f180_StarkSigner_new.argtypes = (ctypes.POINTER(RustCallStatus),)
 _UniFFILib.zklink_sdk_f180_StarkSigner_new.restype = ctypes.c_void_p
 _UniFFILib.zklink_sdk_f180_StarkSigner_new_from_hex_str.argtypes = (
     RustBuffer,
@@ -1084,9 +1105,7 @@ _UniFFILib.ffi_zklink_sdk_f180_ZkLinkSigner_object_free.argtypes = (
     ctypes.POINTER(RustCallStatus),
 )
 _UniFFILib.ffi_zklink_sdk_f180_ZkLinkSigner_object_free.restype = None
-_UniFFILib.zklink_sdk_f180_ZkLinkSigner_new.argtypes = (
-    ctypes.POINTER(RustCallStatus),
-)
+_UniFFILib.zklink_sdk_f180_ZkLinkSigner_new.argtypes = (ctypes.POINTER(RustCallStatus),)
 _UniFFILib.zklink_sdk_f180_ZkLinkSigner_new.restype = ctypes.c_void_p
 _UniFFILib.zklink_sdk_f180_ZkLinkSigner_new_from_seed.argtypes = (
     RustBuffer,
@@ -1097,14 +1116,18 @@ _UniFFILib.zklink_sdk_f180_ZkLinkSigner_new_from_hex_eth_signer.argtypes = (
     RustBuffer,
     ctypes.POINTER(RustCallStatus),
 )
-_UniFFILib.zklink_sdk_f180_ZkLinkSigner_new_from_hex_eth_signer.restype = ctypes.c_void_p
+_UniFFILib.zklink_sdk_f180_ZkLinkSigner_new_from_hex_eth_signer.restype = (
+    ctypes.c_void_p
+)
 _UniFFILib.zklink_sdk_f180_ZkLinkSigner_new_from_hex_stark_signer.argtypes = (
     RustBuffer,
     RustBuffer,
     RustBuffer,
     ctypes.POINTER(RustCallStatus),
 )
-_UniFFILib.zklink_sdk_f180_ZkLinkSigner_new_from_hex_stark_signer.restype = ctypes.c_void_p
+_UniFFILib.zklink_sdk_f180_ZkLinkSigner_new_from_hex_stark_signer.restype = (
+    ctypes.c_void_p
+)
 _UniFFILib.zklink_sdk_f180_ZkLinkSigner_new_from_bytes.argtypes = (
     RustBuffer,
     ctypes.POINTER(RustCallStatus),
@@ -1138,19 +1161,25 @@ _UniFFILib.zklink_sdk_f180_Signer_sign_change_pubkey_with_create2data_auth.argty
     RustBuffer,
     ctypes.POINTER(RustCallStatus),
 )
-_UniFFILib.zklink_sdk_f180_Signer_sign_change_pubkey_with_create2data_auth.restype = RustBuffer
+_UniFFILib.zklink_sdk_f180_Signer_sign_change_pubkey_with_create2data_auth.restype = (
+    RustBuffer
+)
 _UniFFILib.zklink_sdk_f180_Signer_sign_change_pubkey_with_onchain_auth_data.argtypes = (
     ctypes.c_void_p,
     ctypes.c_void_p,
     ctypes.POINTER(RustCallStatus),
 )
-_UniFFILib.zklink_sdk_f180_Signer_sign_change_pubkey_with_onchain_auth_data.restype = RustBuffer
+_UniFFILib.zklink_sdk_f180_Signer_sign_change_pubkey_with_onchain_auth_data.restype = (
+    RustBuffer
+)
 _UniFFILib.zklink_sdk_f180_Signer_sign_change_pubkey_with_eth_ecdsa_auth.argtypes = (
     ctypes.c_void_p,
     ctypes.c_void_p,
     ctypes.POINTER(RustCallStatus),
 )
-_UniFFILib.zklink_sdk_f180_Signer_sign_change_pubkey_with_eth_ecdsa_auth.restype = RustBuffer
+_UniFFILib.zklink_sdk_f180_Signer_sign_change_pubkey_with_eth_ecdsa_auth.restype = (
+    RustBuffer
+)
 _UniFFILib.zklink_sdk_f180_Signer_sign_transfer.argtypes = (
     ctypes.c_void_p,
     ctypes.c_void_p,
@@ -1271,6 +1300,7 @@ class FfiConverterUInt8(FfiConverterPrimitive):
     def write(value, buf):
         buf.writeU8(value)
 
+
 class FfiConverterUInt16(FfiConverterPrimitive):
     @staticmethod
     def read(buf):
@@ -1279,6 +1309,7 @@ class FfiConverterUInt16(FfiConverterPrimitive):
     @staticmethod
     def write(value, buf):
         buf.writeU16(value)
+
 
 class FfiConverterInt16(FfiConverterPrimitive):
     @staticmethod
@@ -1289,6 +1320,7 @@ class FfiConverterInt16(FfiConverterPrimitive):
     def write(value, buf):
         buf.writeI16(value)
 
+
 class FfiConverterUInt32(FfiConverterPrimitive):
     @staticmethod
     def read(buf):
@@ -1298,6 +1330,7 @@ class FfiConverterUInt32(FfiConverterPrimitive):
     def write(value, buf):
         buf.writeU32(value)
 
+
 class FfiConverterUInt64(FfiConverterPrimitive):
     @staticmethod
     def read(buf):
@@ -1306,6 +1339,7 @@ class FfiConverterUInt64(FfiConverterPrimitive):
     @staticmethod
     def write(value, buf):
         buf.writeU64(value)
+
 
 class FfiConverterBool:
     @classmethod
@@ -1323,6 +1357,7 @@ class FfiConverterBool:
     @staticmethod
     def lower(value):
         return 1 if value else 0
+
 
 class FfiConverterString:
     @staticmethod
@@ -1351,19 +1386,22 @@ class FfiConverterString:
             return builder.finalize()
 
 
-
 class AutoDeleveraging(object):
     def __init__(self, builder):
         builder = builder
-        
-        self._pointer = rust_call(_UniFFILib.zklink_sdk_f180_AutoDeleveraging_new,
-        FfiConverterTypeAutoDeleveragingBuilder.lower(builder))
+
+        self._pointer = rust_call(
+            _UniFFILib.zklink_sdk_f180_AutoDeleveraging_new,
+            FfiConverterTypeAutoDeleveragingBuilder.lower(builder),
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
         pointer = getattr(self, "_pointer", None)
         if pointer is not None:
-            rust_call(_UniFFILib.ffi_zklink_sdk_f180_AutoDeleveraging_object_free, pointer)
+            rust_call(
+                _UniFFILib.ffi_zklink_sdk_f180_AutoDeleveraging_object_free, pointer
+            )
 
     # Used by alternative constructors or any methods which return this type.
     @classmethod
@@ -1374,45 +1412,87 @@ class AutoDeleveraging(object):
         inst._pointer = pointer
         return inst
 
-    
+    def get_bytes(
+        self,
+    ):
+        return FfiConverterSequenceUInt8.lift(
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_AutoDeleveraging_get_bytes,
+                self._pointer,
+            )
+        )
 
-    def get_bytes(self, ):
+    def tx_hash(
+        self,
+    ):
         return FfiConverterSequenceUInt8.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_AutoDeleveraging_get_bytes,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_AutoDeleveraging_tx_hash,
+                self._pointer,
+            )
         )
-    def tx_hash(self, ):
-        return FfiConverterSequenceUInt8.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_AutoDeleveraging_tx_hash,self._pointer,)
-        )
-    def json_str(self, ):
+
+    def json_str(
+        self,
+    ):
         return FfiConverterString.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_AutoDeleveraging_json_str,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_AutoDeleveraging_json_str,
+                self._pointer,
+            )
         )
-    def is_valid(self, ):
+
+    def is_valid(
+        self,
+    ):
         return FfiConverterBool.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_AutoDeleveraging_is_valid,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_AutoDeleveraging_is_valid,
+                self._pointer,
+            )
         )
-    def get_signature(self, ):
+
+    def get_signature(
+        self,
+    ):
         return FfiConverterTypeZkLinkSignature.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_AutoDeleveraging_get_signature,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_AutoDeleveraging_get_signature,
+                self._pointer,
+            )
         )
-    def is_signature_valid(self, ):
+
+    def is_signature_valid(
+        self,
+    ):
         return FfiConverterBool.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_AutoDeleveraging_is_signature_valid,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_AutoDeleveraging_is_signature_valid,
+                self._pointer,
+            )
         )
-    def to_zklink_tx(self, ):
+
+    def to_zklink_tx(
+        self,
+    ):
         return FfiConverterTypeZkLinkTx.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_AutoDeleveraging_to_zklink_tx,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_AutoDeleveraging_to_zklink_tx,
+                self._pointer,
+            )
         )
+
     def create_signed_tx(self, signer):
         signer = signer
-        
+
         return FfiConverterTypeAutoDeleveraging.lift(
             rust_call_with_error(
-    FfiConverterTypeZkSignerError,_UniFFILib.zklink_sdk_f180_AutoDeleveraging_create_signed_tx,self._pointer,
-        FfiConverterTypeZkLinkSigner.lower(signer))
+                FfiConverterTypeZkSignerError,
+                _UniFFILib.zklink_sdk_f180_AutoDeleveraging_create_signed_tx,
+                self._pointer,
+                FfiConverterTypeZkLinkSigner.lower(signer),
+            )
         )
-    
 
 
 class FfiConverterTypeAutoDeleveraging:
@@ -1426,7 +1506,11 @@ class FfiConverterTypeAutoDeleveraging:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, AutoDeleveraging):
-            raise TypeError("Expected AutoDeleveraging instance, {} found".format(value.__class__.__name__))
+            raise TypeError(
+                "Expected AutoDeleveraging instance, {} found".format(
+                    value.__class__.__name__
+                )
+            )
         buf.writeU64(cls.lower(value))
 
     @staticmethod
@@ -1438,13 +1522,14 @@ class FfiConverterTypeAutoDeleveraging:
         return value._pointer
 
 
-
 class ChangePubKey(object):
     def __init__(self, builder):
         builder = builder
-        
-        self._pointer = rust_call(_UniFFILib.zklink_sdk_f180_ChangePubKey_new,
-        FfiConverterTypeChangePubKeyBuilder.lower(builder))
+
+        self._pointer = rust_call(
+            _UniFFILib.zklink_sdk_f180_ChangePubKey_new,
+            FfiConverterTypeChangePubKeyBuilder.lower(builder),
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
@@ -1461,41 +1546,85 @@ class ChangePubKey(object):
         inst._pointer = pointer
         return inst
 
-    
-
-    def get_signature(self, ):
+    def get_signature(
+        self,
+    ):
         return FfiConverterTypeZkLinkSignature.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_ChangePubKey_get_signature,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_ChangePubKey_get_signature,
+                self._pointer,
+            )
         )
-    def get_bytes(self, ):
+
+    def get_bytes(
+        self,
+    ):
         return FfiConverterSequenceUInt8.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_ChangePubKey_get_bytes,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_ChangePubKey_get_bytes,
+                self._pointer,
+            )
         )
-    def tx_hash(self, ):
+
+    def tx_hash(
+        self,
+    ):
         return FfiConverterSequenceUInt8.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_ChangePubKey_tx_hash,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_ChangePubKey_tx_hash,
+                self._pointer,
+            )
         )
-    def json_str(self, ):
+
+    def json_str(
+        self,
+    ):
         return FfiConverterString.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_ChangePubKey_json_str,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_ChangePubKey_json_str,
+                self._pointer,
+            )
         )
-    def is_valid(self, ):
+
+    def is_valid(
+        self,
+    ):
         return FfiConverterBool.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_ChangePubKey_is_valid,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_ChangePubKey_is_valid,
+                self._pointer,
+            )
         )
-    def is_onchain(self, ):
+
+    def is_onchain(
+        self,
+    ):
         return FfiConverterBool.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_ChangePubKey_is_onchain,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_ChangePubKey_is_onchain,
+                self._pointer,
+            )
         )
-    def is_signature_valid(self, ):
+
+    def is_signature_valid(
+        self,
+    ):
         return FfiConverterBool.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_ChangePubKey_is_signature_valid,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_ChangePubKey_is_signature_valid,
+                self._pointer,
+            )
         )
-    def to_zklink_tx(self, ):
+
+    def to_zklink_tx(
+        self,
+    ):
         return FfiConverterTypeZkLinkTx.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_ChangePubKey_to_zklink_tx,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_ChangePubKey_to_zklink_tx,
+                self._pointer,
+            )
         )
-    
 
 
 class FfiConverterTypeChangePubKey:
@@ -1509,7 +1638,11 @@ class FfiConverterTypeChangePubKey:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, ChangePubKey):
-            raise TypeError("Expected ChangePubKey instance, {} found".format(value.__class__.__name__))
+            raise TypeError(
+                "Expected ChangePubKey instance, {} found".format(
+                    value.__class__.__name__
+                )
+            )
         buf.writeU64(cls.lower(value))
 
     @staticmethod
@@ -1521,13 +1654,14 @@ class FfiConverterTypeChangePubKey:
         return value._pointer
 
 
-
 class Contract(object):
     def __init__(self, builder):
         builder = builder
-        
-        self._pointer = rust_call(_UniFFILib.zklink_sdk_f180_Contract_new,
-        FfiConverterTypeContractBuilder.lower(builder))
+
+        self._pointer = rust_call(
+            _UniFFILib.zklink_sdk_f180_Contract_new,
+            FfiConverterTypeContractBuilder.lower(builder),
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
@@ -1544,37 +1678,67 @@ class Contract(object):
         inst._pointer = pointer
         return inst
 
-    
+    def is_long(
+        self,
+    ):
+        return FfiConverterBool.lift(
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Contract_is_long,
+                self._pointer,
+            )
+        )
 
-    def is_long(self, ):
+    def is_short(
+        self,
+    ):
         return FfiConverterBool.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Contract_is_long,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Contract_is_short,
+                self._pointer,
+            )
         )
-    def is_short(self, ):
-        return FfiConverterBool.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Contract_is_short,self._pointer,)
-        )
-    def get_signature(self, ):
+
+    def get_signature(
+        self,
+    ):
         return FfiConverterTypeZkLinkSignature.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Contract_get_signature,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Contract_get_signature,
+                self._pointer,
+            )
         )
-    def is_signature_valid(self, ):
+
+    def is_signature_valid(
+        self,
+    ):
         return FfiConverterBool.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Contract_is_signature_valid,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Contract_is_signature_valid,
+                self._pointer,
+            )
         )
-    def get_bytes(self, ):
+
+    def get_bytes(
+        self,
+    ):
         return FfiConverterSequenceUInt8.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Contract_get_bytes,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Contract_get_bytes,
+                self._pointer,
+            )
         )
+
     def create_signed_contract(self, zklink_signer):
         zklink_signer = zklink_signer
-        
+
         return FfiConverterTypeContract.lift(
             rust_call_with_error(
-    FfiConverterTypeZkSignerError,_UniFFILib.zklink_sdk_f180_Contract_create_signed_contract,self._pointer,
-        FfiConverterTypeZkLinkSigner.lower(zklink_signer))
+                FfiConverterTypeZkSignerError,
+                _UniFFILib.zklink_sdk_f180_Contract_create_signed_contract,
+                self._pointer,
+                FfiConverterTypeZkLinkSigner.lower(zklink_signer),
+            )
         )
-    
 
 
 class FfiConverterTypeContract:
@@ -1588,7 +1752,9 @@ class FfiConverterTypeContract:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, Contract):
-            raise TypeError("Expected Contract instance, {} found".format(value.__class__.__name__))
+            raise TypeError(
+                "Expected Contract instance, {} found".format(value.__class__.__name__)
+            )
         buf.writeU64(cls.lower(value))
 
     @staticmethod
@@ -1600,19 +1766,22 @@ class FfiConverterTypeContract:
         return value._pointer
 
 
-
 class ContractMatching(object):
     def __init__(self, builder):
         builder = builder
-        
-        self._pointer = rust_call(_UniFFILib.zklink_sdk_f180_ContractMatching_new,
-        FfiConverterTypeContractMatchingBuilder.lower(builder))
+
+        self._pointer = rust_call(
+            _UniFFILib.zklink_sdk_f180_ContractMatching_new,
+            FfiConverterTypeContractMatchingBuilder.lower(builder),
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
         pointer = getattr(self, "_pointer", None)
         if pointer is not None:
-            rust_call(_UniFFILib.ffi_zklink_sdk_f180_ContractMatching_object_free, pointer)
+            rust_call(
+                _UniFFILib.ffi_zklink_sdk_f180_ContractMatching_object_free, pointer
+            )
 
     # Used by alternative constructors or any methods which return this type.
     @classmethod
@@ -1623,45 +1792,87 @@ class ContractMatching(object):
         inst._pointer = pointer
         return inst
 
-    
+    def get_bytes(
+        self,
+    ):
+        return FfiConverterSequenceUInt8.lift(
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_ContractMatching_get_bytes,
+                self._pointer,
+            )
+        )
 
-    def get_bytes(self, ):
+    def tx_hash(
+        self,
+    ):
         return FfiConverterSequenceUInt8.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_ContractMatching_get_bytes,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_ContractMatching_tx_hash,
+                self._pointer,
+            )
         )
-    def tx_hash(self, ):
-        return FfiConverterSequenceUInt8.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_ContractMatching_tx_hash,self._pointer,)
-        )
-    def json_str(self, ):
+
+    def json_str(
+        self,
+    ):
         return FfiConverterString.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_ContractMatching_json_str,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_ContractMatching_json_str,
+                self._pointer,
+            )
         )
-    def is_valid(self, ):
+
+    def is_valid(
+        self,
+    ):
         return FfiConverterBool.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_ContractMatching_is_valid,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_ContractMatching_is_valid,
+                self._pointer,
+            )
         )
-    def get_signature(self, ):
+
+    def get_signature(
+        self,
+    ):
         return FfiConverterTypeZkLinkSignature.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_ContractMatching_get_signature,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_ContractMatching_get_signature,
+                self._pointer,
+            )
         )
-    def is_signature_valid(self, ):
+
+    def is_signature_valid(
+        self,
+    ):
         return FfiConverterBool.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_ContractMatching_is_signature_valid,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_ContractMatching_is_signature_valid,
+                self._pointer,
+            )
         )
-    def to_zklink_tx(self, ):
+
+    def to_zklink_tx(
+        self,
+    ):
         return FfiConverterTypeZkLinkTx.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_ContractMatching_to_zklink_tx,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_ContractMatching_to_zklink_tx,
+                self._pointer,
+            )
         )
+
     def create_signed_tx(self, signer):
         signer = signer
-        
+
         return FfiConverterTypeContractMatching.lift(
             rust_call_with_error(
-    FfiConverterTypeZkSignerError,_UniFFILib.zklink_sdk_f180_ContractMatching_create_signed_tx,self._pointer,
-        FfiConverterTypeZkLinkSigner.lower(signer))
+                FfiConverterTypeZkSignerError,
+                _UniFFILib.zklink_sdk_f180_ContractMatching_create_signed_tx,
+                self._pointer,
+                FfiConverterTypeZkLinkSigner.lower(signer),
+            )
         )
-    
 
 
 class FfiConverterTypeContractMatching:
@@ -1675,7 +1886,11 @@ class FfiConverterTypeContractMatching:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, ContractMatching):
-            raise TypeError("Expected ContractMatching instance, {} found".format(value.__class__.__name__))
+            raise TypeError(
+                "Expected ContractMatching instance, {} found".format(
+                    value.__class__.__name__
+                )
+            )
         buf.writeU64(cls.lower(value))
 
     @staticmethod
@@ -1687,13 +1902,14 @@ class FfiConverterTypeContractMatching:
         return value._pointer
 
 
-
 class Deposit(object):
     def __init__(self, builder):
         builder = builder
-        
-        self._pointer = rust_call(_UniFFILib.zklink_sdk_f180_Deposit_new,
-        FfiConverterTypeDepositBuilder.lower(builder))
+
+        self._pointer = rust_call(
+            _UniFFILib.zklink_sdk_f180_Deposit_new,
+            FfiConverterTypeDepositBuilder.lower(builder),
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
@@ -1710,21 +1926,35 @@ class Deposit(object):
         inst._pointer = pointer
         return inst
 
-    
+    def get_bytes(
+        self,
+    ):
+        return FfiConverterSequenceUInt8.lift(
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Deposit_get_bytes,
+                self._pointer,
+            )
+        )
 
-    def get_bytes(self, ):
+    def tx_hash(
+        self,
+    ):
         return FfiConverterSequenceUInt8.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Deposit_get_bytes,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Deposit_tx_hash,
+                self._pointer,
+            )
         )
-    def tx_hash(self, ):
-        return FfiConverterSequenceUInt8.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Deposit_tx_hash,self._pointer,)
-        )
-    def json_str(self, ):
+
+    def json_str(
+        self,
+    ):
         return FfiConverterString.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Deposit_json_str,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Deposit_json_str,
+                self._pointer,
+            )
         )
-    
 
 
 class FfiConverterTypeDeposit:
@@ -1738,7 +1968,9 @@ class FfiConverterTypeDeposit:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, Deposit):
-            raise TypeError("Expected Deposit instance, {} found".format(value.__class__.__name__))
+            raise TypeError(
+                "Expected Deposit instance, {} found".format(value.__class__.__name__)
+            )
         buf.writeU64(cls.lower(value))
 
     @staticmethod
@@ -1750,13 +1982,15 @@ class FfiConverterTypeDeposit:
         return value._pointer
 
 
-
 class EthSigner(object):
     def __init__(self, private_key):
         private_key = private_key
-        
-        self._pointer = rust_call_with_error(FfiConverterTypeEthSignerError,_UniFFILib.zklink_sdk_f180_EthSigner_new,
-        FfiConverterString.lower(private_key))
+
+        self._pointer = rust_call_with_error(
+            FfiConverterTypeEthSignerError,
+            _UniFFILib.zklink_sdk_f180_EthSigner_new,
+            FfiConverterString.lower(private_key),
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
@@ -1773,21 +2007,27 @@ class EthSigner(object):
         inst._pointer = pointer
         return inst
 
-    
-
     def sign_message(self, message):
         message = list(int(x) for x in message)
-        
+
         return FfiConverterTypePackedEthSignature.lift(
             rust_call_with_error(
-    FfiConverterTypeEthSignerError,_UniFFILib.zklink_sdk_f180_EthSigner_sign_message,self._pointer,
-        FfiConverterSequenceUInt8.lower(message))
+                FfiConverterTypeEthSignerError,
+                _UniFFILib.zklink_sdk_f180_EthSigner_sign_message,
+                self._pointer,
+                FfiConverterSequenceUInt8.lower(message),
+            )
         )
-    def get_address(self, ):
+
+    def get_address(
+        self,
+    ):
         return FfiConverterTypeAddress.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_EthSigner_get_address,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_EthSigner_get_address,
+                self._pointer,
+            )
         )
-    
 
 
 class FfiConverterTypeEthSigner:
@@ -1801,7 +2041,9 @@ class FfiConverterTypeEthSigner:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, EthSigner):
-            raise TypeError("Expected EthSigner instance, {} found".format(value.__class__.__name__))
+            raise TypeError(
+                "Expected EthSigner instance, {} found".format(value.__class__.__name__)
+            )
         buf.writeU64(cls.lower(value))
 
     @staticmethod
@@ -1813,13 +2055,14 @@ class FfiConverterTypeEthSigner:
         return value._pointer
 
 
-
 class ForcedExit(object):
     def __init__(self, builder):
         builder = builder
-        
-        self._pointer = rust_call(_UniFFILib.zklink_sdk_f180_ForcedExit_new,
-        FfiConverterTypeForcedExitBuilder.lower(builder))
+
+        self._pointer = rust_call(
+            _UniFFILib.zklink_sdk_f180_ForcedExit_new,
+            FfiConverterTypeForcedExitBuilder.lower(builder),
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
@@ -1836,45 +2079,87 @@ class ForcedExit(object):
         inst._pointer = pointer
         return inst
 
-    
-
-    def get_signature(self, ):
+    def get_signature(
+        self,
+    ):
         return FfiConverterTypeZkLinkSignature.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_ForcedExit_get_signature,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_ForcedExit_get_signature,
+                self._pointer,
+            )
         )
-    def get_bytes(self, ):
+
+    def get_bytes(
+        self,
+    ):
         return FfiConverterSequenceUInt8.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_ForcedExit_get_bytes,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_ForcedExit_get_bytes,
+                self._pointer,
+            )
         )
-    def tx_hash(self, ):
+
+    def tx_hash(
+        self,
+    ):
         return FfiConverterSequenceUInt8.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_ForcedExit_tx_hash,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_ForcedExit_tx_hash,
+                self._pointer,
+            )
         )
-    def json_str(self, ):
+
+    def json_str(
+        self,
+    ):
         return FfiConverterString.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_ForcedExit_json_str,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_ForcedExit_json_str,
+                self._pointer,
+            )
         )
-    def is_valid(self, ):
+
+    def is_valid(
+        self,
+    ):
         return FfiConverterBool.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_ForcedExit_is_valid,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_ForcedExit_is_valid,
+                self._pointer,
+            )
         )
-    def is_signature_valid(self, ):
+
+    def is_signature_valid(
+        self,
+    ):
         return FfiConverterBool.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_ForcedExit_is_signature_valid,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_ForcedExit_is_signature_valid,
+                self._pointer,
+            )
         )
+
     def create_signed_tx(self, signer):
         signer = signer
-        
+
         return FfiConverterTypeForcedExit.lift(
             rust_call_with_error(
-    FfiConverterTypeZkSignerError,_UniFFILib.zklink_sdk_f180_ForcedExit_create_signed_tx,self._pointer,
-        FfiConverterTypeZkLinkSigner.lower(signer))
+                FfiConverterTypeZkSignerError,
+                _UniFFILib.zklink_sdk_f180_ForcedExit_create_signed_tx,
+                self._pointer,
+                FfiConverterTypeZkLinkSigner.lower(signer),
+            )
         )
-    def to_zklink_tx(self, ):
+
+    def to_zklink_tx(
+        self,
+    ):
         return FfiConverterTypeZkLinkTx.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_ForcedExit_to_zklink_tx,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_ForcedExit_to_zklink_tx,
+                self._pointer,
+            )
         )
-    
 
 
 class FfiConverterTypeForcedExit:
@@ -1888,7 +2173,11 @@ class FfiConverterTypeForcedExit:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, ForcedExit):
-            raise TypeError("Expected ForcedExit instance, {} found".format(value.__class__.__name__))
+            raise TypeError(
+                "Expected ForcedExit instance, {} found".format(
+                    value.__class__.__name__
+                )
+            )
         buf.writeU64(cls.lower(value))
 
     @staticmethod
@@ -1900,13 +2189,14 @@ class FfiConverterTypeForcedExit:
         return value._pointer
 
 
-
 class FullExit(object):
     def __init__(self, builder):
         builder = builder
-        
-        self._pointer = rust_call(_UniFFILib.zklink_sdk_f180_FullExit_new,
-        FfiConverterTypeFullExitBuilder.lower(builder))
+
+        self._pointer = rust_call(
+            _UniFFILib.zklink_sdk_f180_FullExit_new,
+            FfiConverterTypeFullExitBuilder.lower(builder),
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
@@ -1923,29 +2213,55 @@ class FullExit(object):
         inst._pointer = pointer
         return inst
 
-    
+    def get_bytes(
+        self,
+    ):
+        return FfiConverterSequenceUInt8.lift(
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_FullExit_get_bytes,
+                self._pointer,
+            )
+        )
 
-    def get_bytes(self, ):
+    def tx_hash(
+        self,
+    ):
         return FfiConverterSequenceUInt8.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_FullExit_get_bytes,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_FullExit_tx_hash,
+                self._pointer,
+            )
         )
-    def tx_hash(self, ):
-        return FfiConverterSequenceUInt8.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_FullExit_tx_hash,self._pointer,)
-        )
-    def json_str(self, ):
+
+    def json_str(
+        self,
+    ):
         return FfiConverterString.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_FullExit_json_str,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_FullExit_json_str,
+                self._pointer,
+            )
         )
-    def is_valid(self, ):
+
+    def is_valid(
+        self,
+    ):
         return FfiConverterBool.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_FullExit_is_valid,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_FullExit_is_valid,
+                self._pointer,
+            )
         )
-    def to_zklink_tx(self, ):
+
+    def to_zklink_tx(
+        self,
+    ):
         return FfiConverterTypeZkLinkTx.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_FullExit_to_zklink_tx,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_FullExit_to_zklink_tx,
+                self._pointer,
+            )
         )
-    
 
 
 class FfiConverterTypeFullExit:
@@ -1959,7 +2275,9 @@ class FfiConverterTypeFullExit:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, FullExit):
-            raise TypeError("Expected FullExit instance, {} found".format(value.__class__.__name__))
+            raise TypeError(
+                "Expected FullExit instance, {} found".format(value.__class__.__name__)
+            )
         buf.writeU64(cls.lower(value))
 
     @staticmethod
@@ -1971,13 +2289,14 @@ class FfiConverterTypeFullExit:
         return value._pointer
 
 
-
 class Funding(object):
     def __init__(self, builder):
         builder = builder
-        
-        self._pointer = rust_call(_UniFFILib.zklink_sdk_f180_Funding_new,
-        FfiConverterTypeFundingBuilder.lower(builder))
+
+        self._pointer = rust_call(
+            _UniFFILib.zklink_sdk_f180_Funding_new,
+            FfiConverterTypeFundingBuilder.lower(builder),
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
@@ -1994,45 +2313,87 @@ class Funding(object):
         inst._pointer = pointer
         return inst
 
-    
+    def get_bytes(
+        self,
+    ):
+        return FfiConverterSequenceUInt8.lift(
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Funding_get_bytes,
+                self._pointer,
+            )
+        )
 
-    def get_bytes(self, ):
+    def tx_hash(
+        self,
+    ):
         return FfiConverterSequenceUInt8.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Funding_get_bytes,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Funding_tx_hash,
+                self._pointer,
+            )
         )
-    def tx_hash(self, ):
-        return FfiConverterSequenceUInt8.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Funding_tx_hash,self._pointer,)
-        )
-    def json_str(self, ):
+
+    def json_str(
+        self,
+    ):
         return FfiConverterString.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Funding_json_str,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Funding_json_str,
+                self._pointer,
+            )
         )
-    def is_valid(self, ):
+
+    def is_valid(
+        self,
+    ):
         return FfiConverterBool.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Funding_is_valid,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Funding_is_valid,
+                self._pointer,
+            )
         )
-    def get_signature(self, ):
+
+    def get_signature(
+        self,
+    ):
         return FfiConverterTypeZkLinkSignature.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Funding_get_signature,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Funding_get_signature,
+                self._pointer,
+            )
         )
-    def is_signature_valid(self, ):
+
+    def is_signature_valid(
+        self,
+    ):
         return FfiConverterBool.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Funding_is_signature_valid,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Funding_is_signature_valid,
+                self._pointer,
+            )
         )
-    def to_zklink_tx(self, ):
+
+    def to_zklink_tx(
+        self,
+    ):
         return FfiConverterTypeZkLinkTx.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Funding_to_zklink_tx,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Funding_to_zklink_tx,
+                self._pointer,
+            )
         )
+
     def create_signed_tx(self, signer):
         signer = signer
-        
+
         return FfiConverterTypeFunding.lift(
             rust_call_with_error(
-    FfiConverterTypeZkSignerError,_UniFFILib.zklink_sdk_f180_Funding_create_signed_tx,self._pointer,
-        FfiConverterTypeZkLinkSigner.lower(signer))
+                FfiConverterTypeZkSignerError,
+                _UniFFILib.zklink_sdk_f180_Funding_create_signed_tx,
+                self._pointer,
+                FfiConverterTypeZkLinkSigner.lower(signer),
+            )
         )
-    
 
 
 class FfiConverterTypeFunding:
@@ -2046,7 +2407,9 @@ class FfiConverterTypeFunding:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, Funding):
-            raise TypeError("Expected Funding instance, {} found".format(value.__class__.__name__))
+            raise TypeError(
+                "Expected Funding instance, {} found".format(value.__class__.__name__)
+            )
         buf.writeU64(cls.lower(value))
 
     @staticmethod
@@ -2058,13 +2421,14 @@ class FfiConverterTypeFunding:
         return value._pointer
 
 
-
 class Liquidation(object):
     def __init__(self, builder):
         builder = builder
-        
-        self._pointer = rust_call(_UniFFILib.zklink_sdk_f180_Liquidation_new,
-        FfiConverterTypeLiquidationBuilder.lower(builder))
+
+        self._pointer = rust_call(
+            _UniFFILib.zklink_sdk_f180_Liquidation_new,
+            FfiConverterTypeLiquidationBuilder.lower(builder),
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
@@ -2081,45 +2445,87 @@ class Liquidation(object):
         inst._pointer = pointer
         return inst
 
-    
+    def get_bytes(
+        self,
+    ):
+        return FfiConverterSequenceUInt8.lift(
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Liquidation_get_bytes,
+                self._pointer,
+            )
+        )
 
-    def get_bytes(self, ):
+    def tx_hash(
+        self,
+    ):
         return FfiConverterSequenceUInt8.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Liquidation_get_bytes,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Liquidation_tx_hash,
+                self._pointer,
+            )
         )
-    def tx_hash(self, ):
-        return FfiConverterSequenceUInt8.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Liquidation_tx_hash,self._pointer,)
-        )
-    def json_str(self, ):
+
+    def json_str(
+        self,
+    ):
         return FfiConverterString.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Liquidation_json_str,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Liquidation_json_str,
+                self._pointer,
+            )
         )
-    def is_valid(self, ):
+
+    def is_valid(
+        self,
+    ):
         return FfiConverterBool.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Liquidation_is_valid,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Liquidation_is_valid,
+                self._pointer,
+            )
         )
-    def get_signature(self, ):
+
+    def get_signature(
+        self,
+    ):
         return FfiConverterTypeZkLinkSignature.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Liquidation_get_signature,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Liquidation_get_signature,
+                self._pointer,
+            )
         )
-    def is_signature_valid(self, ):
+
+    def is_signature_valid(
+        self,
+    ):
         return FfiConverterBool.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Liquidation_is_signature_valid,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Liquidation_is_signature_valid,
+                self._pointer,
+            )
         )
-    def to_zklink_tx(self, ):
+
+    def to_zklink_tx(
+        self,
+    ):
         return FfiConverterTypeZkLinkTx.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Liquidation_to_zklink_tx,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Liquidation_to_zklink_tx,
+                self._pointer,
+            )
         )
+
     def create_signed_tx(self, signer):
         signer = signer
-        
+
         return FfiConverterTypeLiquidation.lift(
             rust_call_with_error(
-    FfiConverterTypeZkSignerError,_UniFFILib.zklink_sdk_f180_Liquidation_create_signed_tx,self._pointer,
-        FfiConverterTypeZkLinkSigner.lower(signer))
+                FfiConverterTypeZkSignerError,
+                _UniFFILib.zklink_sdk_f180_Liquidation_create_signed_tx,
+                self._pointer,
+                FfiConverterTypeZkLinkSigner.lower(signer),
+            )
         )
-    
 
 
 class FfiConverterTypeLiquidation:
@@ -2133,7 +2539,11 @@ class FfiConverterTypeLiquidation:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, Liquidation):
-            raise TypeError("Expected Liquidation instance, {} found".format(value.__class__.__name__))
+            raise TypeError(
+                "Expected Liquidation instance, {} found".format(
+                    value.__class__.__name__
+                )
+            )
         buf.writeU64(cls.lower(value))
 
     @staticmethod
@@ -2145,49 +2555,65 @@ class FfiConverterTypeLiquidation:
         return value._pointer
 
 
-
 class Order(object):
-    def __init__(self, account_id,sub_account_id,slot_id,nonce,base_token_id,quote_token_id,amount,price,is_sell,has_subsidy,maker_fee_rate,taker_fee_rate,signature):
+    def __init__(
+        self,
+        account_id,
+        sub_account_id,
+        slot_id,
+        nonce,
+        base_token_id,
+        quote_token_id,
+        amount,
+        price,
+        is_sell,
+        has_subsidy,
+        maker_fee_rate,
+        taker_fee_rate,
+        signature,
+    ):
         account_id = account_id
-        
+
         sub_account_id = sub_account_id
-        
+
         slot_id = slot_id
-        
+
         nonce = nonce
-        
+
         base_token_id = base_token_id
-        
+
         quote_token_id = quote_token_id
-        
+
         amount = amount
-        
+
         price = price
-        
+
         is_sell = bool(is_sell)
-        
+
         has_subsidy = bool(has_subsidy)
-        
+
         maker_fee_rate = int(maker_fee_rate)
-        
+
         taker_fee_rate = int(taker_fee_rate)
-        
-        signature = (None if signature is None else signature)
-        
-        self._pointer = rust_call(_UniFFILib.zklink_sdk_f180_Order_new,
-        FfiConverterTypeAccountId.lower(account_id),
-        FfiConverterTypeSubAccountId.lower(sub_account_id),
-        FfiConverterTypeSlotId.lower(slot_id),
-        FfiConverterTypeNonce.lower(nonce),
-        FfiConverterTypeTokenId.lower(base_token_id),
-        FfiConverterTypeTokenId.lower(quote_token_id),
-        FfiConverterTypeBigUint.lower(amount),
-        FfiConverterTypeBigUint.lower(price),
-        FfiConverterBool.lower(is_sell),
-        FfiConverterBool.lower(has_subsidy),
-        FfiConverterUInt8.lower(maker_fee_rate),
-        FfiConverterUInt8.lower(taker_fee_rate),
-        FfiConverterOptionalTypeZkLinkSignature.lower(signature))
+
+        signature = None if signature is None else signature
+
+        self._pointer = rust_call(
+            _UniFFILib.zklink_sdk_f180_Order_new,
+            FfiConverterTypeAccountId.lower(account_id),
+            FfiConverterTypeSubAccountId.lower(sub_account_id),
+            FfiConverterTypeSlotId.lower(slot_id),
+            FfiConverterTypeNonce.lower(nonce),
+            FfiConverterTypeTokenId.lower(base_token_id),
+            FfiConverterTypeTokenId.lower(quote_token_id),
+            FfiConverterTypeBigUint.lower(amount),
+            FfiConverterTypeBigUint.lower(price),
+            FfiConverterBool.lower(is_sell),
+            FfiConverterBool.lower(has_subsidy),
+            FfiConverterUInt8.lower(maker_fee_rate),
+            FfiConverterUInt8.lower(taker_fee_rate),
+            FfiConverterOptionalTypeZkLinkSignature.lower(signature),
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
@@ -2204,50 +2630,84 @@ class Order(object):
         inst._pointer = pointer
         return inst
 
-    
-
-    def get_signature(self, ):
+    def get_signature(
+        self,
+    ):
         return FfiConverterTypeZkLinkSignature.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Order_get_signature,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Order_get_signature,
+                self._pointer,
+            )
         )
-    def get_bytes(self, ):
+
+    def get_bytes(
+        self,
+    ):
         return FfiConverterSequenceUInt8.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Order_get_bytes,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Order_get_bytes,
+                self._pointer,
+            )
         )
-    def json_str(self, ):
+
+    def json_str(
+        self,
+    ):
         return FfiConverterString.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Order_json_str,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Order_json_str,
+                self._pointer,
+            )
         )
-    def is_valid(self, ):
+
+    def is_valid(
+        self,
+    ):
         return FfiConverterBool.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Order_is_valid,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Order_is_valid,
+                self._pointer,
+            )
         )
-    def is_signature_valid(self, ):
+
+    def is_signature_valid(
+        self,
+    ):
         return FfiConverterBool.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Order_is_signature_valid,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Order_is_signature_valid,
+                self._pointer,
+            )
         )
-    def get_eth_sign_msg(self, quote_token,based_token,decimals):
+
+    def get_eth_sign_msg(self, quote_token, based_token, decimals):
         quote_token = quote_token
-        
+
         based_token = based_token
-        
+
         decimals = int(decimals)
-        
+
         return FfiConverterString.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Order_get_eth_sign_msg,self._pointer,
-        FfiConverterString.lower(quote_token),
-        FfiConverterString.lower(based_token),
-        FfiConverterUInt8.lower(decimals))
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Order_get_eth_sign_msg,
+                self._pointer,
+                FfiConverterString.lower(quote_token),
+                FfiConverterString.lower(based_token),
+                FfiConverterUInt8.lower(decimals),
+            )
         )
+
     def create_signed_order(self, zklink_signer):
         zklink_signer = zklink_signer
-        
+
         return FfiConverterTypeOrder.lift(
             rust_call_with_error(
-    FfiConverterTypeZkSignerError,_UniFFILib.zklink_sdk_f180_Order_create_signed_order,self._pointer,
-        FfiConverterTypeZkLinkSigner.lower(zklink_signer))
+                FfiConverterTypeZkSignerError,
+                _UniFFILib.zklink_sdk_f180_Order_create_signed_order,
+                self._pointer,
+                FfiConverterTypeZkLinkSigner.lower(zklink_signer),
+            )
         )
-    
 
 
 class FfiConverterTypeOrder:
@@ -2261,7 +2721,9 @@ class FfiConverterTypeOrder:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, Order):
-            raise TypeError("Expected Order instance, {} found".format(value.__class__.__name__))
+            raise TypeError(
+                "Expected Order instance, {} found".format(value.__class__.__name__)
+            )
         buf.writeU64(cls.lower(value))
 
     @staticmethod
@@ -2273,13 +2735,14 @@ class FfiConverterTypeOrder:
         return value._pointer
 
 
-
 class OrderMatching(object):
     def __init__(self, builder):
         builder = builder
-        
-        self._pointer = rust_call(_UniFFILib.zklink_sdk_f180_OrderMatching_new,
-        FfiConverterTypeOrderMatchingBuilder.lower(builder))
+
+        self._pointer = rust_call(
+            _UniFFILib.zklink_sdk_f180_OrderMatching_new,
+            FfiConverterTypeOrderMatchingBuilder.lower(builder),
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
@@ -2296,45 +2759,87 @@ class OrderMatching(object):
         inst._pointer = pointer
         return inst
 
-    
+    def get_bytes(
+        self,
+    ):
+        return FfiConverterSequenceUInt8.lift(
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_OrderMatching_get_bytes,
+                self._pointer,
+            )
+        )
 
-    def get_bytes(self, ):
+    def tx_hash(
+        self,
+    ):
         return FfiConverterSequenceUInt8.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_OrderMatching_get_bytes,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_OrderMatching_tx_hash,
+                self._pointer,
+            )
         )
-    def tx_hash(self, ):
-        return FfiConverterSequenceUInt8.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_OrderMatching_tx_hash,self._pointer,)
-        )
-    def json_str(self, ):
+
+    def json_str(
+        self,
+    ):
         return FfiConverterString.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_OrderMatching_json_str,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_OrderMatching_json_str,
+                self._pointer,
+            )
         )
-    def is_valid(self, ):
+
+    def is_valid(
+        self,
+    ):
         return FfiConverterBool.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_OrderMatching_is_valid,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_OrderMatching_is_valid,
+                self._pointer,
+            )
         )
-    def get_signature(self, ):
+
+    def get_signature(
+        self,
+    ):
         return FfiConverterTypeZkLinkSignature.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_OrderMatching_get_signature,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_OrderMatching_get_signature,
+                self._pointer,
+            )
         )
-    def is_signature_valid(self, ):
+
+    def is_signature_valid(
+        self,
+    ):
         return FfiConverterBool.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_OrderMatching_is_signature_valid,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_OrderMatching_is_signature_valid,
+                self._pointer,
+            )
         )
+
     def create_signed_tx(self, signer):
         signer = signer
-        
+
         return FfiConverterTypeOrderMatching.lift(
             rust_call_with_error(
-    FfiConverterTypeZkSignerError,_UniFFILib.zklink_sdk_f180_OrderMatching_create_signed_tx,self._pointer,
-        FfiConverterTypeZkLinkSigner.lower(signer))
+                FfiConverterTypeZkSignerError,
+                _UniFFILib.zklink_sdk_f180_OrderMatching_create_signed_tx,
+                self._pointer,
+                FfiConverterTypeZkLinkSigner.lower(signer),
+            )
         )
-    def to_zklink_tx(self, ):
+
+    def to_zklink_tx(
+        self,
+    ):
         return FfiConverterTypeZkLinkTx.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_OrderMatching_to_zklink_tx,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_OrderMatching_to_zklink_tx,
+                self._pointer,
+            )
         )
-    
 
 
 class FfiConverterTypeOrderMatching:
@@ -2348,7 +2853,11 @@ class FfiConverterTypeOrderMatching:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, OrderMatching):
-            raise TypeError("Expected OrderMatching instance, {} found".format(value.__class__.__name__))
+            raise TypeError(
+                "Expected OrderMatching instance, {} found".format(
+                    value.__class__.__name__
+                )
+            )
         buf.writeU64(cls.lower(value))
 
     @staticmethod
@@ -2360,16 +2869,18 @@ class FfiConverterTypeOrderMatching:
         return value._pointer
 
 
-
 class Signer(object):
-    def __init__(self, private_key,l1_type):
+    def __init__(self, private_key, l1_type):
         private_key = private_key
-        
+
         l1_type = l1_type
-        
-        self._pointer = rust_call_with_error(FfiConverterTypeSignError,_UniFFILib.zklink_sdk_f180_Signer_new,
-        FfiConverterString.lower(private_key),
-        FfiConverterTypeL1SignerType.lower(l1_type))
+
+        self._pointer = rust_call_with_error(
+            FfiConverterTypeSignError,
+            _UniFFILib.zklink_sdk_f180_Signer_new,
+            FfiConverterString.lower(private_key),
+            FfiConverterTypeL1SignerType.lower(l1_type),
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
@@ -2386,118 +2897,158 @@ class Signer(object):
         inst._pointer = pointer
         return inst
 
-    
-
-    def sign_change_pubkey_with_create2data_auth(self, tx,crate2data):
+    def sign_change_pubkey_with_create2data_auth(self, tx, crate2data):
         tx = tx
-        
+
         crate2data = crate2data
-        
+
         return FfiConverterTypeTxSignature.lift(
             rust_call_with_error(
-    FfiConverterTypeSignError,_UniFFILib.zklink_sdk_f180_Signer_sign_change_pubkey_with_create2data_auth,self._pointer,
-        FfiConverterTypeChangePubKey.lower(tx),
-        FfiConverterTypeCreate2Data.lower(crate2data))
+                FfiConverterTypeSignError,
+                _UniFFILib.zklink_sdk_f180_Signer_sign_change_pubkey_with_create2data_auth,
+                self._pointer,
+                FfiConverterTypeChangePubKey.lower(tx),
+                FfiConverterTypeCreate2Data.lower(crate2data),
+            )
         )
+
     def sign_change_pubkey_with_onchain_auth_data(self, tx):
         tx = tx
-        
+
         return FfiConverterTypeTxSignature.lift(
             rust_call_with_error(
-    FfiConverterTypeSignError,_UniFFILib.zklink_sdk_f180_Signer_sign_change_pubkey_with_onchain_auth_data,self._pointer,
-        FfiConverterTypeChangePubKey.lower(tx))
+                FfiConverterTypeSignError,
+                _UniFFILib.zklink_sdk_f180_Signer_sign_change_pubkey_with_onchain_auth_data,
+                self._pointer,
+                FfiConverterTypeChangePubKey.lower(tx),
+            )
         )
+
     def sign_change_pubkey_with_eth_ecdsa_auth(self, tx):
         tx = tx
-        
+
         return FfiConverterTypeTxSignature.lift(
             rust_call_with_error(
-    FfiConverterTypeSignError,_UniFFILib.zklink_sdk_f180_Signer_sign_change_pubkey_with_eth_ecdsa_auth,self._pointer,
-        FfiConverterTypeChangePubKey.lower(tx))
+                FfiConverterTypeSignError,
+                _UniFFILib.zklink_sdk_f180_Signer_sign_change_pubkey_with_eth_ecdsa_auth,
+                self._pointer,
+                FfiConverterTypeChangePubKey.lower(tx),
+            )
         )
-    def sign_transfer(self, tx,token_sybmol,chain_id,addr):
+
+    def sign_transfer(self, tx, token_sybmol, chain_id, addr):
         tx = tx
-        
+
         token_sybmol = token_sybmol
-        
-        chain_id = (None if chain_id is None else chain_id)
-        
-        addr = (None if addr is None else addr)
-        
+
+        chain_id = None if chain_id is None else chain_id
+
+        addr = None if addr is None else addr
+
         return FfiConverterTypeTxSignature.lift(
             rust_call_with_error(
-    FfiConverterTypeSignError,_UniFFILib.zklink_sdk_f180_Signer_sign_transfer,self._pointer,
-        FfiConverterTypeTransfer.lower(tx),
-        FfiConverterString.lower(token_sybmol),
-        FfiConverterOptionalString.lower(chain_id),
-        FfiConverterOptionalString.lower(addr))
+                FfiConverterTypeSignError,
+                _UniFFILib.zklink_sdk_f180_Signer_sign_transfer,
+                self._pointer,
+                FfiConverterTypeTransfer.lower(tx),
+                FfiConverterString.lower(token_sybmol),
+                FfiConverterOptionalString.lower(chain_id),
+                FfiConverterOptionalString.lower(addr),
+            )
         )
-    def sign_withdraw(self, tx,l2_source_token_symbol,chain_id,addr):
+
+    def sign_withdraw(self, tx, l2_source_token_symbol, chain_id, addr):
         tx = tx
-        
+
         l2_source_token_symbol = l2_source_token_symbol
-        
-        chain_id = (None if chain_id is None else chain_id)
-        
-        addr = (None if addr is None else addr)
-        
+
+        chain_id = None if chain_id is None else chain_id
+
+        addr = None if addr is None else addr
+
         return FfiConverterTypeTxSignature.lift(
             rust_call_with_error(
-    FfiConverterTypeSignError,_UniFFILib.zklink_sdk_f180_Signer_sign_withdraw,self._pointer,
-        FfiConverterTypeWithdraw.lower(tx),
-        FfiConverterString.lower(l2_source_token_symbol),
-        FfiConverterOptionalString.lower(chain_id),
-        FfiConverterOptionalString.lower(addr))
+                FfiConverterTypeSignError,
+                _UniFFILib.zklink_sdk_f180_Signer_sign_withdraw,
+                self._pointer,
+                FfiConverterTypeWithdraw.lower(tx),
+                FfiConverterString.lower(l2_source_token_symbol),
+                FfiConverterOptionalString.lower(chain_id),
+                FfiConverterOptionalString.lower(addr),
+            )
         )
+
     def sign_forced_exit(self, tx):
         tx = tx
-        
+
         return FfiConverterTypeTxSignature.lift(
             rust_call_with_error(
-    FfiConverterTypeSignError,_UniFFILib.zklink_sdk_f180_Signer_sign_forced_exit,self._pointer,
-        FfiConverterTypeForcedExit.lower(tx))
+                FfiConverterTypeSignError,
+                _UniFFILib.zklink_sdk_f180_Signer_sign_forced_exit,
+                self._pointer,
+                FfiConverterTypeForcedExit.lower(tx),
+            )
         )
+
     def sign_order_matching(self, tx):
         tx = tx
-        
+
         return FfiConverterTypeTxSignature.lift(
             rust_call_with_error(
-    FfiConverterTypeSignError,_UniFFILib.zklink_sdk_f180_Signer_sign_order_matching,self._pointer,
-        FfiConverterTypeOrderMatching.lower(tx))
+                FfiConverterTypeSignError,
+                _UniFFILib.zklink_sdk_f180_Signer_sign_order_matching,
+                self._pointer,
+                FfiConverterTypeOrderMatching.lower(tx),
+            )
         )
+
     def sign_contract_matching(self, tx):
         tx = tx
-        
+
         return FfiConverterTypeTxSignature.lift(
             rust_call_with_error(
-    FfiConverterTypeSignError,_UniFFILib.zklink_sdk_f180_Signer_sign_contract_matching,self._pointer,
-        FfiConverterTypeContractMatching.lower(tx))
+                FfiConverterTypeSignError,
+                _UniFFILib.zklink_sdk_f180_Signer_sign_contract_matching,
+                self._pointer,
+                FfiConverterTypeContractMatching.lower(tx),
+            )
         )
+
     def sign_funding(self, tx):
         tx = tx
-        
+
         return FfiConverterTypeTxSignature.lift(
             rust_call_with_error(
-    FfiConverterTypeSignError,_UniFFILib.zklink_sdk_f180_Signer_sign_funding,self._pointer,
-        FfiConverterTypeFunding.lower(tx))
+                FfiConverterTypeSignError,
+                _UniFFILib.zklink_sdk_f180_Signer_sign_funding,
+                self._pointer,
+                FfiConverterTypeFunding.lower(tx),
+            )
         )
+
     def sign_liquidation(self, tx):
         tx = tx
-        
+
         return FfiConverterTypeTxSignature.lift(
             rust_call_with_error(
-    FfiConverterTypeSignError,_UniFFILib.zklink_sdk_f180_Signer_sign_liquidation,self._pointer,
-        FfiConverterTypeLiquidation.lower(tx))
+                FfiConverterTypeSignError,
+                _UniFFILib.zklink_sdk_f180_Signer_sign_liquidation,
+                self._pointer,
+                FfiConverterTypeLiquidation.lower(tx),
+            )
         )
+
     def sign_auto_deleveraging(self, tx):
         tx = tx
-        
+
         return FfiConverterTypeTxSignature.lift(
             rust_call_with_error(
-    FfiConverterTypeSignError,_UniFFILib.zklink_sdk_f180_Signer_sign_auto_deleveraging,self._pointer,
-        FfiConverterTypeAutoDeleveraging.lower(tx))
+                FfiConverterTypeSignError,
+                _UniFFILib.zklink_sdk_f180_Signer_sign_auto_deleveraging,
+                self._pointer,
+                FfiConverterTypeAutoDeleveraging.lower(tx),
+            )
         )
-    
 
 
 class FfiConverterTypeSigner:
@@ -2511,7 +3062,9 @@ class FfiConverterTypeSigner:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, Signer):
-            raise TypeError("Expected Signer instance, {} found".format(value.__class__.__name__))
+            raise TypeError(
+                "Expected Signer instance, {} found".format(value.__class__.__name__)
+            )
         buf.writeU64(cls.lower(value))
 
     @staticmethod
@@ -2523,10 +3076,13 @@ class FfiConverterTypeSigner:
         return value._pointer
 
 
-
 class StarkSigner(object):
-    def __init__(self, ):
-        self._pointer = rust_call(_UniFFILib.zklink_sdk_f180_StarkSigner_new,)
+    def __init__(
+        self,
+    ):
+        self._pointer = rust_call(
+            _UniFFILib.zklink_sdk_f180_StarkSigner_new,
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
@@ -2546,25 +3102,29 @@ class StarkSigner(object):
     @classmethod
     def new_from_hex_str(cls, hex_str):
         hex_str = hex_str
-        
-        # Call the (fallible) function before creating any half-baked object instances.
-        pointer = rust_call_with_error(FfiConverterTypeStarkSignerError,_UniFFILib.zklink_sdk_f180_StarkSigner_new_from_hex_str,
-        FfiConverterString.lower(hex_str))
-        return cls._make_instance_(pointer)
-    
 
-    def sign_message(self, typed_data,addr):
+        # Call the (fallible) function before creating any half-baked object instances.
+        pointer = rust_call_with_error(
+            FfiConverterTypeStarkSignerError,
+            _UniFFILib.zklink_sdk_f180_StarkSigner_new_from_hex_str,
+            FfiConverterString.lower(hex_str),
+        )
+        return cls._make_instance_(pointer)
+
+    def sign_message(self, typed_data, addr):
         typed_data = typed_data
-        
+
         addr = addr
-        
+
         return FfiConverterTypeStarkEip712Signature.lift(
             rust_call_with_error(
-    FfiConverterTypeStarkSignerError,_UniFFILib.zklink_sdk_f180_StarkSigner_sign_message,self._pointer,
-        FfiConverterTypeTypedData.lower(typed_data),
-        FfiConverterString.lower(addr))
+                FfiConverterTypeStarkSignerError,
+                _UniFFILib.zklink_sdk_f180_StarkSigner_sign_message,
+                self._pointer,
+                FfiConverterTypeTypedData.lower(typed_data),
+                FfiConverterString.lower(addr),
+            )
         )
-    
 
 
 class FfiConverterTypeStarkSigner:
@@ -2578,7 +3138,11 @@ class FfiConverterTypeStarkSigner:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, StarkSigner):
-            raise TypeError("Expected StarkSigner instance, {} found".format(value.__class__.__name__))
+            raise TypeError(
+                "Expected StarkSigner instance, {} found".format(
+                    value.__class__.__name__
+                )
+            )
         buf.writeU64(cls.lower(value))
 
     @staticmethod
@@ -2590,13 +3154,14 @@ class FfiConverterTypeStarkSigner:
         return value._pointer
 
 
-
 class Transfer(object):
     def __init__(self, builder):
         builder = builder
-        
-        self._pointer = rust_call(_UniFFILib.zklink_sdk_f180_Transfer_new,
-        FfiConverterTypeTransferBuilder.lower(builder))
+
+        self._pointer = rust_call(
+            _UniFFILib.zklink_sdk_f180_Transfer_new,
+            FfiConverterTypeTransferBuilder.lower(builder),
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
@@ -2613,63 +3178,113 @@ class Transfer(object):
         inst._pointer = pointer
         return inst
 
-    
-
-    def get_signature(self, ):
+    def get_signature(
+        self,
+    ):
         return FfiConverterTypeZkLinkSignature.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Transfer_get_signature,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Transfer_get_signature,
+                self._pointer,
+            )
         )
-    def get_bytes(self, ):
+
+    def get_bytes(
+        self,
+    ):
         return FfiConverterSequenceUInt8.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Transfer_get_bytes,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Transfer_get_bytes,
+                self._pointer,
+            )
         )
-    def tx_hash(self, ):
+
+    def tx_hash(
+        self,
+    ):
         return FfiConverterSequenceUInt8.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Transfer_tx_hash,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Transfer_tx_hash,
+                self._pointer,
+            )
         )
-    def json_str(self, ):
+
+    def json_str(
+        self,
+    ):
         return FfiConverterString.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Transfer_json_str,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Transfer_json_str,
+                self._pointer,
+            )
         )
-    def is_valid(self, ):
+
+    def is_valid(
+        self,
+    ):
         return FfiConverterBool.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Transfer_is_valid,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Transfer_is_valid,
+                self._pointer,
+            )
         )
-    def is_signature_valid(self, ):
+
+    def is_signature_valid(
+        self,
+    ):
         return FfiConverterBool.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Transfer_is_signature_valid,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Transfer_is_signature_valid,
+                self._pointer,
+            )
         )
+
     def get_eth_sign_msg(self, token_symbol):
         token_symbol = token_symbol
-        
+
         return FfiConverterString.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Transfer_get_eth_sign_msg,self._pointer,
-        FfiConverterString.lower(token_symbol))
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Transfer_get_eth_sign_msg,
+                self._pointer,
+                FfiConverterString.lower(token_symbol),
+            )
         )
-    def eth_signature(self, eth_signer,token_symbol):
+
+    def eth_signature(self, eth_signer, token_symbol):
         eth_signer = eth_signer
-        
+
         token_symbol = token_symbol
-        
+
         return FfiConverterTypeTxLayer1Signature.lift(
             rust_call_with_error(
-    FfiConverterTypeZkSignerError,_UniFFILib.zklink_sdk_f180_Transfer_eth_signature,self._pointer,
-        FfiConverterTypeEthSigner.lower(eth_signer),
-        FfiConverterString.lower(token_symbol))
+                FfiConverterTypeZkSignerError,
+                _UniFFILib.zklink_sdk_f180_Transfer_eth_signature,
+                self._pointer,
+                FfiConverterTypeEthSigner.lower(eth_signer),
+                FfiConverterString.lower(token_symbol),
+            )
         )
+
     def create_signed_tx(self, signer):
         signer = signer
-        
+
         return FfiConverterTypeTransfer.lift(
             rust_call_with_error(
-    FfiConverterTypeZkSignerError,_UniFFILib.zklink_sdk_f180_Transfer_create_signed_tx,self._pointer,
-        FfiConverterTypeZkLinkSigner.lower(signer))
+                FfiConverterTypeZkSignerError,
+                _UniFFILib.zklink_sdk_f180_Transfer_create_signed_tx,
+                self._pointer,
+                FfiConverterTypeZkLinkSigner.lower(signer),
+            )
         )
-    def to_zklink_tx(self, ):
+
+    def to_zklink_tx(
+        self,
+    ):
         return FfiConverterTypeZkLinkTx.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Transfer_to_zklink_tx,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Transfer_to_zklink_tx,
+                self._pointer,
+            )
         )
-    
 
 
 class FfiConverterTypeTransfer:
@@ -2683,7 +3298,9 @@ class FfiConverterTypeTransfer:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, Transfer):
-            raise TypeError("Expected Transfer instance, {} found".format(value.__class__.__name__))
+            raise TypeError(
+                "Expected Transfer instance, {} found".format(value.__class__.__name__)
+            )
         buf.writeU64(cls.lower(value))
 
     @staticmethod
@@ -2695,16 +3312,17 @@ class FfiConverterTypeTransfer:
         return value._pointer
 
 
-
 class TypedData(object):
-    def __init__(self, message,chain_id):
+    def __init__(self, message, chain_id):
         message = message
-        
+
         chain_id = chain_id
-        
-        self._pointer = rust_call(_UniFFILib.zklink_sdk_f180_TypedData_new,
-        FfiConverterTypeTypedDataMessage.lower(message),
-        FfiConverterString.lower(chain_id))
+
+        self._pointer = rust_call(
+            _UniFFILib.zklink_sdk_f180_TypedData_new,
+            FfiConverterTypeTypedDataMessage.lower(message),
+            FfiConverterString.lower(chain_id),
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
@@ -2721,10 +3339,6 @@ class TypedData(object):
         inst._pointer = pointer
         return inst
 
-    
-
-    
-
 
 class FfiConverterTypeTypedData:
     @classmethod
@@ -2737,7 +3351,9 @@ class FfiConverterTypeTypedData:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, TypedData):
-            raise TypeError("Expected TypedData instance, {} found".format(value.__class__.__name__))
+            raise TypeError(
+                "Expected TypedData instance, {} found".format(value.__class__.__name__)
+            )
         buf.writeU64(cls.lower(value))
 
     @staticmethod
@@ -2749,19 +3365,22 @@ class FfiConverterTypeTypedData:
         return value._pointer
 
 
-
 class UpdateGlobalVar(object):
     def __init__(self, builder):
         builder = builder
-        
-        self._pointer = rust_call(_UniFFILib.zklink_sdk_f180_UpdateGlobalVar_new,
-        FfiConverterTypeUpdateGlobalVarBuilder.lower(builder))
+
+        self._pointer = rust_call(
+            _UniFFILib.zklink_sdk_f180_UpdateGlobalVar_new,
+            FfiConverterTypeUpdateGlobalVarBuilder.lower(builder),
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
         pointer = getattr(self, "_pointer", None)
         if pointer is not None:
-            rust_call(_UniFFILib.ffi_zklink_sdk_f180_UpdateGlobalVar_object_free, pointer)
+            rust_call(
+                _UniFFILib.ffi_zklink_sdk_f180_UpdateGlobalVar_object_free, pointer
+            )
 
     # Used by alternative constructors or any methods which return this type.
     @classmethod
@@ -2772,29 +3391,55 @@ class UpdateGlobalVar(object):
         inst._pointer = pointer
         return inst
 
-    
+    def get_bytes(
+        self,
+    ):
+        return FfiConverterSequenceUInt8.lift(
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_UpdateGlobalVar_get_bytes,
+                self._pointer,
+            )
+        )
 
-    def get_bytes(self, ):
+    def tx_hash(
+        self,
+    ):
         return FfiConverterSequenceUInt8.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_UpdateGlobalVar_get_bytes,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_UpdateGlobalVar_tx_hash,
+                self._pointer,
+            )
         )
-    def tx_hash(self, ):
-        return FfiConverterSequenceUInt8.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_UpdateGlobalVar_tx_hash,self._pointer,)
-        )
-    def json_str(self, ):
+
+    def json_str(
+        self,
+    ):
         return FfiConverterString.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_UpdateGlobalVar_json_str,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_UpdateGlobalVar_json_str,
+                self._pointer,
+            )
         )
-    def is_valid(self, ):
+
+    def is_valid(
+        self,
+    ):
         return FfiConverterBool.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_UpdateGlobalVar_is_valid,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_UpdateGlobalVar_is_valid,
+                self._pointer,
+            )
         )
-    def to_zklink_tx(self, ):
+
+    def to_zklink_tx(
+        self,
+    ):
         return FfiConverterTypeZkLinkTx.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_UpdateGlobalVar_to_zklink_tx,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_UpdateGlobalVar_to_zklink_tx,
+                self._pointer,
+            )
         )
-    
 
 
 class FfiConverterTypeUpdateGlobalVar:
@@ -2808,7 +3453,11 @@ class FfiConverterTypeUpdateGlobalVar:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, UpdateGlobalVar):
-            raise TypeError("Expected UpdateGlobalVar instance, {} found".format(value.__class__.__name__))
+            raise TypeError(
+                "Expected UpdateGlobalVar instance, {} found".format(
+                    value.__class__.__name__
+                )
+            )
         buf.writeU64(cls.lower(value))
 
     @staticmethod
@@ -2820,13 +3469,14 @@ class FfiConverterTypeUpdateGlobalVar:
         return value._pointer
 
 
-
 class Withdraw(object):
     def __init__(self, builder):
         builder = builder
-        
-        self._pointer = rust_call(_UniFFILib.zklink_sdk_f180_Withdraw_new,
-        FfiConverterTypeWithdrawBuilder.lower(builder))
+
+        self._pointer = rust_call(
+            _UniFFILib.zklink_sdk_f180_Withdraw_new,
+            FfiConverterTypeWithdrawBuilder.lower(builder),
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
@@ -2843,63 +3493,113 @@ class Withdraw(object):
         inst._pointer = pointer
         return inst
 
-    
-
-    def get_signature(self, ):
+    def get_signature(
+        self,
+    ):
         return FfiConverterTypeZkLinkSignature.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Withdraw_get_signature,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Withdraw_get_signature,
+                self._pointer,
+            )
         )
-    def get_bytes(self, ):
+
+    def get_bytes(
+        self,
+    ):
         return FfiConverterSequenceUInt8.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Withdraw_get_bytes,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Withdraw_get_bytes,
+                self._pointer,
+            )
         )
-    def tx_hash(self, ):
+
+    def tx_hash(
+        self,
+    ):
         return FfiConverterSequenceUInt8.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Withdraw_tx_hash,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Withdraw_tx_hash,
+                self._pointer,
+            )
         )
-    def json_str(self, ):
+
+    def json_str(
+        self,
+    ):
         return FfiConverterString.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Withdraw_json_str,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Withdraw_json_str,
+                self._pointer,
+            )
         )
-    def is_valid(self, ):
+
+    def is_valid(
+        self,
+    ):
         return FfiConverterBool.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Withdraw_is_valid,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Withdraw_is_valid,
+                self._pointer,
+            )
         )
-    def is_signature_valid(self, ):
+
+    def is_signature_valid(
+        self,
+    ):
         return FfiConverterBool.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Withdraw_is_signature_valid,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Withdraw_is_signature_valid,
+                self._pointer,
+            )
         )
+
     def get_eth_sign_msg(self, token_symbol):
         token_symbol = token_symbol
-        
+
         return FfiConverterString.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Withdraw_get_eth_sign_msg,self._pointer,
-        FfiConverterString.lower(token_symbol))
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Withdraw_get_eth_sign_msg,
+                self._pointer,
+                FfiConverterString.lower(token_symbol),
+            )
         )
-    def eth_signature(self, eth_signer,l2_source_token_symbol):
+
+    def eth_signature(self, eth_signer, l2_source_token_symbol):
         eth_signer = eth_signer
-        
+
         l2_source_token_symbol = l2_source_token_symbol
-        
+
         return FfiConverterTypePackedEthSignature.lift(
             rust_call_with_error(
-    FfiConverterTypeZkSignerError,_UniFFILib.zklink_sdk_f180_Withdraw_eth_signature,self._pointer,
-        FfiConverterTypeEthSigner.lower(eth_signer),
-        FfiConverterString.lower(l2_source_token_symbol))
+                FfiConverterTypeZkSignerError,
+                _UniFFILib.zklink_sdk_f180_Withdraw_eth_signature,
+                self._pointer,
+                FfiConverterTypeEthSigner.lower(eth_signer),
+                FfiConverterString.lower(l2_source_token_symbol),
+            )
         )
+
     def create_signed_tx(self, signer):
         signer = signer
-        
+
         return FfiConverterTypeWithdraw.lift(
             rust_call_with_error(
-    FfiConverterTypeZkSignerError,_UniFFILib.zklink_sdk_f180_Withdraw_create_signed_tx,self._pointer,
-        FfiConverterTypeZkLinkSigner.lower(signer))
+                FfiConverterTypeZkSignerError,
+                _UniFFILib.zklink_sdk_f180_Withdraw_create_signed_tx,
+                self._pointer,
+                FfiConverterTypeZkLinkSigner.lower(signer),
+            )
         )
-    def to_zklink_tx(self, ):
+
+    def to_zklink_tx(
+        self,
+    ):
         return FfiConverterTypeZkLinkTx.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_Withdraw_to_zklink_tx,self._pointer,)
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_Withdraw_to_zklink_tx,
+                self._pointer,
+            )
         )
-    
 
 
 class FfiConverterTypeWithdraw:
@@ -2913,7 +3613,9 @@ class FfiConverterTypeWithdraw:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, Withdraw):
-            raise TypeError("Expected Withdraw instance, {} found".format(value.__class__.__name__))
+            raise TypeError(
+                "Expected Withdraw instance, {} found".format(value.__class__.__name__)
+            )
         buf.writeU64(cls.lower(value))
 
     @staticmethod
@@ -2925,10 +3627,14 @@ class FfiConverterTypeWithdraw:
         return value._pointer
 
 
-
 class ZkLinkSigner(object):
-    def __init__(self, ):
-        self._pointer = rust_call_with_error(FfiConverterTypeZkSignerError,_UniFFILib.zklink_sdk_f180_ZkLinkSigner_new,)
+    def __init__(
+        self,
+    ):
+        self._pointer = rust_call_with_error(
+            FfiConverterTypeZkSignerError,
+            _UniFFILib.zklink_sdk_f180_ZkLinkSigner_new,
+        )
 
     def __del__(self):
         # In case of partial initialization of instances.
@@ -2948,56 +3654,78 @@ class ZkLinkSigner(object):
     @classmethod
     def new_from_seed(cls, seed):
         seed = list(int(x) for x in seed)
-        
+
         # Call the (fallible) function before creating any half-baked object instances.
-        pointer = rust_call_with_error(FfiConverterTypeZkSignerError,_UniFFILib.zklink_sdk_f180_ZkLinkSigner_new_from_seed,
-        FfiConverterSequenceUInt8.lower(seed))
+        pointer = rust_call_with_error(
+            FfiConverterTypeZkSignerError,
+            _UniFFILib.zklink_sdk_f180_ZkLinkSigner_new_from_seed,
+            FfiConverterSequenceUInt8.lower(seed),
+        )
         return cls._make_instance_(pointer)
+
     @classmethod
     def new_from_hex_eth_signer(cls, eth_hex_private_key):
         eth_hex_private_key = eth_hex_private_key
-        
+
         # Call the (fallible) function before creating any half-baked object instances.
-        pointer = rust_call_with_error(FfiConverterTypeZkSignerError,_UniFFILib.zklink_sdk_f180_ZkLinkSigner_new_from_hex_eth_signer,
-        FfiConverterString.lower(eth_hex_private_key))
+        pointer = rust_call_with_error(
+            FfiConverterTypeZkSignerError,
+            _UniFFILib.zklink_sdk_f180_ZkLinkSigner_new_from_hex_eth_signer,
+            FfiConverterString.lower(eth_hex_private_key),
+        )
         return cls._make_instance_(pointer)
+
     @classmethod
-    def new_from_hex_stark_signer(cls, hex_private_key,addr,chain_id):
+    def new_from_hex_stark_signer(cls, hex_private_key, addr, chain_id):
         hex_private_key = hex_private_key
-        
+
         addr = addr
-        
+
         chain_id = chain_id
-        
+
         # Call the (fallible) function before creating any half-baked object instances.
-        pointer = rust_call_with_error(FfiConverterTypeZkSignerError,_UniFFILib.zklink_sdk_f180_ZkLinkSigner_new_from_hex_stark_signer,
-        FfiConverterString.lower(hex_private_key),
-        FfiConverterString.lower(addr),
-        FfiConverterString.lower(chain_id))
+        pointer = rust_call_with_error(
+            FfiConverterTypeZkSignerError,
+            _UniFFILib.zklink_sdk_f180_ZkLinkSigner_new_from_hex_stark_signer,
+            FfiConverterString.lower(hex_private_key),
+            FfiConverterString.lower(addr),
+            FfiConverterString.lower(chain_id),
+        )
         return cls._make_instance_(pointer)
+
     @classmethod
     def new_from_bytes(cls, slice):
         slice = list(int(x) for x in slice)
-        
-        # Call the (fallible) function before creating any half-baked object instances.
-        pointer = rust_call_with_error(FfiConverterTypeZkSignerError,_UniFFILib.zklink_sdk_f180_ZkLinkSigner_new_from_bytes,
-        FfiConverterSequenceUInt8.lower(slice))
-        return cls._make_instance_(pointer)
-    
 
-    def public_key(self, ):
-        return FfiConverterTypePackedPublicKey.lift(
-            rust_call(_UniFFILib.zklink_sdk_f180_ZkLinkSigner_public_key,self._pointer,)
+        # Call the (fallible) function before creating any half-baked object instances.
+        pointer = rust_call_with_error(
+            FfiConverterTypeZkSignerError,
+            _UniFFILib.zklink_sdk_f180_ZkLinkSigner_new_from_bytes,
+            FfiConverterSequenceUInt8.lower(slice),
         )
+        return cls._make_instance_(pointer)
+
+    def public_key(
+        self,
+    ):
+        return FfiConverterTypePackedPublicKey.lift(
+            rust_call(
+                _UniFFILib.zklink_sdk_f180_ZkLinkSigner_public_key,
+                self._pointer,
+            )
+        )
+
     def sign_musig(self, msg):
         msg = list(int(x) for x in msg)
-        
+
         return FfiConverterTypeZkLinkSignature.lift(
             rust_call_with_error(
-    FfiConverterTypeZkSignerError,_UniFFILib.zklink_sdk_f180_ZkLinkSigner_sign_musig,self._pointer,
-        FfiConverterSequenceUInt8.lower(msg))
+                FfiConverterTypeZkSignerError,
+                _UniFFILib.zklink_sdk_f180_ZkLinkSigner_sign_musig,
+                self._pointer,
+                FfiConverterSequenceUInt8.lower(msg),
+            )
         )
-    
 
 
 class FfiConverterTypeZkLinkSigner:
@@ -3011,7 +3739,11 @@ class FfiConverterTypeZkLinkSigner:
     @classmethod
     def write(cls, value, buf):
         if not isinstance(value, ZkLinkSigner):
-            raise TypeError("Expected ZkLinkSigner instance, {} found".format(value.__class__.__name__))
+            raise TypeError(
+                "Expected ZkLinkSigner instance, {} found".format(
+                    value.__class__.__name__
+                )
+            )
         buf.writeU64(cls.lower(value))
 
     @staticmethod
@@ -3025,7 +3757,20 @@ class FfiConverterTypeZkLinkSigner:
 
 class AutoDeleveragingBuilder:
 
-    def __init__(self, account_id, sub_account_id, sub_account_nonce, contract_prices, margin_prices, adl_account_id, pair_id, adl_size, adl_price, fee, fee_token):
+    def __init__(
+        self,
+        account_id,
+        sub_account_id,
+        sub_account_nonce,
+        contract_prices,
+        margin_prices,
+        adl_account_id,
+        pair_id,
+        adl_size,
+        adl_price,
+        fee,
+        fee_token,
+    ):
         self.account_id = account_id
         self.sub_account_id = sub_account_id
         self.sub_account_nonce = sub_account_nonce
@@ -3039,7 +3784,19 @@ class AutoDeleveragingBuilder:
         self.fee_token = fee_token
 
     def __str__(self):
-        return "AutoDeleveragingBuilder(account_id={}, sub_account_id={}, sub_account_nonce={}, contract_prices={}, margin_prices={}, adl_account_id={}, pair_id={}, adl_size={}, adl_price={}, fee={}, fee_token={})".format(self.account_id, self.sub_account_id, self.sub_account_nonce, self.contract_prices, self.margin_prices, self.adl_account_id, self.pair_id, self.adl_size, self.adl_price, self.fee, self.fee_token)
+        return "AutoDeleveragingBuilder(account_id={}, sub_account_id={}, sub_account_nonce={}, contract_prices={}, margin_prices={}, adl_account_id={}, pair_id={}, adl_size={}, adl_price={}, fee={}, fee_token={})".format(
+            self.account_id,
+            self.sub_account_id,
+            self.sub_account_nonce,
+            self.contract_prices,
+            self.margin_prices,
+            self.adl_account_id,
+            self.pair_id,
+            self.adl_size,
+            self.adl_price,
+            self.fee,
+            self.fee_token,
+        )
 
     def __eq__(self, other):
         if self.account_id != other.account_id:
@@ -3065,6 +3822,7 @@ class AutoDeleveragingBuilder:
         if self.fee_token != other.fee_token:
             return False
         return True
+
 
 class FfiConverterTypeAutoDeleveragingBuilder(FfiConverterRustBuffer):
     @staticmethod
@@ -3100,7 +3858,18 @@ class FfiConverterTypeAutoDeleveragingBuilder(FfiConverterRustBuffer):
 
 class ChangePubKeyBuilder:
 
-    def __init__(self, chain_id, account_id, sub_account_id, new_pubkey_hash, fee_token, fee, nonce, eth_signature, timestamp):
+    def __init__(
+        self,
+        chain_id,
+        account_id,
+        sub_account_id,
+        new_pubkey_hash,
+        fee_token,
+        fee,
+        nonce,
+        eth_signature,
+        timestamp,
+    ):
         self.chain_id = chain_id
         self.account_id = account_id
         self.sub_account_id = sub_account_id
@@ -3112,7 +3881,17 @@ class ChangePubKeyBuilder:
         self.timestamp = timestamp
 
     def __str__(self):
-        return "ChangePubKeyBuilder(chain_id={}, account_id={}, sub_account_id={}, new_pubkey_hash={}, fee_token={}, fee={}, nonce={}, eth_signature={}, timestamp={})".format(self.chain_id, self.account_id, self.sub_account_id, self.new_pubkey_hash, self.fee_token, self.fee, self.nonce, self.eth_signature, self.timestamp)
+        return "ChangePubKeyBuilder(chain_id={}, account_id={}, sub_account_id={}, new_pubkey_hash={}, fee_token={}, fee={}, nonce={}, eth_signature={}, timestamp={})".format(
+            self.chain_id,
+            self.account_id,
+            self.sub_account_id,
+            self.new_pubkey_hash,
+            self.fee_token,
+            self.fee,
+            self.nonce,
+            self.eth_signature,
+            self.timestamp,
+        )
 
     def __eq__(self, other):
         if self.chain_id != other.chain_id:
@@ -3134,6 +3913,7 @@ class ChangePubKeyBuilder:
         if self.timestamp != other.timestamp:
             return False
         return True
+
 
 class FfiConverterTypeChangePubKeyBuilder(FfiConverterRustBuffer):
     @staticmethod
@@ -3165,7 +3945,20 @@ class FfiConverterTypeChangePubKeyBuilder(FfiConverterRustBuffer):
 
 class ContractBuilder:
 
-    def __init__(self, account_id, sub_account_id, slot_id, nonce, pair_id, size, price, direction, taker_fee_rate, maker_fee_rate, has_subsidy):
+    def __init__(
+        self,
+        account_id,
+        sub_account_id,
+        slot_id,
+        nonce,
+        pair_id,
+        size,
+        price,
+        direction,
+        taker_fee_rate,
+        maker_fee_rate,
+        has_subsidy,
+    ):
         self.account_id = account_id
         self.sub_account_id = sub_account_id
         self.slot_id = slot_id
@@ -3179,7 +3972,19 @@ class ContractBuilder:
         self.has_subsidy = has_subsidy
 
     def __str__(self):
-        return "ContractBuilder(account_id={}, sub_account_id={}, slot_id={}, nonce={}, pair_id={}, size={}, price={}, direction={}, taker_fee_rate={}, maker_fee_rate={}, has_subsidy={})".format(self.account_id, self.sub_account_id, self.slot_id, self.nonce, self.pair_id, self.size, self.price, self.direction, self.taker_fee_rate, self.maker_fee_rate, self.has_subsidy)
+        return "ContractBuilder(account_id={}, sub_account_id={}, slot_id={}, nonce={}, pair_id={}, size={}, price={}, direction={}, taker_fee_rate={}, maker_fee_rate={}, has_subsidy={})".format(
+            self.account_id,
+            self.sub_account_id,
+            self.slot_id,
+            self.nonce,
+            self.pair_id,
+            self.size,
+            self.price,
+            self.direction,
+            self.taker_fee_rate,
+            self.maker_fee_rate,
+            self.has_subsidy,
+        )
 
     def __eq__(self, other):
         if self.account_id != other.account_id:
@@ -3205,6 +4010,7 @@ class ContractBuilder:
         if self.has_subsidy != other.has_subsidy:
             return False
         return True
+
 
 class FfiConverterTypeContractBuilder(FfiConverterRustBuffer):
     @staticmethod
@@ -3240,7 +4046,17 @@ class FfiConverterTypeContractBuilder(FfiConverterRustBuffer):
 
 class ContractMatchingBuilder:
 
-    def __init__(self, account_id, sub_account_id, taker, maker, fee, fee_token, contract_prices, margin_prices):
+    def __init__(
+        self,
+        account_id,
+        sub_account_id,
+        taker,
+        maker,
+        fee,
+        fee_token,
+        contract_prices,
+        margin_prices,
+    ):
         self.account_id = account_id
         self.sub_account_id = sub_account_id
         self.taker = taker
@@ -3251,7 +4067,16 @@ class ContractMatchingBuilder:
         self.margin_prices = margin_prices
 
     def __str__(self):
-        return "ContractMatchingBuilder(account_id={}, sub_account_id={}, taker={}, maker={}, fee={}, fee_token={}, contract_prices={}, margin_prices={})".format(self.account_id, self.sub_account_id, self.taker, self.maker, self.fee, self.fee_token, self.contract_prices, self.margin_prices)
+        return "ContractMatchingBuilder(account_id={}, sub_account_id={}, taker={}, maker={}, fee={}, fee_token={}, contract_prices={}, margin_prices={})".format(
+            self.account_id,
+            self.sub_account_id,
+            self.taker,
+            self.maker,
+            self.fee,
+            self.fee_token,
+            self.contract_prices,
+            self.margin_prices,
+        )
 
     def __eq__(self, other):
         if self.account_id != other.account_id:
@@ -3271,6 +4096,7 @@ class ContractMatchingBuilder:
         if self.margin_prices != other.margin_prices:
             return False
         return True
+
 
 class FfiConverterTypeContractMatchingBuilder(FfiConverterRustBuffer):
     @staticmethod
@@ -3305,7 +4131,9 @@ class ContractPrice:
         self.market_price = market_price
 
     def __str__(self):
-        return "ContractPrice(pair_id={}, market_price={})".format(self.pair_id, self.market_price)
+        return "ContractPrice(pair_id={}, market_price={})".format(
+            self.pair_id, self.market_price
+        )
 
     def __eq__(self, other):
         if self.pair_id != other.pair_id:
@@ -3313,6 +4141,7 @@ class ContractPrice:
         if self.market_price != other.market_price:
             return False
         return True
+
 
 class FfiConverterTypeContractPrice(FfiConverterRustBuffer):
     @staticmethod
@@ -3336,7 +4165,9 @@ class Create2Data:
         self.code_hash = code_hash
 
     def __str__(self):
-        return "Create2Data(creator_address={}, salt_arg={}, code_hash={})".format(self.creator_address, self.salt_arg, self.code_hash)
+        return "Create2Data(creator_address={}, salt_arg={}, code_hash={})".format(
+            self.creator_address, self.salt_arg, self.code_hash
+        )
 
     def __eq__(self, other):
         if self.creator_address != other.creator_address:
@@ -3346,6 +4177,7 @@ class Create2Data:
         if self.code_hash != other.code_hash:
             return False
         return True
+
 
 class FfiConverterTypeCreate2Data(FfiConverterRustBuffer):
     @staticmethod
@@ -3365,7 +4197,19 @@ class FfiConverterTypeCreate2Data(FfiConverterRustBuffer):
 
 class DepositBuilder:
 
-    def __init__(self, from_address, to_address, from_chain_id, sub_account_id, l2_target_token, l1_source_token, amount, serial_id, l2_hash, eth_hash):
+    def __init__(
+        self,
+        from_address,
+        to_address,
+        from_chain_id,
+        sub_account_id,
+        l2_target_token,
+        l1_source_token,
+        amount,
+        serial_id,
+        l2_hash,
+        eth_hash,
+    ):
         self.from_address = from_address
         self.to_address = to_address
         self.from_chain_id = from_chain_id
@@ -3378,7 +4222,18 @@ class DepositBuilder:
         self.eth_hash = eth_hash
 
     def __str__(self):
-        return "DepositBuilder(from_address={}, to_address={}, from_chain_id={}, sub_account_id={}, l2_target_token={}, l1_source_token={}, amount={}, serial_id={}, l2_hash={}, eth_hash={})".format(self.from_address, self.to_address, self.from_chain_id, self.sub_account_id, self.l2_target_token, self.l1_source_token, self.amount, self.serial_id, self.l2_hash, self.eth_hash)
+        return "DepositBuilder(from_address={}, to_address={}, from_chain_id={}, sub_account_id={}, l2_target_token={}, l1_source_token={}, amount={}, serial_id={}, l2_hash={}, eth_hash={})".format(
+            self.from_address,
+            self.to_address,
+            self.from_chain_id,
+            self.sub_account_id,
+            self.l2_target_token,
+            self.l1_source_token,
+            self.amount,
+            self.serial_id,
+            self.l2_hash,
+            self.eth_hash,
+        )
 
     def __eq__(self, other):
         if self.from_address != other.from_address:
@@ -3402,6 +4257,7 @@ class DepositBuilder:
         if self.eth_hash != other.eth_hash:
             return False
         return True
+
 
 class FfiConverterTypeDepositBuilder(FfiConverterRustBuffer):
     @staticmethod
@@ -3435,7 +4291,20 @@ class FfiConverterTypeDepositBuilder(FfiConverterRustBuffer):
 
 class ForcedExitBuilder:
 
-    def __init__(self, to_chain_id, initiator_account_id, initiator_sub_account_id, target, target_sub_account_id, l2_source_token, l1_target_token, initiator_nonce, exit_amount, withdraw_to_l1, timestamp):
+    def __init__(
+        self,
+        to_chain_id,
+        initiator_account_id,
+        initiator_sub_account_id,
+        target,
+        target_sub_account_id,
+        l2_source_token,
+        l1_target_token,
+        initiator_nonce,
+        exit_amount,
+        withdraw_to_l1,
+        timestamp,
+    ):
         self.to_chain_id = to_chain_id
         self.initiator_account_id = initiator_account_id
         self.initiator_sub_account_id = initiator_sub_account_id
@@ -3449,7 +4318,19 @@ class ForcedExitBuilder:
         self.timestamp = timestamp
 
     def __str__(self):
-        return "ForcedExitBuilder(to_chain_id={}, initiator_account_id={}, initiator_sub_account_id={}, target={}, target_sub_account_id={}, l2_source_token={}, l1_target_token={}, initiator_nonce={}, exit_amount={}, withdraw_to_l1={}, timestamp={})".format(self.to_chain_id, self.initiator_account_id, self.initiator_sub_account_id, self.target, self.target_sub_account_id, self.l2_source_token, self.l1_target_token, self.initiator_nonce, self.exit_amount, self.withdraw_to_l1, self.timestamp)
+        return "ForcedExitBuilder(to_chain_id={}, initiator_account_id={}, initiator_sub_account_id={}, target={}, target_sub_account_id={}, l2_source_token={}, l1_target_token={}, initiator_nonce={}, exit_amount={}, withdraw_to_l1={}, timestamp={})".format(
+            self.to_chain_id,
+            self.initiator_account_id,
+            self.initiator_sub_account_id,
+            self.target,
+            self.target_sub_account_id,
+            self.l2_source_token,
+            self.l1_target_token,
+            self.initiator_nonce,
+            self.exit_amount,
+            self.withdraw_to_l1,
+            self.timestamp,
+        )
 
     def __eq__(self, other):
         if self.to_chain_id != other.to_chain_id:
@@ -3475,6 +4356,7 @@ class ForcedExitBuilder:
         if self.timestamp != other.timestamp:
             return False
         return True
+
 
 class FfiConverterTypeForcedExitBuilder(FfiConverterRustBuffer):
     @staticmethod
@@ -3510,7 +4392,19 @@ class FfiConverterTypeForcedExitBuilder(FfiConverterRustBuffer):
 
 class FullExitBuilder:
 
-    def __init__(self, to_chain_id, account_id, sub_account_id, exit_address, l2_source_token, l1_target_token, contract_prices, margin_prices, serial_id, l2_hash):
+    def __init__(
+        self,
+        to_chain_id,
+        account_id,
+        sub_account_id,
+        exit_address,
+        l2_source_token,
+        l1_target_token,
+        contract_prices,
+        margin_prices,
+        serial_id,
+        l2_hash,
+    ):
         self.to_chain_id = to_chain_id
         self.account_id = account_id
         self.sub_account_id = sub_account_id
@@ -3523,7 +4417,18 @@ class FullExitBuilder:
         self.l2_hash = l2_hash
 
     def __str__(self):
-        return "FullExitBuilder(to_chain_id={}, account_id={}, sub_account_id={}, exit_address={}, l2_source_token={}, l1_target_token={}, contract_prices={}, margin_prices={}, serial_id={}, l2_hash={})".format(self.to_chain_id, self.account_id, self.sub_account_id, self.exit_address, self.l2_source_token, self.l1_target_token, self.contract_prices, self.margin_prices, self.serial_id, self.l2_hash)
+        return "FullExitBuilder(to_chain_id={}, account_id={}, sub_account_id={}, exit_address={}, l2_source_token={}, l1_target_token={}, contract_prices={}, margin_prices={}, serial_id={}, l2_hash={})".format(
+            self.to_chain_id,
+            self.account_id,
+            self.sub_account_id,
+            self.exit_address,
+            self.l2_source_token,
+            self.l1_target_token,
+            self.contract_prices,
+            self.margin_prices,
+            self.serial_id,
+            self.l2_hash,
+        )
 
     def __eq__(self, other):
         if self.to_chain_id != other.to_chain_id:
@@ -3547,6 +4452,7 @@ class FullExitBuilder:
         if self.l2_hash != other.l2_hash:
             return False
         return True
+
 
 class FfiConverterTypeFullExitBuilder(FfiConverterRustBuffer):
     @staticmethod
@@ -3580,7 +4486,15 @@ class FfiConverterTypeFullExitBuilder(FfiConverterRustBuffer):
 
 class FundingBuilder:
 
-    def __init__(self, account_id, sub_account_id, sub_account_nonce, funding_account_ids, fee, fee_token):
+    def __init__(
+        self,
+        account_id,
+        sub_account_id,
+        sub_account_nonce,
+        funding_account_ids,
+        fee,
+        fee_token,
+    ):
         self.account_id = account_id
         self.sub_account_id = sub_account_id
         self.sub_account_nonce = sub_account_nonce
@@ -3589,7 +4503,14 @@ class FundingBuilder:
         self.fee_token = fee_token
 
     def __str__(self):
-        return "FundingBuilder(account_id={}, sub_account_id={}, sub_account_nonce={}, funding_account_ids={}, fee={}, fee_token={})".format(self.account_id, self.sub_account_id, self.sub_account_nonce, self.funding_account_ids, self.fee, self.fee_token)
+        return "FundingBuilder(account_id={}, sub_account_id={}, sub_account_nonce={}, funding_account_ids={}, fee={}, fee_token={})".format(
+            self.account_id,
+            self.sub_account_id,
+            self.sub_account_nonce,
+            self.funding_account_ids,
+            self.fee,
+            self.fee_token,
+        )
 
     def __eq__(self, other):
         if self.account_id != other.account_id:
@@ -3605,6 +4526,7 @@ class FundingBuilder:
         if self.fee_token != other.fee_token:
             return False
         return True
+
 
 class FfiConverterTypeFundingBuilder(FfiConverterRustBuffer):
     @staticmethod
@@ -3636,7 +4558,9 @@ class FundingInfo:
         self.funding_rate = funding_rate
 
     def __str__(self):
-        return "FundingInfo(pair_id={}, price={}, funding_rate={})".format(self.pair_id, self.price, self.funding_rate)
+        return "FundingInfo(pair_id={}, price={}, funding_rate={})".format(
+            self.pair_id, self.price, self.funding_rate
+        )
 
     def __eq__(self, other):
         if self.pair_id != other.pair_id:
@@ -3646,6 +4570,7 @@ class FundingInfo:
         if self.funding_rate != other.funding_rate:
             return False
         return True
+
 
 class FfiConverterTypeFundingInfo(FfiConverterRustBuffer):
     @staticmethod
@@ -3665,7 +4590,17 @@ class FfiConverterTypeFundingInfo(FfiConverterRustBuffer):
 
 class LiquidationBuilder:
 
-    def __init__(self, account_id, sub_account_id, sub_account_nonce, contract_prices, margin_prices, liquidation_account_id, fee, fee_token):
+    def __init__(
+        self,
+        account_id,
+        sub_account_id,
+        sub_account_nonce,
+        contract_prices,
+        margin_prices,
+        liquidation_account_id,
+        fee,
+        fee_token,
+    ):
         self.account_id = account_id
         self.sub_account_id = sub_account_id
         self.sub_account_nonce = sub_account_nonce
@@ -3676,7 +4611,16 @@ class LiquidationBuilder:
         self.fee_token = fee_token
 
     def __str__(self):
-        return "LiquidationBuilder(account_id={}, sub_account_id={}, sub_account_nonce={}, contract_prices={}, margin_prices={}, liquidation_account_id={}, fee={}, fee_token={})".format(self.account_id, self.sub_account_id, self.sub_account_nonce, self.contract_prices, self.margin_prices, self.liquidation_account_id, self.fee, self.fee_token)
+        return "LiquidationBuilder(account_id={}, sub_account_id={}, sub_account_nonce={}, contract_prices={}, margin_prices={}, liquidation_account_id={}, fee={}, fee_token={})".format(
+            self.account_id,
+            self.sub_account_id,
+            self.sub_account_nonce,
+            self.contract_prices,
+            self.margin_prices,
+            self.liquidation_account_id,
+            self.fee,
+            self.fee_token,
+        )
 
     def __eq__(self, other):
         if self.account_id != other.account_id:
@@ -3696,6 +4640,7 @@ class LiquidationBuilder:
         if self.fee_token != other.fee_token:
             return False
         return True
+
 
 class FfiConverterTypeLiquidationBuilder(FfiConverterRustBuffer):
     @staticmethod
@@ -3736,6 +4681,7 @@ class Message:
             return False
         return True
 
+
 class FfiConverterTypeMessage(FfiConverterRustBuffer):
     @staticmethod
     def read(buf):
@@ -3755,7 +4701,9 @@ class OraclePrices:
         self.margin_prices = margin_prices
 
     def __str__(self):
-        return "OraclePrices(contract_prices={}, margin_prices={})".format(self.contract_prices, self.margin_prices)
+        return "OraclePrices(contract_prices={}, margin_prices={})".format(
+            self.contract_prices, self.margin_prices
+        )
 
     def __eq__(self, other):
         if self.contract_prices != other.contract_prices:
@@ -3763,6 +4711,7 @@ class OraclePrices:
         if self.margin_prices != other.margin_prices:
             return False
         return True
+
 
 class FfiConverterTypeOraclePrices(FfiConverterRustBuffer):
     @staticmethod
@@ -3780,7 +4729,19 @@ class FfiConverterTypeOraclePrices(FfiConverterRustBuffer):
 
 class OrderMatchingBuilder:
 
-    def __init__(self, account_id, sub_account_id, taker, maker, fee, fee_token, contract_prices, margin_prices, expect_base_amount, expect_quote_amount):
+    def __init__(
+        self,
+        account_id,
+        sub_account_id,
+        taker,
+        maker,
+        fee,
+        fee_token,
+        contract_prices,
+        margin_prices,
+        expect_base_amount,
+        expect_quote_amount,
+    ):
         self.account_id = account_id
         self.sub_account_id = sub_account_id
         self.taker = taker
@@ -3793,7 +4754,18 @@ class OrderMatchingBuilder:
         self.expect_quote_amount = expect_quote_amount
 
     def __str__(self):
-        return "OrderMatchingBuilder(account_id={}, sub_account_id={}, taker={}, maker={}, fee={}, fee_token={}, contract_prices={}, margin_prices={}, expect_base_amount={}, expect_quote_amount={})".format(self.account_id, self.sub_account_id, self.taker, self.maker, self.fee, self.fee_token, self.contract_prices, self.margin_prices, self.expect_base_amount, self.expect_quote_amount)
+        return "OrderMatchingBuilder(account_id={}, sub_account_id={}, taker={}, maker={}, fee={}, fee_token={}, contract_prices={}, margin_prices={}, expect_base_amount={}, expect_quote_amount={})".format(
+            self.account_id,
+            self.sub_account_id,
+            self.taker,
+            self.maker,
+            self.fee,
+            self.fee_token,
+            self.contract_prices,
+            self.margin_prices,
+            self.expect_base_amount,
+            self.expect_quote_amount,
+        )
 
     def __eq__(self, other):
         if self.account_id != other.account_id:
@@ -3817,6 +4789,7 @@ class OrderMatchingBuilder:
         if self.expect_quote_amount != other.expect_quote_amount:
             return False
         return True
+
 
 class FfiConverterTypeOrderMatchingBuilder(FfiConverterRustBuffer):
     @staticmethod
@@ -3864,6 +4837,7 @@ class SpotPriceInfo:
             return False
         return True
 
+
 class FfiConverterTypeSpotPriceInfo(FfiConverterRustBuffer):
     @staticmethod
     def read(buf):
@@ -3880,7 +4854,18 @@ class FfiConverterTypeSpotPriceInfo(FfiConverterRustBuffer):
 
 class TransferBuilder:
 
-    def __init__(self, account_id, to_address, from_sub_account_id, to_sub_account_id, token, amount, fee, nonce, timestamp):
+    def __init__(
+        self,
+        account_id,
+        to_address,
+        from_sub_account_id,
+        to_sub_account_id,
+        token,
+        amount,
+        fee,
+        nonce,
+        timestamp,
+    ):
         self.account_id = account_id
         self.to_address = to_address
         self.from_sub_account_id = from_sub_account_id
@@ -3892,7 +4877,17 @@ class TransferBuilder:
         self.timestamp = timestamp
 
     def __str__(self):
-        return "TransferBuilder(account_id={}, to_address={}, from_sub_account_id={}, to_sub_account_id={}, token={}, amount={}, fee={}, nonce={}, timestamp={})".format(self.account_id, self.to_address, self.from_sub_account_id, self.to_sub_account_id, self.token, self.amount, self.fee, self.nonce, self.timestamp)
+        return "TransferBuilder(account_id={}, to_address={}, from_sub_account_id={}, to_sub_account_id={}, token={}, amount={}, fee={}, nonce={}, timestamp={})".format(
+            self.account_id,
+            self.to_address,
+            self.from_sub_account_id,
+            self.to_sub_account_id,
+            self.token,
+            self.amount,
+            self.fee,
+            self.nonce,
+            self.timestamp,
+        )
 
     def __eq__(self, other):
         if self.account_id != other.account_id:
@@ -3914,6 +4909,7 @@ class TransferBuilder:
         if self.timestamp != other.timestamp:
             return False
         return True
+
 
 class FfiConverterTypeTransferBuilder(FfiConverterRustBuffer):
     @staticmethod
@@ -3954,7 +4950,9 @@ class TxMessage:
         self.nonce = nonce
 
     def __str__(self):
-        return "TxMessage(transaction={}, amount={}, fee={}, token={}, to={}, nonce={})".format(self.transaction, self.amount, self.fee, self.token, self.to, self.nonce)
+        return "TxMessage(transaction={}, amount={}, fee={}, token={}, to={}, nonce={})".format(
+            self.transaction, self.amount, self.fee, self.token, self.to, self.nonce
+        )
 
     def __eq__(self, other):
         if self.transaction != other.transaction:
@@ -3970,6 +4968,7 @@ class TxMessage:
         if self.nonce != other.nonce:
             return False
         return True
+
 
 class FfiConverterTypeTxMessage(FfiConverterRustBuffer):
     @staticmethod
@@ -4000,7 +4999,9 @@ class TxSignature:
         self.layer1_signature = layer1_signature
 
     def __str__(self):
-        return "TxSignature(tx={}, layer1_signature={})".format(self.tx, self.layer1_signature)
+        return "TxSignature(tx={}, layer1_signature={})".format(
+            self.tx, self.layer1_signature
+        )
 
     def __eq__(self, other):
         if self.tx != other.tx:
@@ -4008,6 +5009,7 @@ class TxSignature:
         if self.layer1_signature != other.layer1_signature:
             return False
         return True
+
 
 class FfiConverterTypeTxSignature(FfiConverterRustBuffer):
     @staticmethod
@@ -4032,7 +5034,9 @@ class UpdateGlobalVarBuilder:
         self.serial_id = serial_id
 
     def __str__(self):
-        return "UpdateGlobalVarBuilder(from_chain_id={}, sub_account_id={}, parameter={}, serial_id={})".format(self.from_chain_id, self.sub_account_id, self.parameter, self.serial_id)
+        return "UpdateGlobalVarBuilder(from_chain_id={}, sub_account_id={}, parameter={}, serial_id={})".format(
+            self.from_chain_id, self.sub_account_id, self.parameter, self.serial_id
+        )
 
     def __eq__(self, other):
         if self.from_chain_id != other.from_chain_id:
@@ -4044,6 +5048,7 @@ class UpdateGlobalVarBuilder:
         if self.serial_id != other.serial_id:
             return False
         return True
+
 
 class FfiConverterTypeUpdateGlobalVarBuilder(FfiConverterRustBuffer):
     @staticmethod
@@ -4065,7 +5070,22 @@ class FfiConverterTypeUpdateGlobalVarBuilder(FfiConverterRustBuffer):
 
 class WithdrawBuilder:
 
-    def __init__(self, account_id, sub_account_id, to_chain_id, to_address, l2_source_token, l1_target_token, amount, call_data, fee, nonce, withdraw_fee_ratio, withdraw_to_l1, timestamp):
+    def __init__(
+        self,
+        account_id,
+        sub_account_id,
+        to_chain_id,
+        to_address,
+        l2_source_token,
+        l1_target_token,
+        amount,
+        call_data,
+        fee,
+        nonce,
+        withdraw_fee_ratio,
+        withdraw_to_l1,
+        timestamp,
+    ):
         self.account_id = account_id
         self.sub_account_id = sub_account_id
         self.to_chain_id = to_chain_id
@@ -4081,7 +5101,21 @@ class WithdrawBuilder:
         self.timestamp = timestamp
 
     def __str__(self):
-        return "WithdrawBuilder(account_id={}, sub_account_id={}, to_chain_id={}, to_address={}, l2_source_token={}, l1_target_token={}, amount={}, call_data={}, fee={}, nonce={}, withdraw_fee_ratio={}, withdraw_to_l1={}, timestamp={})".format(self.account_id, self.sub_account_id, self.to_chain_id, self.to_address, self.l2_source_token, self.l1_target_token, self.amount, self.call_data, self.fee, self.nonce, self.withdraw_fee_ratio, self.withdraw_to_l1, self.timestamp)
+        return "WithdrawBuilder(account_id={}, sub_account_id={}, to_chain_id={}, to_address={}, l2_source_token={}, l1_target_token={}, amount={}, call_data={}, fee={}, nonce={}, withdraw_fee_ratio={}, withdraw_to_l1={}, timestamp={})".format(
+            self.account_id,
+            self.sub_account_id,
+            self.to_chain_id,
+            self.to_address,
+            self.l2_source_token,
+            self.l1_target_token,
+            self.amount,
+            self.call_data,
+            self.fee,
+            self.nonce,
+            self.withdraw_fee_ratio,
+            self.withdraw_to_l1,
+            self.timestamp,
+        )
 
     def __eq__(self, other):
         if self.account_id != other.account_id:
@@ -4111,6 +5145,7 @@ class WithdrawBuilder:
         if self.timestamp != other.timestamp:
             return False
         return True
+
 
 class FfiConverterTypeWithdrawBuilder(FfiConverterRustBuffer):
     @staticmethod
@@ -4155,7 +5190,9 @@ class ZkLinkSignature:
         self.signature = signature
 
     def __str__(self):
-        return "ZkLinkSignature(pub_key={}, signature={})".format(self.pub_key, self.signature)
+        return "ZkLinkSignature(pub_key={}, signature={})".format(
+            self.pub_key, self.signature
+        )
 
     def __eq__(self, other):
         if self.pub_key != other.pub_key:
@@ -4163,6 +5200,7 @@ class ZkLinkSignature:
         if self.signature != other.signature:
             return False
         return True
+
 
 class FfiConverterTypeZkLinkSignature(FfiConverterRustBuffer):
     @staticmethod
@@ -4178,18 +5216,17 @@ class FfiConverterTypeZkLinkSignature(FfiConverterRustBuffer):
         FfiConverterTypePackedSignature.write(value.signature, buf)
 
 
-
-
 class ChangePubKeyAuthData:
     def __init__(self):
         raise RuntimeError("ChangePubKeyAuthData cannot be instantiated directly")
 
     # Each enum variant is a nested class of the enum itself.
     class ONCHAIN(object):
-        def __init__(self,):
-            
+        def __init__(
+            self,
+        ):
+
             pass
-            
 
         def __str__(self):
             return "ChangePubKeyAuthData.ONCHAIN()".format()
@@ -4198,14 +5235,16 @@ class ChangePubKeyAuthData:
             if not other.is_onchain():
                 return False
             return True
+
     class ETH_ECDSA(object):
-        def __init__(self,eth_signature):
-            
+        def __init__(self, eth_signature):
+
             self.eth_signature = eth_signature
-            
 
         def __str__(self):
-            return "ChangePubKeyAuthData.ETH_ECDSA(eth_signature={})".format(self.eth_signature)
+            return "ChangePubKeyAuthData.ETH_ECDSA(eth_signature={})".format(
+                self.eth_signature
+            )
 
         def __eq__(self, other):
             if not other.is_eth_ecdsa():
@@ -4213,11 +5252,11 @@ class ChangePubKeyAuthData:
             if self.eth_signature != other.eth_signature:
                 return False
             return True
+
     class ETH_CREATE2(object):
-        def __init__(self,data):
-            
+        def __init__(self, data):
+
             self.data = data
-            
 
         def __str__(self):
             return "ChangePubKeyAuthData.ETH_CREATE2(data={})".format(self.data)
@@ -4228,26 +5267,46 @@ class ChangePubKeyAuthData:
             if self.data != other.data:
                 return False
             return True
-    
 
     # For each variant, we have an `is_NAME` method for easily checking
     # whether an instance is that variant.
     def is_onchain(self):
         return isinstance(self, ChangePubKeyAuthData.ONCHAIN)
+
     def is_eth_ecdsa(self):
         return isinstance(self, ChangePubKeyAuthData.ETH_ECDSA)
+
     def is_eth_create2(self):
         return isinstance(self, ChangePubKeyAuthData.ETH_CREATE2)
-    
+
 
 # Now, a little trick - we make each nested variant class be a subclass of the main
 # enum class, so that method calls and instance checks etc will work intuitively.
 # We might be able to do this a little more neatly with a metaclass, but this'll do.
-ChangePubKeyAuthData.ONCHAIN = type("ChangePubKeyAuthData.ONCHAIN", (ChangePubKeyAuthData.ONCHAIN, ChangePubKeyAuthData,), {})
-ChangePubKeyAuthData.ETH_ECDSA = type("ChangePubKeyAuthData.ETH_ECDSA", (ChangePubKeyAuthData.ETH_ECDSA, ChangePubKeyAuthData,), {})
-ChangePubKeyAuthData.ETH_CREATE2 = type("ChangePubKeyAuthData.ETH_CREATE2", (ChangePubKeyAuthData.ETH_CREATE2, ChangePubKeyAuthData,), {})
-
-
+ChangePubKeyAuthData.ONCHAIN = type(
+    "ChangePubKeyAuthData.ONCHAIN",
+    (
+        ChangePubKeyAuthData.ONCHAIN,
+        ChangePubKeyAuthData,
+    ),
+    {},
+)
+ChangePubKeyAuthData.ETH_ECDSA = type(
+    "ChangePubKeyAuthData.ETH_ECDSA",
+    (
+        ChangePubKeyAuthData.ETH_ECDSA,
+        ChangePubKeyAuthData,
+    ),
+    {},
+)
+ChangePubKeyAuthData.ETH_CREATE2 = type(
+    "ChangePubKeyAuthData.ETH_CREATE2",
+    (
+        ChangePubKeyAuthData.ETH_CREATE2,
+        ChangePubKeyAuthData,
+    ),
+    {},
+)
 
 
 class FfiConverterTypeChangePubKeyAuthData(FfiConverterRustBuffer):
@@ -4255,8 +5314,7 @@ class FfiConverterTypeChangePubKeyAuthData(FfiConverterRustBuffer):
     def read(buf):
         variant = buf.readI32()
         if variant == 1:
-            return ChangePubKeyAuthData.ONCHAIN(
-            )
+            return ChangePubKeyAuthData.ONCHAIN()
         if variant == 2:
             return ChangePubKeyAuthData.ETH_ECDSA(
                 FfiConverterTypePackedEthSignature.read(buf),
@@ -4278,18 +5336,17 @@ class FfiConverterTypeChangePubKeyAuthData(FfiConverterRustBuffer):
             FfiConverterTypeCreate2Data.write(value.data, buf)
 
 
-
-
 class ChangePubKeyAuthRequest:
     def __init__(self):
         raise RuntimeError("ChangePubKeyAuthRequest cannot be instantiated directly")
 
     # Each enum variant is a nested class of the enum itself.
     class ONCHAIN(object):
-        def __init__(self,):
-            
+        def __init__(
+            self,
+        ):
+
             pass
-            
 
         def __str__(self):
             return "ChangePubKeyAuthRequest.ONCHAIN()".format()
@@ -4298,11 +5355,13 @@ class ChangePubKeyAuthRequest:
             if not other.is_onchain():
                 return False
             return True
+
     class ETH_ECDSA(object):
-        def __init__(self,):
-            
+        def __init__(
+            self,
+        ):
+
             pass
-            
 
         def __str__(self):
             return "ChangePubKeyAuthRequest.ETH_ECDSA()".format()
@@ -4311,11 +5370,11 @@ class ChangePubKeyAuthRequest:
             if not other.is_eth_ecdsa():
                 return False
             return True
+
     class ETH_CREATE2(object):
-        def __init__(self,data):
-            
+        def __init__(self, data):
+
             self.data = data
-            
 
         def __str__(self):
             return "ChangePubKeyAuthRequest.ETH_CREATE2(data={})".format(self.data)
@@ -4326,26 +5385,46 @@ class ChangePubKeyAuthRequest:
             if self.data != other.data:
                 return False
             return True
-    
 
     # For each variant, we have an `is_NAME` method for easily checking
     # whether an instance is that variant.
     def is_onchain(self):
         return isinstance(self, ChangePubKeyAuthRequest.ONCHAIN)
+
     def is_eth_ecdsa(self):
         return isinstance(self, ChangePubKeyAuthRequest.ETH_ECDSA)
+
     def is_eth_create2(self):
         return isinstance(self, ChangePubKeyAuthRequest.ETH_CREATE2)
-    
+
 
 # Now, a little trick - we make each nested variant class be a subclass of the main
 # enum class, so that method calls and instance checks etc will work intuitively.
 # We might be able to do this a little more neatly with a metaclass, but this'll do.
-ChangePubKeyAuthRequest.ONCHAIN = type("ChangePubKeyAuthRequest.ONCHAIN", (ChangePubKeyAuthRequest.ONCHAIN, ChangePubKeyAuthRequest,), {})
-ChangePubKeyAuthRequest.ETH_ECDSA = type("ChangePubKeyAuthRequest.ETH_ECDSA", (ChangePubKeyAuthRequest.ETH_ECDSA, ChangePubKeyAuthRequest,), {})
-ChangePubKeyAuthRequest.ETH_CREATE2 = type("ChangePubKeyAuthRequest.ETH_CREATE2", (ChangePubKeyAuthRequest.ETH_CREATE2, ChangePubKeyAuthRequest,), {})
-
-
+ChangePubKeyAuthRequest.ONCHAIN = type(
+    "ChangePubKeyAuthRequest.ONCHAIN",
+    (
+        ChangePubKeyAuthRequest.ONCHAIN,
+        ChangePubKeyAuthRequest,
+    ),
+    {},
+)
+ChangePubKeyAuthRequest.ETH_ECDSA = type(
+    "ChangePubKeyAuthRequest.ETH_ECDSA",
+    (
+        ChangePubKeyAuthRequest.ETH_ECDSA,
+        ChangePubKeyAuthRequest,
+    ),
+    {},
+)
+ChangePubKeyAuthRequest.ETH_CREATE2 = type(
+    "ChangePubKeyAuthRequest.ETH_CREATE2",
+    (
+        ChangePubKeyAuthRequest.ETH_CREATE2,
+        ChangePubKeyAuthRequest,
+    ),
+    {},
+)
 
 
 class FfiConverterTypeChangePubKeyAuthRequest(FfiConverterRustBuffer):
@@ -4353,11 +5432,9 @@ class FfiConverterTypeChangePubKeyAuthRequest(FfiConverterRustBuffer):
     def read(buf):
         variant = buf.readI32()
         if variant == 1:
-            return ChangePubKeyAuthRequest.ONCHAIN(
-            )
+            return ChangePubKeyAuthRequest.ONCHAIN()
         if variant == 2:
-            return ChangePubKeyAuthRequest.ETH_ECDSA(
-            )
+            return ChangePubKeyAuthRequest.ETH_ECDSA()
         if variant == 3:
             return ChangePubKeyAuthRequest.ETH_CREATE2(
                 FfiConverterTypeCreate2Data.read(buf),
@@ -4374,18 +5451,17 @@ class FfiConverterTypeChangePubKeyAuthRequest(FfiConverterRustBuffer):
             FfiConverterTypeCreate2Data.write(value.data, buf)
 
 
-
-
 class L1SignerType:
     def __init__(self):
         raise RuntimeError("L1SignerType cannot be instantiated directly")
 
     # Each enum variant is a nested class of the enum itself.
     class ETH(object):
-        def __init__(self,):
-            
+        def __init__(
+            self,
+        ):
+
             pass
-            
 
         def __str__(self):
             return "L1SignerType.ETH()".format()
@@ -4394,15 +5470,17 @@ class L1SignerType:
             if not other.is_eth():
                 return False
             return True
+
     class STARKNET(object):
-        def __init__(self,chain_id, address):
-            
+        def __init__(self, chain_id, address):
+
             self.chain_id = chain_id
             self.address = address
-            
 
         def __str__(self):
-            return "L1SignerType.STARKNET(chain_id={}, address={})".format(self.chain_id, self.address)
+            return "L1SignerType.STARKNET(chain_id={}, address={})".format(
+                self.chain_id, self.address
+            )
 
         def __eq__(self, other):
             if not other.is_starknet():
@@ -4412,23 +5490,35 @@ class L1SignerType:
             if self.address != other.address:
                 return False
             return True
-    
 
     # For each variant, we have an `is_NAME` method for easily checking
     # whether an instance is that variant.
     def is_eth(self):
         return isinstance(self, L1SignerType.ETH)
+
     def is_starknet(self):
         return isinstance(self, L1SignerType.STARKNET)
-    
+
 
 # Now, a little trick - we make each nested variant class be a subclass of the main
 # enum class, so that method calls and instance checks etc will work intuitively.
 # We might be able to do this a little more neatly with a metaclass, but this'll do.
-L1SignerType.ETH = type("L1SignerType.ETH", (L1SignerType.ETH, L1SignerType,), {})
-L1SignerType.STARKNET = type("L1SignerType.STARKNET", (L1SignerType.STARKNET, L1SignerType,), {})
-
-
+L1SignerType.ETH = type(
+    "L1SignerType.ETH",
+    (
+        L1SignerType.ETH,
+        L1SignerType,
+    ),
+    {},
+)
+L1SignerType.STARKNET = type(
+    "L1SignerType.STARKNET",
+    (
+        L1SignerType.STARKNET,
+        L1SignerType,
+    ),
+    {},
+)
 
 
 class FfiConverterTypeL1SignerType(FfiConverterRustBuffer):
@@ -4436,8 +5526,7 @@ class FfiConverterTypeL1SignerType(FfiConverterRustBuffer):
     def read(buf):
         variant = buf.readI32()
         if variant == 1:
-            return L1SignerType.ETH(
-            )
+            return L1SignerType.ETH()
         if variant == 2:
             return L1SignerType.STARKNET(
                 FfiConverterString.read(buf),
@@ -4454,12 +5543,9 @@ class FfiConverterTypeL1SignerType(FfiConverterRustBuffer):
             FfiConverterString.write(value.address, buf)
 
 
-
-
 class L1Type(enum.Enum):
     ETH = 1
     STARKNET = 2
-    
 
 
 class FfiConverterTypeL1Type(FfiConverterRustBuffer):
@@ -4479,18 +5565,15 @@ class FfiConverterTypeL1Type(FfiConverterRustBuffer):
             buf.writeI32(2)
 
 
-
-
 class Parameter:
     def __init__(self):
         raise RuntimeError("Parameter cannot be instantiated directly")
 
     # Each enum variant is a nested class of the enum itself.
     class FEE_ACCOUNT(object):
-        def __init__(self,account_id):
-            
+        def __init__(self, account_id):
+
             self.account_id = account_id
-            
 
         def __str__(self):
             return "Parameter.FEE_ACCOUNT(account_id={})".format(self.account_id)
@@ -4501,14 +5584,16 @@ class Parameter:
             if self.account_id != other.account_id:
                 return False
             return True
+
     class INSURANCE_FUND_ACCOUNT(object):
-        def __init__(self,account_id):
-            
+        def __init__(self, account_id):
+
             self.account_id = account_id
-            
 
         def __str__(self):
-            return "Parameter.INSURANCE_FUND_ACCOUNT(account_id={})".format(self.account_id)
+            return "Parameter.INSURANCE_FUND_ACCOUNT(account_id={})".format(
+                self.account_id
+            )
 
         def __eq__(self, other):
             if not other.is_insurance_fund_account():
@@ -4516,16 +5601,18 @@ class Parameter:
             if self.account_id != other.account_id:
                 return False
             return True
+
     class MARGIN_INFO(object):
-        def __init__(self,margin_id, token_id, ratio):
-            
+        def __init__(self, margin_id, token_id, ratio):
+
             self.margin_id = margin_id
             self.token_id = token_id
             self.ratio = ratio
-            
 
         def __str__(self):
-            return "Parameter.MARGIN_INFO(margin_id={}, token_id={}, ratio={})".format(self.margin_id, self.token_id, self.ratio)
+            return "Parameter.MARGIN_INFO(margin_id={}, token_id={}, ratio={})".format(
+                self.margin_id, self.token_id, self.ratio
+            )
 
         def __eq__(self, other):
             if not other.is_margin_info():
@@ -4537,11 +5624,11 @@ class Parameter:
             if self.ratio != other.ratio:
                 return False
             return True
+
     class FUNDING_INFOS(object):
-        def __init__(self,infos):
-            
+        def __init__(self, infos):
+
             self.infos = infos
-            
 
         def __str__(self):
             return "Parameter.FUNDING_INFOS(infos={})".format(self.infos)
@@ -4552,17 +5639,24 @@ class Parameter:
             if self.infos != other.infos:
                 return False
             return True
+
     class CONTRACT_INFO(object):
-        def __init__(self,pair_id, symbol, initial_margin_rate, maintenance_margin_rate):
-            
+        def __init__(
+            self, pair_id, symbol, initial_margin_rate, maintenance_margin_rate
+        ):
+
             self.pair_id = pair_id
             self.symbol = symbol
             self.initial_margin_rate = initial_margin_rate
             self.maintenance_margin_rate = maintenance_margin_rate
-            
 
         def __str__(self):
-            return "Parameter.CONTRACT_INFO(pair_id={}, symbol={}, initial_margin_rate={}, maintenance_margin_rate={})".format(self.pair_id, self.symbol, self.initial_margin_rate, self.maintenance_margin_rate)
+            return "Parameter.CONTRACT_INFO(pair_id={}, symbol={}, initial_margin_rate={}, maintenance_margin_rate={})".format(
+                self.pair_id,
+                self.symbol,
+                self.initial_margin_rate,
+                self.maintenance_margin_rate,
+            )
 
         def __eq__(self, other):
             if not other.is_contract_info():
@@ -4576,32 +5670,68 @@ class Parameter:
             if self.maintenance_margin_rate != other.maintenance_margin_rate:
                 return False
             return True
-    
 
     # For each variant, we have an `is_NAME` method for easily checking
     # whether an instance is that variant.
     def is_fee_account(self):
         return isinstance(self, Parameter.FEE_ACCOUNT)
+
     def is_insurance_fund_account(self):
         return isinstance(self, Parameter.INSURANCE_FUND_ACCOUNT)
+
     def is_margin_info(self):
         return isinstance(self, Parameter.MARGIN_INFO)
+
     def is_funding_infos(self):
         return isinstance(self, Parameter.FUNDING_INFOS)
+
     def is_contract_info(self):
         return isinstance(self, Parameter.CONTRACT_INFO)
-    
+
 
 # Now, a little trick - we make each nested variant class be a subclass of the main
 # enum class, so that method calls and instance checks etc will work intuitively.
 # We might be able to do this a little more neatly with a metaclass, but this'll do.
-Parameter.FEE_ACCOUNT = type("Parameter.FEE_ACCOUNT", (Parameter.FEE_ACCOUNT, Parameter,), {})
-Parameter.INSURANCE_FUND_ACCOUNT = type("Parameter.INSURANCE_FUND_ACCOUNT", (Parameter.INSURANCE_FUND_ACCOUNT, Parameter,), {})
-Parameter.MARGIN_INFO = type("Parameter.MARGIN_INFO", (Parameter.MARGIN_INFO, Parameter,), {})
-Parameter.FUNDING_INFOS = type("Parameter.FUNDING_INFOS", (Parameter.FUNDING_INFOS, Parameter,), {})
-Parameter.CONTRACT_INFO = type("Parameter.CONTRACT_INFO", (Parameter.CONTRACT_INFO, Parameter,), {})
-
-
+Parameter.FEE_ACCOUNT = type(
+    "Parameter.FEE_ACCOUNT",
+    (
+        Parameter.FEE_ACCOUNT,
+        Parameter,
+    ),
+    {},
+)
+Parameter.INSURANCE_FUND_ACCOUNT = type(
+    "Parameter.INSURANCE_FUND_ACCOUNT",
+    (
+        Parameter.INSURANCE_FUND_ACCOUNT,
+        Parameter,
+    ),
+    {},
+)
+Parameter.MARGIN_INFO = type(
+    "Parameter.MARGIN_INFO",
+    (
+        Parameter.MARGIN_INFO,
+        Parameter,
+    ),
+    {},
+)
+Parameter.FUNDING_INFOS = type(
+    "Parameter.FUNDING_INFOS",
+    (
+        Parameter.FUNDING_INFOS,
+        Parameter,
+    ),
+    {},
+)
+Parameter.CONTRACT_INFO = type(
+    "Parameter.CONTRACT_INFO",
+    (
+        Parameter.CONTRACT_INFO,
+        Parameter,
+    ),
+    {},
+)
 
 
 class FfiConverterTypeParameter(FfiConverterRustBuffer):
@@ -4658,18 +5788,15 @@ class FfiConverterTypeParameter(FfiConverterRustBuffer):
             FfiConverterUInt16.write(value.maintenance_margin_rate, buf)
 
 
-
-
 class TypedDataMessage:
     def __init__(self):
         raise RuntimeError("TypedDataMessage cannot be instantiated directly")
 
     # Each enum variant is a nested class of the enum itself.
     class CREATE_L2_KEY(object):
-        def __init__(self,message):
-            
+        def __init__(self, message):
+
             self.message = message
-            
 
         def __str__(self):
             return "TypedDataMessage.CREATE_L2_KEY(message={})".format(self.message)
@@ -4680,11 +5807,11 @@ class TypedDataMessage:
             if self.message != other.message:
                 return False
             return True
+
     class TRANSACTION(object):
-        def __init__(self,message):
-            
+        def __init__(self, message):
+
             self.message = message
-            
 
         def __str__(self):
             return "TypedDataMessage.TRANSACTION(message={})".format(self.message)
@@ -4695,23 +5822,35 @@ class TypedDataMessage:
             if self.message != other.message:
                 return False
             return True
-    
 
     # For each variant, we have an `is_NAME` method for easily checking
     # whether an instance is that variant.
     def is_create_l2_key(self):
         return isinstance(self, TypedDataMessage.CREATE_L2_KEY)
+
     def is_transaction(self):
         return isinstance(self, TypedDataMessage.TRANSACTION)
-    
+
 
 # Now, a little trick - we make each nested variant class be a subclass of the main
 # enum class, so that method calls and instance checks etc will work intuitively.
 # We might be able to do this a little more neatly with a metaclass, but this'll do.
-TypedDataMessage.CREATE_L2_KEY = type("TypedDataMessage.CREATE_L2_KEY", (TypedDataMessage.CREATE_L2_KEY, TypedDataMessage,), {})
-TypedDataMessage.TRANSACTION = type("TypedDataMessage.TRANSACTION", (TypedDataMessage.TRANSACTION, TypedDataMessage,), {})
-
-
+TypedDataMessage.CREATE_L2_KEY = type(
+    "TypedDataMessage.CREATE_L2_KEY",
+    (
+        TypedDataMessage.CREATE_L2_KEY,
+        TypedDataMessage,
+    ),
+    {},
+)
+TypedDataMessage.TRANSACTION = type(
+    "TypedDataMessage.TRANSACTION",
+    (
+        TypedDataMessage.TRANSACTION,
+        TypedDataMessage,
+    ),
+    {},
+)
 
 
 class FfiConverterTypeTypedDataMessage(FfiConverterRustBuffer):
@@ -4737,7 +5876,6 @@ class FfiConverterTypeTypedDataMessage(FfiConverterRustBuffer):
             FfiConverterTypeTxMessage.write(value.message, buf)
 
 
-
 # EthSignerError
 # We want to define each variant as a nested class that's also a subclass,
 # which is tricky in Python.  To accomplish this we're going to create each
@@ -4747,82 +5885,102 @@ class FfiConverterTypeTypedDataMessage(FfiConverterRustBuffer):
 class UniFFIExceptionTmpNamespace:
     class EthSignerError(Exception):
         pass
-    
+
     class InvalidEthSigner(EthSignerError):
         def __str__(self):
             return "EthSignerError.InvalidEthSigner({})".format(repr(super().__str__()))
 
     EthSignerError.InvalidEthSigner = InvalidEthSigner
+
     class MissingEthPrivateKey(EthSignerError):
         def __str__(self):
-            return "EthSignerError.MissingEthPrivateKey({})".format(repr(super().__str__()))
+            return "EthSignerError.MissingEthPrivateKey({})".format(
+                repr(super().__str__())
+            )
 
     EthSignerError.MissingEthPrivateKey = MissingEthPrivateKey
+
     class MissingEthSigner(EthSignerError):
         def __str__(self):
             return "EthSignerError.MissingEthSigner({})".format(repr(super().__str__()))
 
     EthSignerError.MissingEthSigner = MissingEthSigner
+
     class SigningFailed(EthSignerError):
         def __str__(self):
             return "EthSignerError.SigningFailed({})".format(repr(super().__str__()))
 
     EthSignerError.SigningFailed = SigningFailed
+
     class UnlockingFailed(EthSignerError):
         def __str__(self):
             return "EthSignerError.UnlockingFailed({})".format(repr(super().__str__()))
 
     EthSignerError.UnlockingFailed = UnlockingFailed
+
     class InvalidRawTx(EthSignerError):
         def __str__(self):
             return "EthSignerError.InvalidRawTx({})".format(repr(super().__str__()))
 
     EthSignerError.InvalidRawTx = InvalidRawTx
+
     class Eip712Failed(EthSignerError):
         def __str__(self):
             return "EthSignerError.Eip712Failed({})".format(repr(super().__str__()))
 
     EthSignerError.Eip712Failed = Eip712Failed
+
     class NoSigningKey(EthSignerError):
         def __str__(self):
             return "EthSignerError.NoSigningKey({})".format(repr(super().__str__()))
 
     EthSignerError.NoSigningKey = NoSigningKey
+
     class DefineAddress(EthSignerError):
         def __str__(self):
             return "EthSignerError.DefineAddress({})".format(repr(super().__str__()))
 
     EthSignerError.DefineAddress = DefineAddress
+
     class RecoverAddress(EthSignerError):
         def __str__(self):
             return "EthSignerError.RecoverAddress({})".format(repr(super().__str__()))
 
     EthSignerError.RecoverAddress = RecoverAddress
+
     class LengthMismatched(EthSignerError):
         def __str__(self):
             return "EthSignerError.LengthMismatched({})".format(repr(super().__str__()))
 
     EthSignerError.LengthMismatched = LengthMismatched
+
     class CryptoError(EthSignerError):
         def __str__(self):
             return "EthSignerError.CryptoError({})".format(repr(super().__str__()))
 
     EthSignerError.CryptoError = CryptoError
+
     class InvalidSignatureStr(EthSignerError):
         def __str__(self):
-            return "EthSignerError.InvalidSignatureStr({})".format(repr(super().__str__()))
+            return "EthSignerError.InvalidSignatureStr({})".format(
+                repr(super().__str__())
+            )
 
     EthSignerError.InvalidSignatureStr = InvalidSignatureStr
+
     class CustomError(EthSignerError):
         def __str__(self):
             return "EthSignerError.CustomError({})".format(repr(super().__str__()))
 
     EthSignerError.CustomError = CustomError
+
     class RpcSignError(EthSignerError):
         def __str__(self):
             return "EthSignerError.RpcSignError({})".format(repr(super().__str__()))
 
     EthSignerError.RpcSignError = RpcSignError
+
+
 EthSignerError = UniFFIExceptionTmpNamespace.EthSignerError
 del UniFFIExceptionTmpNamespace
 
@@ -4927,7 +6085,6 @@ class FfiConverterTypeEthSignerError(FfiConverterRustBuffer):
             buf.writeI32(15)
 
 
-
 # SignError
 # We want to define each variant as a nested class that's also a subclass,
 # which is tricky in Python.  To accomplish this we're going to create each
@@ -4937,27 +6094,32 @@ class FfiConverterTypeEthSignerError(FfiConverterRustBuffer):
 class UniFFIExceptionTmpNamespace:
     class SignError(Exception):
         pass
-    
+
     class EthSigningError(SignError):
         def __str__(self):
             return "SignError.EthSigningError({})".format(repr(super().__str__()))
 
     SignError.EthSigningError = EthSigningError
+
     class ZkSigningError(SignError):
         def __str__(self):
             return "SignError.ZkSigningError({})".format(repr(super().__str__()))
 
     SignError.ZkSigningError = ZkSigningError
+
     class StarkSigningError(SignError):
         def __str__(self):
             return "SignError.StarkSigningError({})".format(repr(super().__str__()))
 
     SignError.StarkSigningError = StarkSigningError
+
     class IncorrectTx(SignError):
         def __str__(self):
             return "SignError.IncorrectTx({})".format(repr(super().__str__()))
 
     SignError.IncorrectTx = IncorrectTx
+
+
 SignError = UniFFIExceptionTmpNamespace.SignError
 del UniFFIExceptionTmpNamespace
 
@@ -4996,7 +6158,6 @@ class FfiConverterTypeSignError(FfiConverterRustBuffer):
             buf.writeI32(4)
 
 
-
 # StarkSignerError
 # We want to define each variant as a nested class that's also a subclass,
 # which is tricky in Python.  To accomplish this we're going to create each
@@ -5006,32 +6167,42 @@ class FfiConverterTypeSignError(FfiConverterRustBuffer):
 class UniFFIExceptionTmpNamespace:
     class StarkSignerError(Exception):
         pass
-    
+
     class InvalidStarknetSigner(StarkSignerError):
         def __str__(self):
-            return "StarkSignerError.InvalidStarknetSigner({})".format(repr(super().__str__()))
+            return "StarkSignerError.InvalidStarknetSigner({})".format(
+                repr(super().__str__())
+            )
 
     StarkSignerError.InvalidStarknetSigner = InvalidStarknetSigner
+
     class InvalidSignature(StarkSignerError):
         def __str__(self):
-            return "StarkSignerError.InvalidSignature({})".format(repr(super().__str__()))
+            return "StarkSignerError.InvalidSignature({})".format(
+                repr(super().__str__())
+            )
 
     StarkSignerError.InvalidSignature = InvalidSignature
+
     class InvalidPrivKey(StarkSignerError):
         def __str__(self):
             return "StarkSignerError.InvalidPrivKey({})".format(repr(super().__str__()))
 
     StarkSignerError.InvalidPrivKey = InvalidPrivKey
+
     class SignError(StarkSignerError):
         def __str__(self):
             return "StarkSignerError.SignError({})".format(repr(super().__str__()))
 
     StarkSignerError.SignError = SignError
+
     class RpcSignError(StarkSignerError):
         def __str__(self):
             return "StarkSignerError.RpcSignError({})".format(repr(super().__str__()))
 
     StarkSignerError.RpcSignError = RpcSignError
+
+
 StarkSignerError = UniFFIExceptionTmpNamespace.StarkSignerError
 del UniFFIExceptionTmpNamespace
 
@@ -5076,7 +6247,6 @@ class FfiConverterTypeStarkSignerError(FfiConverterRustBuffer):
             buf.writeI32(5)
 
 
-
 # TypeError
 # We want to define each variant as a nested class that's also a subclass,
 # which is tricky in Python.  To accomplish this we're going to create each
@@ -5086,42 +6256,50 @@ class FfiConverterTypeStarkSignerError(FfiConverterRustBuffer):
 class UniFFIExceptionTmpNamespace:
     class TypeError(Exception):
         pass
-    
+
     class InvalidAddress(TypeError):
         def __str__(self):
             return "TypeError.InvalidAddress({})".format(repr(super().__str__()))
 
     TypeError.InvalidAddress = InvalidAddress
+
     class InvalidTxHash(TypeError):
         def __str__(self):
             return "TypeError.InvalidTxHash({})".format(repr(super().__str__()))
 
     TypeError.InvalidTxHash = InvalidTxHash
+
     class NotStartWithZerox(TypeError):
         def __str__(self):
             return "TypeError.NotStartWithZerox({})".format(repr(super().__str__()))
 
     TypeError.NotStartWithZerox = NotStartWithZerox
+
     class SizeMismatch(TypeError):
         def __str__(self):
             return "TypeError.SizeMismatch({})".format(repr(super().__str__()))
 
     TypeError.SizeMismatch = SizeMismatch
+
     class DecodeFromHexErr(TypeError):
         def __str__(self):
             return "TypeError.DecodeFromHexErr({})".format(repr(super().__str__()))
 
     TypeError.DecodeFromHexErr = DecodeFromHexErr
+
     class TooBigInteger(TypeError):
         def __str__(self):
             return "TypeError.TooBigInteger({})".format(repr(super().__str__()))
 
     TypeError.TooBigInteger = TooBigInteger
+
     class InvalidBigIntStr(TypeError):
         def __str__(self):
             return "TypeError.InvalidBigIntStr({})".format(repr(super().__str__()))
 
     TypeError.InvalidBigIntStr = InvalidBigIntStr
+
+
 TypeError = UniFFIExceptionTmpNamespace.TypeError
 del UniFFIExceptionTmpNamespace
 
@@ -5178,7 +6356,6 @@ class FfiConverterTypeTypeError(FfiConverterRustBuffer):
             buf.writeI32(7)
 
 
-
 # ZkSignerError
 # We want to define each variant as a nested class that's also a subclass,
 # which is tricky in Python.  To accomplish this we're going to create each
@@ -5188,47 +6365,56 @@ class FfiConverterTypeTypeError(FfiConverterRustBuffer):
 class UniFFIExceptionTmpNamespace:
     class ZkSignerError(Exception):
         pass
-    
+
     class CustomError(ZkSignerError):
         def __str__(self):
             return "ZkSignerError.CustomError({})".format(repr(super().__str__()))
 
     ZkSignerError.CustomError = CustomError
+
     class InvalidSignature(ZkSignerError):
         def __str__(self):
             return "ZkSignerError.InvalidSignature({})".format(repr(super().__str__()))
 
     ZkSignerError.InvalidSignature = InvalidSignature
+
     class InvalidPrivKey(ZkSignerError):
         def __str__(self):
             return "ZkSignerError.InvalidPrivKey({})".format(repr(super().__str__()))
 
     ZkSignerError.InvalidPrivKey = InvalidPrivKey
+
     class InvalidSeed(ZkSignerError):
         def __str__(self):
             return "ZkSignerError.InvalidSeed({})".format(repr(super().__str__()))
 
     ZkSignerError.InvalidSeed = InvalidSeed
+
     class InvalidPubkey(ZkSignerError):
         def __str__(self):
             return "ZkSignerError.InvalidPubkey({})".format(repr(super().__str__()))
 
     ZkSignerError.InvalidPubkey = InvalidPubkey
+
     class InvalidPubkeyHash(ZkSignerError):
         def __str__(self):
             return "ZkSignerError.InvalidPubkeyHash({})".format(repr(super().__str__()))
 
     ZkSignerError.InvalidPubkeyHash = InvalidPubkeyHash
+
     class EthSignerError(ZkSignerError):
         def __str__(self):
             return "ZkSignerError.EthSignerError({})".format(repr(super().__str__()))
 
     ZkSignerError.EthSignerError = EthSignerError
+
     class StarkSignerError(ZkSignerError):
         def __str__(self):
             return "ZkSignerError.StarkSignerError({})".format(repr(super().__str__()))
 
     ZkSignerError.StarkSignerError = StarkSignerError
+
+
 ZkSignerError = UniFFIExceptionTmpNamespace.ZkSignerError
 del UniFFIExceptionTmpNamespace
 
@@ -5291,7 +6477,6 @@ class FfiConverterTypeZkSignerError(FfiConverterRustBuffer):
             buf.writeI32(8)
 
 
-
 class FfiConverterOptionalString(FfiConverterRustBuffer):
     @classmethod
     def write(cls, value, buf):
@@ -5311,7 +6496,6 @@ class FfiConverterOptionalString(FfiConverterRustBuffer):
             return FfiConverterString.read(buf)
         else:
             raise InternalError("Unexpected flag byte for optional type")
-
 
 
 class FfiConverterOptionalTypeZkLinkSignature(FfiConverterRustBuffer):
@@ -5335,7 +6519,6 @@ class FfiConverterOptionalTypeZkLinkSignature(FfiConverterRustBuffer):
             raise InternalError("Unexpected flag byte for optional type")
 
 
-
 class FfiConverterOptionalSequenceUInt8(FfiConverterRustBuffer):
     @classmethod
     def write(cls, value, buf):
@@ -5355,7 +6538,6 @@ class FfiConverterOptionalSequenceUInt8(FfiConverterRustBuffer):
             return FfiConverterSequenceUInt8.read(buf)
         else:
             raise InternalError("Unexpected flag byte for optional type")
-
 
 
 class FfiConverterOptionalTypeH256(FfiConverterRustBuffer):
@@ -5379,7 +6561,6 @@ class FfiConverterOptionalTypeH256(FfiConverterRustBuffer):
             raise InternalError("Unexpected flag byte for optional type")
 
 
-
 class FfiConverterOptionalTypePackedEthSignature(FfiConverterRustBuffer):
     @classmethod
     def write(cls, value, buf):
@@ -5399,7 +6580,6 @@ class FfiConverterOptionalTypePackedEthSignature(FfiConverterRustBuffer):
             return FfiConverterTypePackedEthSignature.read(buf)
         else:
             raise InternalError("Unexpected flag byte for optional type")
-
 
 
 class FfiConverterOptionalTypeTxLayer1Signature(FfiConverterRustBuffer):
@@ -5423,7 +6603,6 @@ class FfiConverterOptionalTypeTxLayer1Signature(FfiConverterRustBuffer):
             raise InternalError("Unexpected flag byte for optional type")
 
 
-
 class FfiConverterSequenceUInt8(FfiConverterRustBuffer):
     @classmethod
     def write(cls, value, buf):
@@ -5438,10 +6617,7 @@ class FfiConverterSequenceUInt8(FfiConverterRustBuffer):
         if count < 0:
             raise InternalError("Unexpected negative sequence length")
 
-        return [
-            FfiConverterUInt8.read(buf) for i in range(count)
-        ]
-
+        return [FfiConverterUInt8.read(buf) for i in range(count)]
 
 
 class FfiConverterSequenceTypeContract(FfiConverterRustBuffer):
@@ -5458,10 +6634,7 @@ class FfiConverterSequenceTypeContract(FfiConverterRustBuffer):
         if count < 0:
             raise InternalError("Unexpected negative sequence length")
 
-        return [
-            FfiConverterTypeContract.read(buf) for i in range(count)
-        ]
-
+        return [FfiConverterTypeContract.read(buf) for i in range(count)]
 
 
 class FfiConverterSequenceTypeContractPrice(FfiConverterRustBuffer):
@@ -5478,10 +6651,7 @@ class FfiConverterSequenceTypeContractPrice(FfiConverterRustBuffer):
         if count < 0:
             raise InternalError("Unexpected negative sequence length")
 
-        return [
-            FfiConverterTypeContractPrice.read(buf) for i in range(count)
-        ]
-
+        return [FfiConverterTypeContractPrice.read(buf) for i in range(count)]
 
 
 class FfiConverterSequenceTypeFundingInfo(FfiConverterRustBuffer):
@@ -5498,10 +6668,7 @@ class FfiConverterSequenceTypeFundingInfo(FfiConverterRustBuffer):
         if count < 0:
             raise InternalError("Unexpected negative sequence length")
 
-        return [
-            FfiConverterTypeFundingInfo.read(buf) for i in range(count)
-        ]
-
+        return [FfiConverterTypeFundingInfo.read(buf) for i in range(count)]
 
 
 class FfiConverterSequenceTypeSpotPriceInfo(FfiConverterRustBuffer):
@@ -5518,10 +6685,7 @@ class FfiConverterSequenceTypeSpotPriceInfo(FfiConverterRustBuffer):
         if count < 0:
             raise InternalError("Unexpected negative sequence length")
 
-        return [
-            FfiConverterTypeSpotPriceInfo.read(buf) for i in range(count)
-        ]
-
+        return [FfiConverterTypeSpotPriceInfo.read(buf) for i in range(count)]
 
 
 class FfiConverterSequenceTypeAccountId(FfiConverterRustBuffer):
@@ -5538,9 +6702,7 @@ class FfiConverterSequenceTypeAccountId(FfiConverterRustBuffer):
         if count < 0:
             raise InternalError("Unexpected negative sequence length")
 
-        return [
-            FfiConverterTypeAccountId.read(buf) for i in range(count)
-        ]
+        return [FfiConverterTypeAccountId.read(buf) for i in range(count)]
 
 
 class FfiConverterTypeAccountId:
@@ -5974,58 +7136,79 @@ class FfiConverterTypeZkLinkTx:
     def lower(value):
         return FfiConverterString.lower(value)
 
-def verify_musig(signature,msg):
-    signature = signature
-    
-    msg = list(int(x) for x in msg)
-    
-    return FfiConverterBool.lift(rust_call(_UniFFILib.zklink_sdk_f180_verify_musig,
-        FfiConverterTypeZkLinkSignature.lower(signature),
-        FfiConverterSequenceUInt8.lower(msg)))
 
+def verify_musig(signature, msg):
+    signature = signature
+
+    msg = list(int(x) for x in msg)
+
+    return FfiConverterBool.lift(
+        rust_call(
+            _UniFFILib.zklink_sdk_f180_verify_musig,
+            FfiConverterTypeZkLinkSignature.lower(signature),
+            FfiConverterSequenceUInt8.lower(msg),
+        )
+    )
 
 
 def get_public_key_hash(public_key):
     public_key = public_key
-    
-    return FfiConverterTypePubKeyHash.lift(rust_call(_UniFFILib.zklink_sdk_f180_get_public_key_hash,
-        FfiConverterTypePackedPublicKey.lower(public_key)))
 
+    return FfiConverterTypePubKeyHash.lift(
+        rust_call(
+            _UniFFILib.zklink_sdk_f180_get_public_key_hash,
+            FfiConverterTypePackedPublicKey.lower(public_key),
+        )
+    )
 
 
 def zklink_main_net_url():
-    return FfiConverterString.lift(rust_call(_UniFFILib.zklink_sdk_f180_zklink_main_net_url,))
-
+    return FfiConverterString.lift(
+        rust_call(
+            _UniFFILib.zklink_sdk_f180_zklink_main_net_url,
+        )
+    )
 
 
 def zklink_test_net_url():
-    return FfiConverterString.lift(rust_call(_UniFFILib.zklink_sdk_f180_zklink_test_net_url,))
+    return FfiConverterString.lift(
+        rust_call(
+            _UniFFILib.zklink_sdk_f180_zklink_test_net_url,
+        )
+    )
 
 
-
-def eth_signature_of_change_pubkey(tx,eth_signer):
+def eth_signature_of_change_pubkey(tx, eth_signer):
     tx = tx
-    
+
     eth_signer = eth_signer
-    
-    return FfiConverterTypePackedEthSignature.lift(rust_call_with_error(FfiConverterTypeSignError,_UniFFILib.zklink_sdk_f180_eth_signature_of_change_pubkey,
-        FfiConverterTypeChangePubKey.lower(tx),
-        FfiConverterTypeEthSigner.lower(eth_signer)))
+
+    return FfiConverterTypePackedEthSignature.lift(
+        rust_call_with_error(
+            FfiConverterTypeSignError,
+            _UniFFILib.zklink_sdk_f180_eth_signature_of_change_pubkey,
+            FfiConverterTypeChangePubKey.lower(tx),
+            FfiConverterTypeEthSigner.lower(eth_signer),
+        )
+    )
 
 
-
-def create_signed_change_pubkey(zklink_signer,tx,eth_auth_data):
+def create_signed_change_pubkey(zklink_signer, tx, eth_auth_data):
     zklink_signer = zklink_signer
-    
-    tx = tx
-    
-    eth_auth_data = eth_auth_data
-    
-    return FfiConverterTypeChangePubKey.lift(rust_call_with_error(FfiConverterTypeSignError,_UniFFILib.zklink_sdk_f180_create_signed_change_pubkey,
-        FfiConverterTypeZkLinkSigner.lower(zklink_signer),
-        FfiConverterTypeChangePubKey.lower(tx),
-        FfiConverterTypeChangePubKeyAuthData.lower(eth_auth_data)))
 
+    tx = tx
+
+    eth_auth_data = eth_auth_data
+
+    return FfiConverterTypeChangePubKey.lift(
+        rust_call_with_error(
+            FfiConverterTypeSignError,
+            _UniFFILib.zklink_sdk_f180_create_signed_change_pubkey,
+            FfiConverterTypeZkLinkSigner.lower(zklink_signer),
+            FfiConverterTypeChangePubKey.lower(tx),
+            FfiConverterTypeChangePubKeyAuthData.lower(eth_auth_data),
+        )
+    )
 
 
 __all__ = [
@@ -6089,4 +7272,3 @@ __all__ = [
     "TypeError",
     "ZkSignerError",
 ]
-

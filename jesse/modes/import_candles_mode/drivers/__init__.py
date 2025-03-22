@@ -1,24 +1,50 @@
 from jesse.enums import exchanges
 from jesse.modes.import_candles_mode.drivers.Binance.BinanceSpot import BinanceSpot
 from jesse.modes.import_candles_mode.drivers.Binance.BinanceUSSpot import BinanceUSSpot
-from jesse.modes.import_candles_mode.drivers.Binance.BinancePerpetualFutures import BinancePerpetualFutures
+from jesse.modes.import_candles_mode.drivers.Binance.BinancePerpetualFutures import (
+    BinancePerpetualFutures,
+)
 from jesse.modes.import_candles_mode.drivers.Bitfinex.BitfinexSpot import BitfinexSpot
 from jesse.modes.import_candles_mode.drivers.Coinbase.CoinbaseSpot import CoinbaseSpot
-from jesse.modes.import_candles_mode.drivers.Binance.BinancePerpetualFuturesTestnet import BinancePerpetualFuturesTestnet
-from jesse.modes.import_candles_mode.drivers.Bybit.BybitUSDTPerpetual import BybitUSDTPerpetual
-from jesse.modes.import_candles_mode.drivers.Bybit.BybitUSDTPerpetualTestnet import BybitUSDTPerpetualTestnet
-from jesse.modes.import_candles_mode.drivers.Bybit.BybitUSDCPerpetual import BybitUSDCPerpetual
-from jesse.modes.import_candles_mode.drivers.Bybit.BybitUSDCPerpetualTestnet import BybitUSDCPerpetualTestnet
-from jesse.modes.import_candles_mode.drivers.Bybit.BybitSpotTestnet import BybitSpotTestnet
+from jesse.modes.import_candles_mode.drivers.Binance.BinancePerpetualFuturesTestnet import (
+    BinancePerpetualFuturesTestnet,
+)
+from jesse.modes.import_candles_mode.drivers.Bybit.BybitUSDTPerpetual import (
+    BybitUSDTPerpetual,
+)
+from jesse.modes.import_candles_mode.drivers.Bybit.BybitUSDTPerpetualTestnet import (
+    BybitUSDTPerpetualTestnet,
+)
+from jesse.modes.import_candles_mode.drivers.Bybit.BybitUSDCPerpetual import (
+    BybitUSDCPerpetual,
+)
+from jesse.modes.import_candles_mode.drivers.Bybit.BybitUSDCPerpetualTestnet import (
+    BybitUSDCPerpetualTestnet,
+)
+from jesse.modes.import_candles_mode.drivers.Bybit.BybitSpotTestnet import (
+    BybitSpotTestnet,
+)
 from jesse.modes.import_candles_mode.drivers.Bybit.BybitSpot import BybitSpot
-from jesse.modes.import_candles_mode.drivers.Apex.ApexProPerpetualTestnet import ApexProPerpetualTestnet
-from jesse.modes.import_candles_mode.drivers.Apex.ApexProPerpetual import ApexProPerpetual
-from jesse.modes.import_candles_mode.drivers.Apex.ApexOmniPerpetualTestnet import ApexOmniPerpetualTestnet
-from jesse.modes.import_candles_mode.drivers.Apex.ApexOmniPerpetual import ApexOmniPerpetual
-from jesse.modes.import_candles_mode.drivers.Gate.GateUSDTPerpetual import GateUSDTPerpetual
+from jesse.modes.import_candles_mode.drivers.Apex.ApexProPerpetualTestnet import (
+    ApexProPerpetualTestnet,
+)
+from jesse.modes.import_candles_mode.drivers.Apex.ApexProPerpetual import (
+    ApexProPerpetual,
+)
+from jesse.modes.import_candles_mode.drivers.Apex.ApexOmniPerpetualTestnet import (
+    ApexOmniPerpetualTestnet,
+)
+from jesse.modes.import_candles_mode.drivers.Apex.ApexOmniPerpetual import (
+    ApexOmniPerpetual,
+)
+from jesse.modes.import_candles_mode.drivers.Gate.GateUSDTPerpetual import (
+    GateUSDTPerpetual,
+)
 from jesse.modes.import_candles_mode.drivers.Gate.GateSpot import GateSpot
 from jesse.modes.import_candles_mode.drivers.Alpaca.Alpaca import Alpaca
-from jesse.modes.import_candles_mode.drivers.AlphaVantage.AlphaVantage import AlphaVantage
+from jesse.modes.import_candles_mode.drivers.AlphaVantage.AlphaVantage import (
+    AlphaVantage,
+)
 
 
 drivers = {
@@ -37,13 +63,11 @@ drivers = {
     exchanges.APEX_OMNI_PERPETUAL: ApexOmniPerpetual,
     exchanges.GATE_USDT_PERPETUAL: GateUSDTPerpetual,
     exchanges.GATE_SPOT: GateSpot,
-
     # Spot
     exchanges.BINANCE_SPOT: BinanceSpot,
     exchanges.BINANCE_US_SPOT: BinanceUSSpot,
     exchanges.BYBIT_SPOT_TESTNET: BybitSpotTestnet,
     exchanges.BYBIT_SPOT: BybitSpot,
-
     # Stock Market
     exchanges.ALPACA: Alpaca,
     exchanges.ALPHA_VANTAGE: AlphaVantage,

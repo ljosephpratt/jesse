@@ -5,6 +5,7 @@ from numba import njit
 
 from jesse.helpers import slice_candles
 
+
 @njit(cache=True)
 def calculate_cci_loop(tp, period):
     n = tp.shape[0]
@@ -34,7 +35,9 @@ def calculate_cci_loop(tp, period):
     return result
 
 
-def cci(candles: np.ndarray, period: int = 14, sequential: bool = False) -> Union[float, np.ndarray]:
+def cci(
+    candles: np.ndarray, period: int = 14, sequential: bool = False
+) -> Union[float, np.ndarray]:
     """
     CCI - Commodity Channel Index
 

@@ -5,10 +5,12 @@ from numba import njit
 
 from jesse.helpers import slice_candles
 
-SuperTrend = namedtuple('SuperTrend', ['trend', 'changed'])
+SuperTrend = namedtuple("SuperTrend", ["trend", "changed"])
 
 
-def supertrend(candles: np.ndarray, period: int = 10, factor: float = 3, sequential: bool = False) -> SuperTrend:
+def supertrend(
+    candles: np.ndarray, period: int = 10, factor: float = 3, sequential: bool = False
+) -> SuperTrend:
     """
     SuperTrend indicator optimized with numba and loop-based calculations.
     :param candles: np.ndarray - candle data
@@ -33,8 +35,8 @@ def atr_loop(high, low, close, period):
     tr[0] = high[0] - low[0]
     for i in range(1, n):
         diff1 = high[i] - low[i]
-        diff2 = np.abs(high[i] - close[i-1])
-        diff3 = np.abs(low[i] - close[i-1])
+        diff2 = np.abs(high[i] - close[i - 1])
+        diff3 = np.abs(low[i] - close[i - 1])
         # manual max of the three differences
         if diff1 >= diff2 and diff1 >= diff3:
             tr[i] = diff1
@@ -54,7 +56,7 @@ def atr_loop(high, low, close, period):
     atr[period - 1] = sum_init / period
     # Recursive ATR calculation
     for i in range(period, n):
-        atr[i] = ((atr[i-1] * (period - 1)) + tr[i]) / period
+        atr[i] = ((atr[i - 1] * (period - 1)) + tr[i]) / period
     return atr
 
 
@@ -89,7 +91,7 @@ def supertrend_fast(candles, atr, factor, period):
     for i in range(period, n):
         p = i - 1
         prevClose = candles[p, 2]
-        
+
         # Update upper_band
         if prevClose <= upper_band[p]:
             if upper_basic[i] < upper_band[p]:

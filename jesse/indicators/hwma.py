@@ -6,8 +6,14 @@ from numba import njit
 from jesse.helpers import get_candle_source, same_length, slice_candles
 
 
-def hwma(candles: np.ndarray, na: float = 0.2, nb: float = 0.1, nc: float = 0.1, source_type: str = "close", sequential: bool = False) -> Union[
-    float, np.ndarray]:
+def hwma(
+    candles: np.ndarray,
+    na: float = 0.2,
+    nb: float = 0.1,
+    nc: float = 0.1,
+    source_type: str = "close",
+    sequential: bool = False,
+) -> Union[float, np.ndarray]:
     """
     Holt-Winter Moving Average
 

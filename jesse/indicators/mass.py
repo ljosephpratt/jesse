@@ -6,11 +6,13 @@ from numba import njit
 from jesse.helpers import same_length, slice_candles
 
 
-def mass(candles: np.ndarray, period: int = 5, sequential: bool = False) -> Union[float, np.ndarray]:
+def mass(
+    candles: np.ndarray, period: int = 5, sequential: bool = False
+) -> Union[float, np.ndarray]:
     """
     MASS - Mass Index
     The Mass Index uses the high-low range to identify trend reversals based on range expansions.
-    It suggests that a reversal of the current trend may be imminent when the range widens beyond 
+    It suggests that a reversal of the current trend may be imminent when the range widens beyond
     a certain point and then contracts.
 
     :param candles: np.ndarray
@@ -44,7 +46,7 @@ def mass_sum(ratio: np.ndarray, period: int) -> np.ndarray:
     """Calculate the sum of the ratio over the specified period"""
     result = np.zeros_like(ratio)
     for i in range(period - 1, len(ratio)):
-        result[i] = np.sum(ratio[i-period+1:i+1])
+        result[i] = np.sum(ratio[i - period + 1 : i + 1])
     return result
 
 
@@ -54,6 +56,5 @@ def calc_ema(data, n):
     result = np.empty(data.shape[0])
     result[0] = data[0]
     for i in range(1, data.shape[0]):
-        result[i] = alpha * data[i] + (1 - alpha) * result[i-1]
+        result[i] = alpha * data[i] + (1 - alpha) * result[i - 1]
     return result
-

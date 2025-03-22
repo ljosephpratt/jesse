@@ -5,7 +5,7 @@ from scipy.signal import argrelextrema
 
 from jesse.helpers import np_ffill, slice_candles
 
-EXTREMA = namedtuple('EXTREMA', ['is_min', 'is_max', 'last_min', 'last_max'])
+EXTREMA = namedtuple("EXTREMA", ["is_min", "is_max", "last_min", "last_max"])
 
 
 def minmax(candles: np.ndarray, order: int = 3, sequential: bool = False) -> EXTREMA:
@@ -40,4 +40,6 @@ def minmax(candles: np.ndarray, order: int = 3, sequential: bool = False) -> EXT
     if sequential:
         return EXTREMA(is_min, is_max, last_min, last_max)
     else:
-        return EXTREMA(is_min[-(order+1)], is_max[-(order+1)], last_min[-1], last_max[-1])
+        return EXTREMA(
+            is_min[-(order + 1)], is_max[-(order + 1)], last_min[-1], last_max[-1]
+        )

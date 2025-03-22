@@ -404,8 +404,7 @@ exchange_info = {
         "type": "spot",  # or "futures" depending on what you're implementing
         "settlement_currency": "USD",
         "supported_leverage_modes": ["cross"],
-        "supported_timeframes": [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_15,
-                                timeframes.DAY_1],
+        "supported_timeframes": [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_15, timeframes.DAY_1],
         "modes": {
             "backtesting": True,
             "live_trading": True,
