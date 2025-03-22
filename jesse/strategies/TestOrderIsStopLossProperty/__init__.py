@@ -20,4 +20,4 @@ class TestOrderIsStopLossProperty(Strategy):
         self.stop_loss = 1, self.price + 5
 
     def on_close_position(self, order) -> None:
-        assert order.is_stop_loss == True
+        assert order.is_stop_loss

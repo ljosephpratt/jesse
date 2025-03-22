@@ -61,7 +61,7 @@ class TestEntryOrdersAndExitOrdersProperties(Strategy):
             assert self.exit_orders[0].price == 5
             assert self.exit_orders[0].qty == -1
             assert self.exit_orders[0].is_active
-            assert self.exit_orders[0].type == 'STOP'
+            assert self.exit_orders[0].type == "STOP"
 
         if self.price == 21:
             # entry orders
@@ -76,7 +76,7 @@ class TestEntryOrdersAndExitOrdersProperties(Strategy):
             assert self.entry_orders[0].price == 28
             assert self.entry_orders[0].qty == 1
             assert self.entry_orders[0].is_active
-            assert self.entry_orders[0].type == 'STOP'
+            assert self.entry_orders[0].type == "STOP"
             # exit orders
             assert len(self.exit_orders) == 0
 
@@ -104,20 +104,19 @@ class TestEntryOrdersAndExitOrdersProperties(Strategy):
             assert self.exit_orders[0].price == 25
             assert self.exit_orders[0].qty == -3
             assert self.exit_orders[0].is_active
-            assert self.exit_orders[0].type == 'STOP'
+            assert self.exit_orders[0].type == "STOP"
 
             assert self.exit_orders[1].price == 35
             assert self.exit_orders[1].qty == -1
             assert self.exit_orders[1].is_active
-            assert self.exit_orders[1].type == 'LIMIT'
+            assert self.exit_orders[1].type == "LIMIT"
 
             assert self.exit_orders[2].price == 36
             assert self.exit_orders[2].qty == -1
             assert self.exit_orders[2].is_active
-            assert self.exit_orders[2].type == 'LIMIT'
+            assert self.exit_orders[2].type == "LIMIT"
 
             assert self.exit_orders[3].price == 37
             assert self.exit_orders[3].qty == -1
             assert self.exit_orders[3].is_active
-            assert self.exit_orders[3].type == 'LIMIT'
-            
+            assert self.exit_orders[3].type == "LIMIT"

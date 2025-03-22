@@ -1,11 +1,12 @@
 from jesse.strategies import Strategy
 
+
 class TestMarketOrderForLowPriceDifference(Strategy):
     def on_open_position(self, order):
-        assert order.type == 'MARKET'
+        assert order.type == "MARKET"
 
     def on_close_position(self, order) -> None:
-        assert order.type == 'MARKET'
+        assert order.type == "MARKET"
 
     def should_long(self) -> bool:
         return self.index == 0

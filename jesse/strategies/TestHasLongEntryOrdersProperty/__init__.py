@@ -48,4 +48,3 @@ class TestHasLongEntryOrdersProperty(Strategy):
     def update_position(self) -> None:
         if self.price == 25:
             self.liquidate()
-

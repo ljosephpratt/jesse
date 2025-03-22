@@ -13,11 +13,7 @@ class Test10(Strategy):
         qty = 1.5
         self.buy = qty, 7
         self.stop_loss = qty, 5
-        self.take_profit = [
-            (0.5, 11),
-            (0.5, 13),
-            (0.5, 15)
-        ]
+        self.take_profit = [(0.5, 11), (0.5, 13), (0.5, 15)]
 
     def go_short(self):
         pass

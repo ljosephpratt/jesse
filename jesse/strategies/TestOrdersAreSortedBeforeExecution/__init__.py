@@ -6,11 +6,7 @@ class TestOrdersAreSortedBeforeExecution(Strategy):
         return self.price == 10
 
     def go_long(self):
-        self.buy = [
-            (1, 10.2),
-            (1, 10.3),
-            (1, 10.1)
-        ]
+        self.buy = [(1, 10.2), (1, 10.3), (1, 10.1)]
 
     def on_open_position(self, order) -> None:
         # the order with the lowest price should be executed first

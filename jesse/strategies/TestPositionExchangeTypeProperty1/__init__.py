@@ -6,7 +6,7 @@ from jesse import utils
 class TestPositionExchangeTypeProperty1(Strategy):
     def before(self) -> None:
         if self.index == 0:
-            assert self.exchange_type == 'futures'
+            assert self.exchange_type == "futures"
 
     def should_long(self):
         return False

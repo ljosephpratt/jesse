@@ -12,11 +12,7 @@ class Test14(Strategy):
     def go_long(self):
         qty = 1.5
         self.buy = qty, 7
-        self.stop_loss = [
-            (0.5, 6),
-            (0.5, 5),
-            (0.5, 4)
-        ]
+        self.stop_loss = [(0.5, 6), (0.5, 5), (0.5, 4)]
         self.take_profit = qty, 13
 
     def update_position(self):

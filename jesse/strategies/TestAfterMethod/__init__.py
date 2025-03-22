@@ -20,8 +20,8 @@ class TestAfterMethod(Strategy):
 
     def before(self):
         if self.index == 1:
-            assert self.vars['counter'] == 100
+            assert self.vars["counter"] == 100
 
     def after(self):
         if self.index == 0:
-            self.vars['counter'] = 100
+            self.vars["counter"] = 100

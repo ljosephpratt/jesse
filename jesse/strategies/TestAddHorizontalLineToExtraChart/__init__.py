@@ -18,4 +18,4 @@ class TestAddHorizontalLineToExtraChart(Strategy):
         return False
 
     def after(self) -> None:
-        self.add_horizontal_line_to_extra_chart('test', 'title', [1, 2], 'green')
+        self.add_horizontal_line_to_extra_chart("test", "title", [1, 2], "green")

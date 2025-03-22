@@ -18,4 +18,4 @@ class TestAddHorizontalLineToCandleChart(Strategy):
         return False
 
     def after(self) -> None:
-        self.add_horizontal_line_to_candle_chart('test', [1, 2], 'green')
+        self.add_horizontal_line_to_candle_chart("test", [1, 2], "green")

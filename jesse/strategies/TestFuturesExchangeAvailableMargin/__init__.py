@@ -6,19 +6,31 @@ class TestFuturesExchangeAvailableMargin(Strategy):
     def before(self):
         if self.index == 0:
             assert self.position.exchange.wallet_balance == 10000 == self.balance
-            assert self.position.exchange.available_margin == 10000 == self.available_margin
+            assert (
+                self.position.exchange.available_margin
+                == 10000
+                == self.available_margin
+            )
 
         if self.price == 11:
             # wallet balance should have stayed the same while we haven't spent from it yet
             assert self.position.exchange.wallet_balance == 10000 == self.balance
             # Adjusting available_margin calculation
-            assert round(self.position.exchange.available_margin) == 10000 - (2000 / 2) == round(self.available_margin)
+            assert (
+                round(self.position.exchange.available_margin)
+                == 10000 - (2000 / 2)
+                == round(self.available_margin)
+            )
 
         if self.price == 12:
             # wallet balance should have stayed the same, no fee in this test
             assert self.position.exchange.wallet_balance == 10000 == self.balance
             # available_margin should have stayed the same, not include reduce only orders
-            assert round(self.position.exchange.available_margin) == 10000 - (2000 / 2) == round(self.available_margin)
+            assert (
+                round(self.position.exchange.available_margin)
+                == 10000 - (2000 / 2)
+                == round(self.available_margin)
+            )
 
         if self.price == 13:
             # wallet balance should have stayed the same, no fee in this test
@@ -26,8 +38,11 @@ class TestFuturesExchangeAvailableMargin(Strategy):
             # Adjusting available_margin calculation considering unrealized profit and leverage
             # The leverage is applied to the PNL to reflect its impact on the available margin
             expected_margin = 10000 - (2000 / 2) + (self.position.pnl)
-            assert round(self.position.exchange.available_margin) == round(expected_margin) == round(
-                self.available_margin)
+            assert (
+                round(self.position.exchange.available_margin)
+                == round(expected_margin)
+                == round(self.available_margin)
+            )
 
         if self.price == 21:
             # wallet balance now equals to 10_000 + profit from previous trade

@@ -4,7 +4,7 @@ from jesse.strategies import Strategy
 # test_shared_vars [part 2]
 class Test33(Strategy):
     def should_long(self):
-        return self.trades_count == 0 and self.shared_vars['buy-eth'] is True
+        return self.trades_count == 0 and self.shared_vars["buy-eth"] is True
 
     def should_short(self):
         return False

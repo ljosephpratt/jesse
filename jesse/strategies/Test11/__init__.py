@@ -15,11 +15,7 @@ class Test11(Strategy):
     def go_short(self):
         qty = 1.5
         self.sell = qty, 3
-        self.stop_loss = [
-            (0.5, 6),
-            (0.5, 5),
-            (0.5, 4)
-        ]
+        self.stop_loss = [(0.5, 6), (0.5, 5), (0.5, 4)]
         self.take_profit = qty, 1
 
     def should_cancel_entry(self):

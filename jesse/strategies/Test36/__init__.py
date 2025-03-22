@@ -30,9 +30,7 @@ class Test36(Strategy):
         return True
 
     def filters(self):
-        return [
-            self.filter_1
-        ]
+        return [self.filter_1]
 
     def filter_1(self):
         if self.index == 0 and self.average_take_profit == 3.5:

@@ -17,10 +17,7 @@ class Test17(Strategy):
         # reduce the size of position for 1 at current price
         if self.price == 10:
             # should work even without resetting take_profit and stop_loss
-            self.take_profit = [
-                (1, self.price),
-                (1, 15)
-            ]
+            self.take_profit = [(1, self.price), (1, 15)]
 
     def go_short(self):
         pass

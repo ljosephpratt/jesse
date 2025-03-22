@@ -18,4 +18,4 @@ class TestAddLineToExtraChart(Strategy):
         return False
 
     def after(self) -> None:
-        self.add_extra_line_chart('test', 'title', [1, 2], 'green')
+        self.add_extra_line_chart("test", "title", [1, 2], "green")

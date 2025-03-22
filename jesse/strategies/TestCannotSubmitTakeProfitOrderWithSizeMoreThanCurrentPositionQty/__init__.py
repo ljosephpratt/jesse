@@ -11,7 +11,7 @@ class TestCannotSubmitTakeProfitOrderWithSizeMoreThanCurrentPositionQty(Strategy
         self.buy = 1, self.price
 
     def on_open_position(self, order) -> None:
-        self.take_profit = self.position.qty*1.01, self.price*1.01
+        self.take_profit = self.position.qty * 1.01, self.price * 1.01
 
     def should_cancel_entry(self):
         return False

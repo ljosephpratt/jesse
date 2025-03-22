@@ -1,6 +1,7 @@
 from jesse.strategies import Strategy
 from jesse import utils
 
+
 class TestPortfolioValue(Strategy):
     def before(self):
         if self.index == 0:
@@ -10,14 +11,21 @@ class TestPortfolioValue(Strategy):
 
         if self.index == 10:
             assert round(self.portfolio_value) == round(
-                ((self.all_positions['ETH-USDT'].pnl + self.all_positions['BTC-USDT'].pnl) * self.leverage) + self.balance
+                (
+                    (
+                        self.all_positions["ETH-USDT"].pnl
+                        + self.all_positions["BTC-USDT"].pnl
+                    )
+                    * self.leverage
+                )
+                + self.balance
             )
 
     def should_long(self) -> bool:
-        return self.index == 0 and self.symbol == 'ETH-USDT'
+        return self.index == 0 and self.symbol == "ETH-USDT"
 
     def should_short(self) -> bool:
-        return self.index == 0 and self.symbol == 'BTC-USDT'
+        return self.index == 0 and self.symbol == "BTC-USDT"
 
     def go_long(self):
         qty = utils.size_to_qty(100, self.price)

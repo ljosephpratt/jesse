@@ -4,12 +4,12 @@ from jesse.strategies import Strategy
 class TestDnaMethod(Strategy):
     def before(self):
         if self.index == 0:
-            assert self.hp == {'profit_target': 7, 'qty_w': 86}
+            assert self.hp == {"profit_target": 7, "qty_w": 86}
 
     def hyperparameters(self):
         return [
-            {'name': 'qty_w', 'type': int, 'min': 10, 'max': 95, 'default': 70},
-            {'name': 'profit_target', 'type': int, 'min': 1, 'max': 40, 'default': 5},
+            {"name": "qty_w", "type": int, "min": 10, "max": 95, "default": 70},
+            {"name": "profit_target", "type": int, "min": 1, "max": 40, "default": 5},
         ]
 
     def dna(self):

@@ -14,7 +14,7 @@ class TestLiquidationInCrossModeForShortTrade(Strategy):
             assert self.balance == 10000
             assert self.leverage == 10
             assert self.available_margin == 10 * 10000
-            assert self.position.mode == 'cross'
+            assert self.position.mode == "cross"
 
         # # the liquidation price is at $14.94 so at $15:
         # if self.price == 15:
@@ -36,7 +36,7 @@ class TestLiquidationInCrossModeForShortTrade(Strategy):
 
     def go_short(self):
         qty = self.available_margin / self.price
-        print('qty', qty)
+        print("qty", qty)
         self.sell = qty, self.price
 
     def should_cancel_entry(self):

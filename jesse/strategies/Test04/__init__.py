@@ -26,10 +26,7 @@ class Test04(Strategy):
         ]
         # this one should not get executed at all
         self.stop_loss = qty, entry - 0.1
-        self.take_profit = [
-            (1, round(entry + 0.1, 2)),
-            (1, round(entry + 0.2, 2))
-        ]
+        self.take_profit = [(1, round(entry + 0.1, 2)), (1, round(entry + 0.2, 2))]
 
         # the candle when the open_position order gets hit:
         # 1, 2, 2, 1

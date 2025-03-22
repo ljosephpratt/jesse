@@ -11,9 +11,9 @@ class Test15(Strategy):
 
     def go_long(self):
         self.buy = [
-            (.5, 7),
-            (.5, 9),
-            (.5, 11),
+            (0.5, 7),
+            (0.5, 9),
+            (0.5, 11),
         ]
         self.stop_loss = 1.5, 5
         self.take_profit = 1.5, 15

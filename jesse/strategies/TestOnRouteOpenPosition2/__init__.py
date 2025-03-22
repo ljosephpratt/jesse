@@ -6,7 +6,7 @@ from jesse import utils
 class TestOnRouteOpenPosition2(Strategy):
     def before(self) -> None:
         if self.index == 0:
-            assert self.symbol == 'ETH-USDT'
+            assert self.symbol == "ETH-USDT"
 
     def should_long(self) -> bool:
         return self.price == 20

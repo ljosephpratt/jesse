@@ -22,7 +22,7 @@ class Test41(Strategy):
 
     def before_terminate(self):
         # log, so we can check this block was executed in the first place
-        logger.info('executed terminate successfully')
+        logger.info("executed terminate successfully")
 
         # assert open position
         assert self.position.is_open

@@ -10,9 +10,9 @@ class TestProperBalanceHanldingInSpotAfterOrderCancellation(Strategy):
         if self.price == 89:
             assert self.balance == 9900
             e = selectors.get_exchange(self.exchange)
-            assert e.assets['USDT'] == 9900
-            assert e.assets['BTC'] == 0
-        
+            assert e.assets["USDT"] == 9900
+            assert e.assets["BTC"] == 0
+
     def should_long(self):
         return self.price == 100
 
@@ -24,4 +24,3 @@ class TestProperBalanceHanldingInSpotAfterOrderCancellation(Strategy):
     def on_open_position(self, order):
         self.take_profit = self.position.qty, 110
         self.stop_loss = self.position.qty, 90
-    

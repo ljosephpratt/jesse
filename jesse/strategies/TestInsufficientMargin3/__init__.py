@@ -14,8 +14,8 @@ class TestInsufficientMargin3(Strategy):
         pass
 
     def go_short(self):
-        qty = utils.size_to_qty(10_001, self.price * .99)
-        self.sell = qty, self.price * .99
+        qty = utils.size_to_qty(10_001, self.price * 0.99)
+        self.sell = qty, self.price * 0.99
 
     def should_cancel_entry(self):
         return False

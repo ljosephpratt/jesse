@@ -12,7 +12,7 @@ class Test47(Strategy):
     def go_long(self):
         qty = 1
         self.buy = qty, self.price
-        self.stop_loss = qty, self.price - .10
+        self.stop_loss = qty, self.price - 0.10
 
     def go_short(self):
         pass
@@ -21,9 +21,7 @@ class Test47(Strategy):
         return False
 
     def filters(self):
-        return [
-            self.filter_1()
-        ]
+        return [self.filter_1()]
 
     def filter_1(self):
         if self.index == 0:

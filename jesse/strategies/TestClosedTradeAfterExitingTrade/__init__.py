@@ -26,11 +26,11 @@ class TestClosedTradeAfterExitingTrade(Strategy):
         trade = self.trades[0]
 
         assert jh.is_valid_uuid(trade.id) is True
-        assert trade.strategy_name == 'TestClosedTradeAfterExitingTrade'
-        assert trade.symbol == 'BTC-USDT'
-        assert trade.exchange == 'Sandbox'
-        assert trade.type == 'long'
-        assert trade.timeframe == '1m'
+        assert trade.strategy_name == "TestClosedTradeAfterExitingTrade"
+        assert trade.symbol == "BTC-USDT"
+        assert trade.exchange == "Sandbox"
+        assert trade.type == "long"
+        assert trade.timeframe == "1m"
         assert trade.entry_price == 10
         assert trade.exit_price == 12
         assert trade.qty == 10

@@ -25,4 +25,5 @@ class TestTerminate(Strategy):
 
         # change a value in store so we can assert the change in the original unit test
         from jesse.store import store
+
         store.app.starting_time = 1

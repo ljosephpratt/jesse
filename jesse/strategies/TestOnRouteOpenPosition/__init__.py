@@ -6,7 +6,7 @@ from jesse import utils
 class TestOnRouteOpenPosition(Strategy):
     def before(self) -> None:
         if self.index == 0:
-            assert self.symbol == 'BTC-USDT'
+            assert self.symbol == "BTC-USDT"
 
         if self.price == 20:
             assert self.is_open
@@ -24,5 +24,5 @@ class TestOnRouteOpenPosition(Strategy):
         return False
 
     def on_route_open_position(self, strategy) -> None:
-        if self.is_open and strategy.symbol == 'ETH-USDT':
+        if self.is_open and strategy.symbol == "ETH-USDT":
             self.liquidate()

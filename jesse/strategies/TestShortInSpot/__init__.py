@@ -16,5 +16,3 @@ class TestShortInSpot(Strategy):
 
     def should_cancel_entry(self):
         return False
-
-

@@ -18,20 +18,18 @@ class Test37(Strategy):
     def go_long(self):
         qty = 1
         self.buy = qty, self.price
-        self.stop_loss = qty, self.price - .10
+        self.stop_loss = qty, self.price - 0.10
 
     def go_short(self):
         qty = 1
         self.sell = qty, self.price
-        self.take_profit = qty, self.price + .10
+        self.take_profit = qty, self.price + 0.10
 
     def should_cancel_entry(self):
         return False
 
     def filters(self):
-        return [
-            self.filter_1
-        ]
+        return [self.filter_1]
 
     def filter_1(self):
         if self.index == 0:

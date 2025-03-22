@@ -5,10 +5,10 @@ from jesse.strategies import Strategy
 class TestBeforeMethod(Strategy):
     def should_long(self) -> bool:
         if self.index == 0:
-            assert self.vars['counter'] == 10
+            assert self.vars["counter"] == 10
 
         elif self.index == 2:
-            assert self.vars['counter'] == 100
+            assert self.vars["counter"] == 100
 
         return False
 
@@ -26,7 +26,7 @@ class TestBeforeMethod(Strategy):
 
     def before(self):
         if self.index == 0:
-            self.vars['counter'] = 10
+            self.vars["counter"] = 10
 
         elif self.index == 2:
-            self.vars['counter'] = 100
+            self.vars["counter"] = 100

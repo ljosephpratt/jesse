@@ -11,8 +11,8 @@ class TestInsufficientMargin2(Strategy):
         return False
 
     def go_long(self):
-        qty = utils.size_to_qty(10_001, self.price * .99)
-        self.buy = qty, self.price * .99
+        qty = utils.size_to_qty(10_001, self.price * 0.99)
+        self.buy = qty, self.price * 0.99
 
     def go_short(self):
         pass

@@ -18,7 +18,7 @@ class TestLiquidationInIsolatedModeForLongTrade(Strategy):
             assert self.leverage == 2
             assert self.leveraged_available_margin == 20000
             assert self.available_margin == 10000
-            assert self.position.mode == 'isolated'
+            assert self.position.mode == "isolated"
 
         return self.price == 80
 

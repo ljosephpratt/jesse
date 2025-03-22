@@ -13,9 +13,9 @@ class Test20(Strategy):
         # self.price: 2
         qty = 1
 
-        self.buy = qty, self.price + .5
-        self.stop_loss = qty, self.price + .4
-        self.take_profit = qty, self.price + .6
+        self.buy = qty, self.price + 0.5
+        self.stop_loss = qty, self.price + 0.4
+        self.take_profit = qty, self.price + 0.6
 
     def go_short(self):
         pass

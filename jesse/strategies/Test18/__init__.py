@@ -11,10 +11,7 @@ class Test18(Strategy):
 
         self.buy = qty, 7
         self.stop_loss = qty, 5
-        self.take_profit = [
-            (1, 15),
-            (1, 13)
-        ]
+        self.take_profit = [(1, 15), (1, 13)]
 
     def on_reduced_position(self, order):
         self.take_profit = abs(self.position.qty), self.price

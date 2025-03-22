@@ -2,7 +2,9 @@ from jesse.strategies import Strategy
 from jesse.enums import order_types
 
 
-class TestTakeProfitPriceIsReplacedWithMarketOrderWhenMoreConvenientLongPosition(Strategy):
+class TestTakeProfitPriceIsReplacedWithMarketOrderWhenMoreConvenientLongPosition(
+    Strategy
+):
     def before(self) -> None:
         if self.price == 15:
             last_trade = self.trades[-1]
