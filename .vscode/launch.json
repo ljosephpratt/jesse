@@ -1,0 +1,39 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Jesse Run",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/jesse/__main__.py",
+            "args": [
+                "run"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "python": "${workspaceFolder}/.venv/bin/python",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "preLaunchTask": "docker-compose-up",
+            "postDebugTask": "docker-compose-down"
+        },
+        {
+            "name": "Python: Jesse Backtest",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/jesse/__main__.py",
+            "args": [
+                "backtest"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "python": "${workspaceFolder}/.venv/bin/python",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}"
+            },
+            "preLaunchTask": "docker-compose-up",
+            "postDebugTask": "docker-compose-down"
+        }
+    ]
+}

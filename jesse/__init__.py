@@ -4,7 +4,15 @@ import os
 import warnings
 from typing import Optional
 import click
-import pkg_resources
+
+# Handle newer Python versions (3.10+) that may not have pkg_resources
+try:
+    import pkg_resources
+    JESSE_DIR = pkg_resources.resource_filename(__name__, '')
+except ImportError:
+    import importlib.resources
+    JESSE_DIR = str(importlib.resources.files(__name__))
+
 from fastapi import BackgroundTasks, Query, Header
 from starlette.websockets import WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, FileResponse
@@ -46,9 +54,6 @@ def validate_cwd() -> None:
             )
         )
         os._exit(1)
-
-
-JESSE_DIR = pkg_resources.resource_filename(__name__, '')
 
 
 # load homepage
@@ -195,8 +200,10 @@ async def websocket_endpoint(websocket: WebSocket, token: str = Query(...)):
 
 # create a Click group
 @click.group()
-@click.version_option(pkg_resources.get_distribution("jesse").version)
+@click.version_option(None, '--version', '-v', message='%(version)s')
 def cli() -> None:
+    from jesse.version import __version__
+    click.echo(f"Jesse {__version__}")
     pass
 
 

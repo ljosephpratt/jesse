@@ -135,7 +135,6 @@ dmypy.json
 cython_debug/
 
 # IDE
-/.vscode
 /.idea
 
 .DS_Store

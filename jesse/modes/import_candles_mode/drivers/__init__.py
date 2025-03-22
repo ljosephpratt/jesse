@@ -17,6 +17,8 @@ from jesse.modes.import_candles_mode.drivers.Apex.ApexOmniPerpetualTestnet impor
 from jesse.modes.import_candles_mode.drivers.Apex.ApexOmniPerpetual import ApexOmniPerpetual
 from jesse.modes.import_candles_mode.drivers.Gate.GateUSDTPerpetual import GateUSDTPerpetual
 from jesse.modes.import_candles_mode.drivers.Gate.GateSpot import GateSpot
+from jesse.modes.import_candles_mode.drivers.Alpaca.Alpaca import Alpaca
+from jesse.modes.import_candles_mode.drivers.AlphaVantage.AlphaVantage import AlphaVantage
 
 
 drivers = {
@@ -41,6 +43,10 @@ drivers = {
     exchanges.BINANCE_US_SPOT: BinanceUSSpot,
     exchanges.BYBIT_SPOT_TESTNET: BybitSpotTestnet,
     exchanges.BYBIT_SPOT: BybitSpot,
+
+    # Stock Market
+    exchanges.ALPACA: Alpaca,
+    exchanges.ALPHA_VANTAGE: AlphaVantage,
 }
 
 

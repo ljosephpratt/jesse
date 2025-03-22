@@ -396,6 +396,22 @@ exchange_info = {
         },
         "required_live_plan": "premium",
     },
+    # Alpaca
+    exchanges_enums.ALPACA: {
+        "name": exchanges_enums.ALPACA,
+        "url": "https://alpaca.markets",
+        "fee": 0.0,  # Alpaca typically has zero commission
+        "type": "spot",  # or "futures" depending on what you're implementing
+        "settlement_currency": "USD",
+        "supported_leverage_modes": ["cross"],
+        "supported_timeframes": [timeframes.MINUTE_1, timeframes.MINUTE_5, timeframes.MINUTE_15,
+                                timeframes.DAY_1],
+        "modes": {
+            "backtesting": True,
+            "live_trading": True,
+        },
+        "required_live_plan": "premium",
+    },
 }
 
 # list of supported exchanges for backtesting

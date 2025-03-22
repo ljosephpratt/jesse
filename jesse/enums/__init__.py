@@ -82,6 +82,8 @@ class exchanges:
     APEX_OMNI_PERPETUAL = 'Apex Omni Perpetual'
     GATE_USDT_PERPETUAL = 'Gate USDT Perpetual'
     GATE_SPOT = 'Gate Spot'
+    ALPACA = 'Alpaca'
+    ALPHA_VANTAGE = 'AlphaVantage'
 
 
 class migration_actions:

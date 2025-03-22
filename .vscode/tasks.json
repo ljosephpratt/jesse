@@ -1,0 +1,28 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "docker-compose-up",
+            "type": "shell",
+            "command": "docker compose -f ${workspaceFolder}/docker-compose.yml up -d && echo 'Waiting for services to initialize...' && sleep 2 && echo 'Docker services started successfully'",
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared",
+                "close": true
+            },
+            "isBackground": false,
+            "problemMatcher": []
+        },
+        {
+            "label": "docker-compose-down",
+            "type": "shell",
+            "command": "docker compose -f ${workspaceFolder}/docker-compose.yml down",
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared",
+                "close": true
+            },
+            "problemMatcher": []
+        }
+    ]
+}
