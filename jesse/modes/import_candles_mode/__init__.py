@@ -184,7 +184,8 @@ def run(
             )
 
             # store in the database
-            store_candles_list(candles)
+            if candles:
+                store_candles_list(candles)
 
         # add as much as driver's count to the temp_start_time
         start_date = start_date.shift(minutes=driver.count)
@@ -344,10 +345,24 @@ def _get_candles_from_backup_exchange(
             candles = backup_driver.fetch(symbol, temp_start_timestamp)
 
             if not len(candles):
-                raise CandleNotFoundInExchange(
-                    f"No candles exists in the market for this day: {jh.timestamp_to_time(temp_start_timestamp)[:10]} \n"
-                    "Try another start_date"
-                )
+                timestamp_datetime = jh.timestamp_to_arrow(
+                    temp_start_timestamp
+                ).datetime
+
+                is_weekend = (
+                    timestamp_datetime.weekday() >= 5
+                )  # 5 is Saturday, 6 is Sunday
+
+                if is_weekend:
+                    print(
+                        f"Skipping weekend day for US stock: {jh.timestamp_to_time(temp_start_timestamp)[:10]}"
+                    )
+                    continue
+                else:
+                    raise CandleNotFoundInExchange(
+                        f"No candles exists in the market for this day: {jh.timestamp_to_time(temp_start_timestamp)[:10]} \n"
+                        "Try another start_date"
+                    )
 
             # fill absent candles (if there's any)
             candles = _fill_absent_candles(
@@ -415,10 +430,20 @@ def _fill_absent_candles(
     end_timestamp: int,
 ) -> List[Dict[str, Union[str, Any]]]:
     if not temp_candles:
-        raise CandleNotFoundInExchange(
-            f"No candles exists in the market for this day: {jh.timestamp_to_time(start_timestamp)[:10]} \n"
-            "Try another start_date"
-        )
+        timestamp_datetime = jh.timestamp_to_arrow(start_timestamp).datetime
+
+        is_weekend = timestamp_datetime.weekday() >= 5  # 5 is Saturday, 6 is Sunday
+
+        if is_weekend:
+            print(
+                f"Skipping weekend day for US stock: {jh.timestamp_to_time(start_timestamp)[:10]}"
+            )
+            return []
+        else:
+            raise CandleNotFoundInExchange(
+                f"No candles exists in the market for this day: {jh.timestamp_to_time(start_timestamp)[:10]} \n"
+                "Try another start_date"
+            )
 
     symbol = temp_candles[0]["symbol"]
     exchange = temp_candles[0]["exchange"]
